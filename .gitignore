@@ -1,0 +1,17 @@
+# Frontend
+capstone-frontend/node_modules/
+capstone-frontend/dist/
+
+# Backend
+capstone-backend/venv/
+capstone-backend/__pycache__/
+capstone-backend/**/__pycache__/
+capstone-backend/staticfiles/
+capstone-backend/media/
+capstone-backend/models_kaggle_only/
+capstone-backend/db.sqlite3
+
+# Misc
+.env
+.DS_Store
+*.log

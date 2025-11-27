@@ -1,0 +1,123 @@
+/* Enhanced Global Styles for SafeRoute+ */
+:root {
+  --bg-primary: #0c0f1d;
+  --bg-secondary: #1a1f38;
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent-primary: #3b82f6;
+  --accent-secondary: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --critical: #ef4444;
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.2);
+  --shadow-global: 0 20px 40px rgba(0, 0, 0, 0.3);
+  --radius-small: 8px;
+  --radius-medium: 12px;
+  --radius-large: 16px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Utility Classes */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-light);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Leaflet Map Overrides */
+.leaflet-container {
+  background: var(--bg-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-global);
+  color: var(--text-primary);
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.leaflet-control-zoom a {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--text-primary) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--bg-card) !important;
+}
+
+/* Animation Keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  :root {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    font-size: 13px;
+  }
+}
