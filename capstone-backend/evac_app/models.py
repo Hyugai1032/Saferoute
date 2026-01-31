@@ -20,7 +20,7 @@ class EvacuationCenter(models.Model):
     province = models.CharField(max_length=100, default='Oriental Mindoro')
     municipality = models.ForeignKey(Municipality, on_delete=models.CASCADE)
     name = models.CharField(max_length=150)
-    barangay = models.ForeignKey(Barangay, on_delete=models.SET_NULL, max_length=150, null=True, blank=True)
+    barangay = models.ForeignKey(Barangay, on_delete=models.SET_NULL, null=True, blank=True)
     fund_source = models.CharField(max_length=255, null=True, blank=True)
     family_capacity_max = models.IntegerField(default=0)
     individual_capacity_max = models.IntegerField(default=0)
