@@ -190,7 +190,7 @@ export default {
         const response = await register(this.form);
 
         alert("Registration successful! Please log in.");
-        this.$router.push("/login");
+        this.$router.push("/auth/login");
 
       } catch (error) {
         console.error("Register error:", error);
