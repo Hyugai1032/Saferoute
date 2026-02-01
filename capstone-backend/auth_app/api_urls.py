@@ -1,11 +1,17 @@
-from django.urls import path
-from .api_views import UserProfileView, HazardReportView, RegisterView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .api_views import UserProfileView, HazardReportView, RegisterView, MunicipalityViewSet, BarangayViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+router = DefaultRouter()
+router.register(r'municipalities', MunicipalityViewSet, basename='municipality')
+router.register(r'barangays', BarangayViewSet, basename='barangay')
 
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('user/profile/', UserProfileView.as_view(), name='user_profile'),
-    path('hazards/', HazardReportView.as_view(), name='hazard_report')
+    path('hazards/', HazardReportView.as_view(), name='hazard_report'),
+    path('', include(router.urls)),
 ]

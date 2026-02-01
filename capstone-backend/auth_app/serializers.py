@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, HazardReport, HazardPhoto
+from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay
 from django.conf import settings
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -55,3 +55,17 @@ class HazardReportSerializer(serializers.ModelSerializer):
             HazardPhoto.objects.create(hazard=report, image=img)
 
         return report
+    
+class MunicipalitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Municipality
+        fields = ['id', 'name', 'province']
+        read_only_fields = ['id']
+
+class BarangaySerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source='municipality.name', read_only=True)
+    
+    class Meta:
+        model = Barangay
+        fields = ['id', 'name', 'municipality', 'municipality_name']
+        read_only_fields = ['id', 'municipality_name']
