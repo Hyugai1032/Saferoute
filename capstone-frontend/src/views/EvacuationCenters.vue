@@ -314,7 +314,7 @@ export default {
   methods: {
     async fetchMunicipalities() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/auth/municipalities/', {
+        const res = await fetch('http://127.0.0.1:8000/api/municipalities/', {
           headers: getAuthHeader()
         });
         if (res.ok) {
@@ -327,7 +327,7 @@ export default {
 
     async fetchBarangays() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/auth/barangays/', {
+        const res = await fetch('http://127.0.0.1:8000/api/barangays/', {
           headers: getAuthHeader()
         });
         if (res.ok) {

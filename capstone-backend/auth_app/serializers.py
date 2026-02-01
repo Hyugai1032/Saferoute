@@ -57,12 +57,21 @@ class HazardReportSerializer(serializers.ModelSerializer):
         return report
     
 class MunicipalitySerializer(serializers.ModelSerializer):
+    """
+    Serializer for Municipality model
+    Returns municipality data for dropdowns and displays
+    """
     class Meta:
         model = Municipality
         fields = ['id', 'name', 'province']
         read_only_fields = ['id']
 
+
 class BarangaySerializer(serializers.ModelSerializer):
+    """
+    Serializer for Barangay model
+    Returns barangay data with municipality reference
+    """
     municipality_name = serializers.CharField(source='municipality.name', read_only=True)
     
     class Meta:
