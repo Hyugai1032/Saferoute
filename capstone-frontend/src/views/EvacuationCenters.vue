@@ -156,8 +156,8 @@
               </span>
             </td>
             <td>
-              <span v-if="c.latitude && c.longitude" class="coords">
-                {{ c.latitude.toFixed(4) }}, {{ c.longitude.toFixed(4) }}
+              <span v-if="c.latitude != null && c.longitude != null" class="coords">
+                {{ formatCoord(c.latitude) }}, {{ formatCoord(c.longitude) }}
               </span>
               <span v-else class="text-muted">-</span>
             </td>
@@ -547,7 +547,13 @@ export default {
         console.error(err);
         alert('Delete failed: ' + err.message);
       }
-    }
+    },
+
+    formatCoord(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(4) : '-';
+    },
+
   }
 }
 </script>

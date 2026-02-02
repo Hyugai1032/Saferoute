@@ -8,6 +8,21 @@ from openpyxl import load_workbook
 import csv
 from io import StringIO
 
+def normalize_header(h: str) -> str:
+    if h is None:
+        return ""
+    h = str(h)
+
+    # remove BOM + quotes + normalize whitespace/newlines
+    h = h.replace("\ufeff", "")
+    h = h.replace("\n", " ").replace("\r", " ")
+    h = h.replace('"', "").replace("'", "")
+    h = h.strip().lower()
+    h = re.sub(r"\s+", " ", h)
+
+    return h
+
+
 
 def dms_to_decimal(dms_str):
     """Convert DMS coordinates to decimal format"""
@@ -62,167 +77,165 @@ def dms_to_decimal(dms_str):
 
 
 def read_csv_rows(file_obj):
-    """
-    Read CSV file and return list of dictionaries
-    """
     if hasattr(file_obj, 'read'):
         content = file_obj.read()
         if isinstance(content, bytes):
-            content = content.decode('utf-8', errors='ignore')
+            content = content.decode('utf-8-sig', errors='ignore')
     else:
         content = str(file_obj)
-    
+
     f = StringIO(content)
     reader = csv.DictReader(f)
-    
+
+    if reader.fieldnames:
+        reader.fieldnames = [normalize_header(h) for h in reader.fieldnames]
+
     rows = []
     for row in reader:
-        normalized_row = {k.lower().strip(): v for k, v in row.items()}
-        rows.append(normalized_row)
-    
+        rows.append({normalize_header(k): v for k, v in row.items()})
     return rows
 
 
+
 def read_xlsx_rows(file):
-    """
-    Read XLSX file - handles merged cells and complex header structure
-    """
     import openpyxl
-    
+
     wb = openpyxl.load_workbook(file, data_only=True)
     sheet = wb.active
-    
-    print(f"\n{'='*80}")
-    print(f"📊 Reading Excel file: {sheet.title}")
-    print(f"📏 Sheet dimensions: {sheet.max_row} rows x {sheet.max_column} columns")
-    print(f"{'='*80}")
-    
-    # Get ALL rows first
+
     all_rows = list(sheet.iter_rows(values_only=True))
-    
-    # Find header row by looking for key columns
+
+    # ---- find the "parent header" row (Location, Name of Facility, Coordinates, Capacity, etc.)
     header_row_idx = None
-    header = None
-    
-    for idx, row in enumerate(all_rows[:20], start=1):  # Check first 20 rows
-        # Convert to lowercase strings
-        row_lower = [str(cell).lower().strip() if cell else "" for cell in row]
-        
-        # Look for characteristic header keywords
-        has_municipality = any('municipality' in cell for cell in row_lower)
-        has_barangay = any('barangay' in cell for cell in row_lower)
-        has_facility_or_name = any('facility' in cell or 'name' in cell for cell in row_lower)
-        
-        if has_municipality and (has_barangay or has_facility_or_name):
-            print(f"✅ Found header at row {idx}")
+    parent = None
+    for idx, row in enumerate(all_rows[:30], start=1):
+        row_lower = [normalize_header(cell) for cell in row]
+        has_location = any("location" == c for c in row_lower)
+        has_facility = any("name of facility" in c or "facility" in c for c in row_lower)
+        has_coords = any("coordinates" in c for c in row_lower)
+        if has_location and has_facility and has_coords:
             header_row_idx = idx
-            header = row  # Keep original case
+            parent = row
             break
-    
+
     if not header_row_idx:
         print("❌ ERROR: Could not find header row!")
         return []
-    
-    # Map column indices to names
+
+    # ---- child header is the NEXT row (Province/Municipality/Barangay + Families/Individuals)
+    child = all_rows[header_row_idx] if header_row_idx < len(all_rows) else None
+
+    # ---- build column_map using parent+child headers
     column_map = {}
-    
-    # Check if there's a row above the header that might contain column labels
-    if header_row_idx > 1:
-        row_above = all_rows[header_row_idx - 2]  # -2 because we're 1-indexed
-    else:
-        row_above = None
-    
-    # Build column mapping
-    for col_idx, cell_value in enumerate(header):
-        if cell_value and str(cell_value).strip():
-            col_name = str(cell_value).lower().strip()
-            column_map[col_idx] = col_name
-        elif row_above and row_above[col_idx]:
-            # Use value from row above if current cell is empty
-            col_name = str(row_above[col_idx]).lower().strip()
-            column_map[col_idx] = col_name
+    for col_idx in range(len(parent)):
+        p = normalize_header(parent[col_idx])
+        c = normalize_header(child[col_idx]) if child and col_idx < len(child) else ""
+
+        # Your sheet structure:
+        # parent: Location -> child: Province/Municipality/Barangay
+        if p == "location" and c in {"province", "municipality", "barangay"}:
+            key = c
+
+        # parent: Capacity -> child: Families/Individuals (we want keys EXACTLY "families"/"individuals")
+        elif p == "capacity" and c in {"families", "individuals"}:
+            key = c
+
+        # if child header exists, prefer it (for clean keys)
+        elif c:
+            key = c
+
+        # else use parent header
+        elif p:
+            key = p
+
         else:
-            column_map[col_idx] = f"col_{col_idx}"  # Fallback name
-    
-    print(f"\n📋 Column mapping:")
-    for idx, name in list(column_map.items())[:12]:  # Show first 12 columns
-        print(f"  Column {idx}: '{name}'")
-    
-    # Now process data rows
+            key = f"col_{col_idx}"
+
+        column_map[col_idx] = key
+
+    # ---- process data rows (actual data starts after the child header row)
+    data_start = header_row_idx + 1  # because header_row_idx is 1-based, and we used parent+child
     rows = []
+
     current_province = None
     current_municipality = None
     current_barangay = None
-    pending_lat = None  # Store latitude waiting for longitude
-    
-    for row_idx in range(header_row_idx, len(all_rows)):
+
+    last_facility_row = None
+    pending_lat = None
+
+    for row_idx in range(data_start, len(all_rows)):
         row_values = all_rows[row_idx]
-        
-        # Skip completely empty rows
-        if all(v is None or str(v).strip() == '' for v in row_values):
+
+        # skip empty rows
+        if all(v is None or str(v).strip() == "" for v in row_values):
             continue
-        
-        # Build row dictionary using column map
+
         row_dict = {}
         for col_idx, value in enumerate(row_values):
-            col_name = column_map.get(col_idx, f"col_{col_idx}")
-            if value is not None and str(value).strip():
-                row_dict[col_name] = value
-        
-        # Handle merged cells - carry forward values
-        province_val = str(row_dict.get('province', '')).strip() if row_dict.get('province') else ''
-        municipality_val = str(row_dict.get('municipality', '')).strip() if row_dict.get('municipality') else ''
-        barangay_val = str(row_dict.get('barangay', '')).strip() if row_dict.get('barangay') else ''
-        
-        if province_val and province_val not in ['Province', 'PROVINCE']:
-            current_province = province_val
+            if col_idx not in column_map:
+                continue
+            if value is None:
+                continue
+            s = str(value).strip()
+            if s == "":
+                continue
+            row_dict[column_map[col_idx]] = value
+
+        # carry forward merged cells for province/municipality/barangay
+        prov = str(row_dict.get("province", "")).strip()
+        mun = str(row_dict.get("municipality", "")).strip()
+        brgy = str(row_dict.get("barangay", "")).strip()
+
+        if prov and "province" not in prov.lower():
+            current_province = prov
         elif current_province:
-            row_dict['province'] = current_province
-        
-        if municipality_val and municipality_val not in ['Municipality', 'MUNICIPALITY']:
-            current_municipality = municipality_val
+            row_dict["province"] = current_province
+
+        if mun and "municipality" not in mun.lower():
+            current_municipality = mun
         elif current_municipality:
-            row_dict['municipality'] = current_municipality
-        
-        if barangay_val and barangay_val not in ['Barangay', 'BARANGAY']:
-            current_barangay = barangay_val
+            row_dict["municipality"] = current_municipality
+
+        if brgy and "barangay" not in brgy.lower():
+            current_barangay = brgy
         elif current_barangay:
-            row_dict['barangay'] = current_barangay
-        
-        # Get facility name - try multiple possible column names
+            row_dict["barangay"] = current_barangay
+
+        # standardize facility name into "name of facility"
         facility = None
-        for possible_name in ['name of facility', 'facility name', 'facility', 'name', 'evacuation center']:
-            if possible_name in row_dict:
-                facility = str(row_dict[possible_name]).strip()
-                if facility and facility not in ['Name of Facility', 'NAME OF FACILITY', 'Facility']:
-                    row_dict['name of facility'] = facility  # Standardize the key
+        for k in ["name of facility", "facility name", "facility", "name", "evacuation center"]:
+            if k in row_dict:
+                facility = str(row_dict[k]).strip()
+                if facility:
+                    row_dict["name of facility"] = facility
                     break
-        
-        # Handle coordinates - THIS IS THE KEY FIX
-        coord_text = str(row_dict.get('coordinates \n(latitude and longitude)', '') or 
-                        row_dict.get('coordinates (latitude and longitude)', '') or 
-                        row_dict.get('coordinates', '') or '').strip()
-        
+
+        # standardize coordinates into ONE key
+        coord_text = str(
+            row_dict.get("coordinates (latitude and longitude)")
+            or row_dict.get("coordinates")
+            or ""
+        ).strip()
+
+        # ✅ IMPORTANT: In your file, the facility row contains "Lat: ...", the next row contains "Long: ..."
+        # So we DO NOT skip the facility row.
         if coord_text:
-            if 'lat' in coord_text.lower():
-                # This is a latitude row - store it and skip adding this row
+            if "lat" in coord_text.lower():
                 pending_lat = coord_text
-                continue  # Don't add this row to results yet
-            elif 'long' in coord_text.lower() and pending_lat:
-                # This is a longitude row - combine with previous latitude
-                if rows:  # If we have rows already
-                    # Add combined coordinates to the LAST row (the facility row)
-                    combined = f"{pending_lat}, {coord_text}"
-                    rows[-1]['coordinates (latitude and longitude)'] = combined
-                pending_lat = None  # Clear pending
-                continue  # Don't add this row either
-        
-        # Only add rows with facility names
-        if facility and facility not in ['Name of Facility', 'NAME OF FACILITY', 'Facility', 'Name']:
+                # ensure the key is consistent
+                row_dict["coordinates (latitude and longitude)"] = coord_text
+
+            elif "long" in coord_text.lower():
+                # longitude-only row: attach to last facility row
+                if pending_lat and last_facility_row is not None:
+                    last_facility_row["coordinates (latitude and longitude)"] = f"{pending_lat}, {coord_text}"
+                pending_lat = None
+                continue  # do not add the longitude-only row as a record
+
+        # Only save rows that actually represent a facility
+        if facility:
             rows.append(row_dict)
-    
-    print(f"\n{'='*80}")
-    print(f"✅ Successfully processed {len(rows)} evacuation centers")
-    print(f"{'='*80}\n")
-    
+            last_facility_row = rows[-1]
+
     return rows
