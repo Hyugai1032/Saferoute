@@ -126,6 +126,64 @@
 
     <section class="list">
       <h3>Evacuation Centers ({{ centers.length }})</h3>
+      <section class="filters">
+        <h3>Filter Centers</h3>
+
+        <div class="filter-row">
+          <select v-model="filters.municipality">
+            <option value="">All Municipalities</option>
+            <option v-for="m in municipalities" :key="m.id" :value="m.id">
+              {{ m.name }}
+            </option>
+          </select>
+
+          <select v-model="filters.barangay">
+            <option value="">All Barangays</option>
+            <option
+              v-for="b in allBarangays.filter(br => !filters.municipality || br.municipality === filters.municipality)"
+              :key="b.id"
+              :value="b.id"
+            >
+              {{ b.name }}
+            </option>
+          </select>
+
+          <select v-model="filters.status">
+            <option value="">All Status</option>
+            <option value="PERMANENT">Permanent</option>
+            <option value="TEMPORARY">Temporary</option>
+          </select>
+
+          <select v-model="filters.flood_susceptibility">
+            <option value="">Flood Risk</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+
+          <select v-model="filters.landslide_susceptibility">
+            <option value="">Landslide Risk</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+
+          <select v-model="filters.used_for_covid">
+            <option value="">COVID Usage</option>
+            <option :value="true">Used</option>
+            <option :value="false">Not Used</option>
+          </select>
+
+          <input
+            v-model="filters.search"
+            placeholder="Search name / remarks"
+            type="text"
+          />
+
+          <button @click="fetchCenters">Apply</button>
+          <button @click="resetFilters">Reset</button>
+        </div>
+      </section>
       <div v-if="loading" class="loading">Loading centers...</div>
       <div v-else-if="centers.length === 0" class="empty">No centers found</div>
       <table v-else>
@@ -293,6 +351,15 @@ export default {
         used_for_covid: false,
         remarks: '',
       },
+      filters: {
+        municipality: '',
+        barangay: '',
+        status: '',
+        flood_susceptibility: '',
+        landslide_susceptibility: '',
+        used_for_covid: '',
+        search: '',
+      },
       editing: false,
       editForm: null,
     }
@@ -408,7 +475,17 @@ export default {
       this.loading = true;
 
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/evac_centers/evac-centers/', {
+        const params = new URLSearchParams();
+
+        Object.entries(this.filters).forEach(([key, val]) => {
+          if (val !== '' && val !== null) {
+            params.append(key, val);
+          }
+        });
+
+        const url = `http://127.0.0.1:8000/api/evac_centers/evac-centers/?${params.toString()}`;
+
+        const res = await fetch(url, {
           headers: getAuthHeader()
         });
 
@@ -422,6 +499,19 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    resetFilters() {
+      this.filters = {
+        municipality: '',
+        barangay: '',
+        status: '',
+        flood_susceptibility: '',
+        landslide_susceptibility: '',
+        used_for_covid: '',
+        search: '',
+      };
+      this.fetchCenters();
     },
 
     async createCenter() {

@@ -7,6 +7,8 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 from .models import EvacuationCenter
 from .serializers import EvacuationCenterSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
@@ -17,6 +19,39 @@ from auth_app.models import Municipality, Barangay
 class EvacuationCenterViewSet(viewsets.ModelViewSet):
     queryset = EvacuationCenter.objects.all().order_by('-created_at')
     serializer_class = EvacuationCenterSerializer
+
+    # Enable filtering
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Exact-match filters
+    filterset_fields = {
+        'municipality': ['exact'],
+        'barangay': ['exact'],
+        'status': ['exact'],
+        'flood_susceptibility': ['exact'],
+        'landslide_susceptibility': ['exact'],
+        'used_for_covid': ['exact'],
+    }
+
+    # Optional search (text)
+    search_fields = [
+        'name',
+        'remarks',
+        'fund_source',
+    ]
+
+    # Optional ordering
+    ordering_fields = [
+        'name',
+        'family_capacity_max',
+        'individual_capacity_max',
+        'created_at',
+    ]
+
 
 
 class EvacUploadAPIView(APIView):
