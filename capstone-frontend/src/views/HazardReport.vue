@@ -32,19 +32,19 @@ import { ref, onMounted } from "vue";
 const reports = ref([]);
 
 async function loadReports() {
-  const res = await fetch("http://localhost:8000/api/hazards/pending");
+  const res = await fetch("http://127.0.0.1:8000/api/hazards/pending");
   reports.value = await res.json();
 }
 
 async function approve(id) {
-  await fetch(`http://localhost:8000/api/hazards/${id}/approve/`, {
+  await fetch(`http://127.0.0.1:8000/api/hazards/${id}/approve/`, {
     method: "PATCH",
   });
   loadReports();
 }
 
 async function dismiss(id) {
-  await fetch(`http://localhost:8000/api/hazards/${id}/dismiss/`, {
+  await fetch(`http://127.0.0.1:8000/api/hazards/${id}/dismiss/`, {
     method: "PATCH",
   });
   loadReports();

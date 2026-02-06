@@ -93,6 +93,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_approved = models.BooleanField(default=False)
 
     USERNAME_FIELD = "email"        # <— login field
     REQUIRED_FIELDS = ["first_name", "last_name"]
