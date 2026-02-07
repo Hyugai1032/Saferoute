@@ -203,8 +203,8 @@
         <tbody>
           <tr v-for="c in centers" :key="c.id">
             <td>{{ c.name }}</td>
-            <td>{{ getMunicipalityName(c.municipality) }}</td>
-            <td>{{ getBarangayName(c.barangay) }}</td>
+            <td>{{ c.municipality_name || '-' }}</td>
+            <td>{{ c.barangay_name || '-' }}</td>
             <td>{{ c.fund_source || '-' }}</td>
             <td>{{ c.family_capacity_max || 0 }}</td>
             <td>{{ c.individual_capacity_max || 0 }}</td>
@@ -239,13 +239,6 @@
         <button :disabled="!pagination.next" @click="fetchCenters(Number(pagination.page) + 1)">
           Next
         </button>
-
-        <select v-model.number="pagination.page_size" @change="fetchCenters(1)">
-          <option :value="5">5</option>
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-        </select>
       </div>
     </section>
 
