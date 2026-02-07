@@ -32,7 +32,7 @@
           <label>Municipality *</label>
           <select v-model="form.municipality" required>
             <option value="">-- Select Municipality --</option>
-            <option v-for="mun in municipalities" :key="mun.id" :value="mun.id">
+            <option v-for="mun in municipalities" :key="mun.id" :value="mun.id" v-if="mun">
               {{ mun.name }}
             </option>
           </select>
@@ -180,7 +180,7 @@
             type="text"
           />
 
-          <button @click="fetchCenters">Apply</button>
+          <button @click="fetchCenters(1)">Apply</button>
           <button @click="resetFilters">Reset</button>
         </div>
       </section>
@@ -226,6 +226,27 @@
           </tr>
         </tbody>
       </table>
+      <div class="pager" v-if="pagination.count > 0">
+        <button :disabled="!pagination.previous" @click="fetchCenters(Number(pagination.page) - 1)">
+          Prev
+        </button>
+
+        <span>
+          Page {{ pagination.page }} of {{ Math.ceil(pagination.count / pagination.page_size) }}
+          ({{ pagination.count }} total)
+        </span>
+
+        <button :disabled="!pagination.next" @click="fetchCenters(Number(pagination.page) + 1)">
+          Next
+        </button>
+
+        <select v-model.number="pagination.page_size" @change="fetchCenters(1)">
+          <option :value="5">5</option>
+          <option :value="10">10</option>
+          <option :value="25">25</option>
+          <option :value="50">50</option>
+        </select>
+      </div>
     </section>
 
     <!-- Edit Modal -->
@@ -362,13 +383,20 @@ export default {
       },
       editing: false,
       editForm: null,
+      pagination: {
+        page: 1,
+        page_size: 10,
+        count: 0,
+        next: null,
+        previous: null,
+      },
     }
   },
 
   computed: {
     filteredBarangays() {
       if (!this.form.municipality) return [];
-      return this.allBarangays.filter(b => b.municipality === this.form.municipality);
+      return this.allBarangays.filter(b => b.municipality === Number(this.form.municipality));
     }
   },
 
@@ -381,12 +409,15 @@ export default {
   methods: {
     async fetchMunicipalities() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/municipalities/', {
+        const res = await fetch('http://127.0.0.1:8000/api/municipalities/?page_size=9999', {
           headers: getAuthHeader()
         });
-        if (res.ok) {
-          this.municipalities = await res.json();
-        }
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.results || []);
+
+        this.municipalities = list.filter(m => m && m.id != null);
       } catch (err) {
         console.error('Failed to fetch municipalities:', err);
       }
@@ -394,16 +425,20 @@ export default {
 
     async fetchBarangays() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/barangays/', {
+        const res = await fetch('http://127.0.0.1:8000/api/barangays/?page_size=9999', {
           headers: getAuthHeader()
         });
-        if (res.ok) {
-          this.allBarangays = await res.json();
-        }
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.results || []);
+
+        this.allBarangays = list.filter(b => b && b.id != null);
       } catch (err) {
         console.error('Failed to fetch barangays:', err);
       }
     },
+
 
     getMunicipalityName(munId) {
       const mun = this.municipalities.find(m => m.id === munId);
@@ -471,28 +506,37 @@ export default {
       }
     },
 
-    async fetchCenters() {
+    async fetchCenters(page = this.pagination.page) {
       this.loading = true;
 
       try {
+        const pageNum = Number(page) || 1; // ✅ force numeric
+
         const params = new URLSearchParams();
 
+        // filters
         Object.entries(this.filters).forEach(([key, val]) => {
           if (val !== '' && val !== null) {
             params.append(key, val);
           }
         });
 
+        // pagination
+        params.set("page", pageNum);
+        params.set("page_size", Number(this.pagination.page_size) || 10);
+
         const url = `http://127.0.0.1:8000/api/evac_centers/evac-centers/?${params.toString()}`;
 
-        const res = await fetch(url, {
-          headers: getAuthHeader()
-        });
-
+        const res = await fetch(url, { headers: getAuthHeader() });
         if (!res.ok) throw new Error('Failed to fetch');
 
         const data = await res.json();
-        this.centers = Array.isArray(data) ? data : data.results || [];
+
+        this.centers = data.results || [];
+        this.pagination.count = data.count || 0;
+        this.pagination.next = data.next;
+        this.pagination.previous = data.previous;
+        this.pagination.page = pageNum; // ✅ store numeric
       } catch (err) {
         console.error(err);
         alert('Failed to load centers');
@@ -511,7 +555,7 @@ export default {
         used_for_covid: '',
         search: '',
       };
-      this.fetchCenters();
+      this.fetchCenters(1);
     },
 
     async createCenter() {

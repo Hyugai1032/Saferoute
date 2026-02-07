@@ -97,10 +97,7 @@
           </table>
         </div>
 
-        <!-- Weather Line Chart -->
-        <div class="chart-card full-width weather-chart-card">
-          <canvas id="weatherChart"></canvas>
-        </div>
+        
       </div>
 
       <div v-else>
@@ -558,5 +555,11 @@ function updateChart(type) {
   .chart-card {
     height: 250px;
   }
+}
+
+thead {
+  position: static;
+  top: 0;
+  z-index: 10;
 }
 </style>
