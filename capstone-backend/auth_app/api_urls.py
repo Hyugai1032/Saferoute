@@ -1,9 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .api_views import UserProfileView, HazardReportView, RegisterView, MunicipalityViewSet, BarangayViewSet
+from .api_views import UserProfileView, HazardReportView, RegisterView, MunicipalityViewSet, BarangayViewSet, UserViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
+router.register(r'users', UserViewSet, basename='user')
 router.register(r'municipalities', MunicipalityViewSet, basename='municipality')
 router.register(r'barangays', BarangayViewSet, basename='barangay')
 
