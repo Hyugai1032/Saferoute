@@ -65,7 +65,8 @@ const routes = [
       { path: 'analytics', name: 'Analytics', component: Analytics },
       { path: 'centers', name: 'EvacuationCenters', component: EvacuationCenters },
       { path: 'map', name: 'GISMap', component: GISMap },
-      { path: 'users', name: 'UserMgmt', component: UserMgnt }
+      { path: 'users', name: 'UserMgmt', component: UserMgnt },
+      { path: 'logs', name: 'Evacuation Logs', component: StaffLogs }
     ]
   },
 

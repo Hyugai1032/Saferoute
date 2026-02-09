@@ -267,6 +267,7 @@ class EvacUploadAPIView(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 class EvacuationLogViewSet(viewsets.ModelViewSet):
+    queryset = EvacuationLog.objects.select_related("center", "reporting_staff").all()
     serializer_class = EvacuationLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -279,13 +280,19 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = EvacuationLog.objects.select_related("center", "reporting_staff")
 
-        if getattr(user, "role", None) == "EVAC_CENTER_STAFF":
-            if not getattr(user, "assigned_center_id", None):
+        # optional filter by center id (for admins)
+        center_id = self.request.query_params.get("center")
+        if center_id:
+            qs = qs.filter(center_id=center_id)
+
+        # Staff: only their assigned center
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
                 return qs.none()
             return qs.filter(center_id=user.assigned_center_id)
 
         # Municipal admin scope (if center has municipality FK)
-        if getattr(user, "role", None) == "MUNICIPAL_ADMIN":
+        if user.role in ["MUNICIPAL_ADMIN"]:
             return qs.filter(center__municipality=user.municipality)
 
         return qs
@@ -294,11 +301,15 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         user = self.request.user
         center = serializer.validated_data.get("center")
 
-        if getattr(user, "role", None) == "EVAC_CENTER_STAFF":
-            if not getattr(user, "assigned_center_id", None):
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
                 raise PermissionDenied("Staff has no assigned center.")
             if center.id != user.assigned_center_id:
                 raise PermissionDenied("You can only log for your assigned center.")
+
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only log for centers in your municipality.")
 
         serializer.save(reporting_staff=user)
 

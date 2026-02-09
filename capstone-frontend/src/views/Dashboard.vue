@@ -167,8 +167,10 @@ const sortedCenters = computed(() =>
 
 // Methods
 const logout = () => {
-  localStorage.removeItem('isAuthenticated')
-  localStorage.removeItem('userData')
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('userData');
   router.push('/auth/login')
 }
 

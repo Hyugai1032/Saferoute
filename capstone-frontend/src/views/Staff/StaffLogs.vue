@@ -3,124 +3,196 @@
     <div class="page-header">
       <div>
         <h1>Evacuation Logs</h1>
-        <p>Record incoming/outgoing evacuees for your assigned center.</p>
+        <p class="muted">Record and review incoming/outgoing evacuees</p>
       </div>
 
       <div class="actions">
-        <button class="btn" @click="openModal = true" :disabled="!centerId">
+        <button class="btn" @click="openCreate" :disabled="!canCreate">
           + Add Log
         </button>
       </div>
     </div>
 
-    <!-- Center info -->
-    <div class="card" v-if="centerName">
-      <div class="row">
+    <!-- FILTER / CONTROLS -->
+    <div class="card">
+      <div class="row" style="align-items: center;">
         <div>
-          <div class="label">Center</div>
-          <div class="value">{{ centerName }}</div>
+          <div class="label">Logged in as</div>
+          <div>
+            <b>{{ me.email || "-" }}</b>
+            <span class="muted">({{ me.role || "-" }})</span>
+          </div>
         </div>
+
+        <div v-if="isStaff">
+          <div class="label">Assigned center</div>
+          <div><b>{{ me.assigned_center_name || "Unassigned" }}</b></div>
+        </div>
+
         <div>
-          <div class="label">Current Total (Individuals)</div>
-          <div class="value">{{ currentTotal }}</div>
+          <div class="label">Current Total Evacuees</div>
+          <div class="value">{{ currentEvacuees }}</div>
+          <div class="muted">Based on latest log</div>
+        </div>
+
+        <div v-if="isAdminOrMunicipalOrResponse" style="min-width: 320px;">
+          <div class="label">Filter by center</div>
+          <select v-model.number="filters.center" @change="fetchLogs(1)" class="control">
+            <option :value="null">All centers</option>
+            <option v-for="c in centers" :key="c.id" :value="c.id">
+              {{ c.name }} ({{ c.municipality_name }})
+            </option>
+          </select>
+        </div>
+
+        <div style="margin-left:auto; display:flex; gap:10px;">
+          <button class="btn ghost" @click="fetchLogs(1)" :disabled="loading">
+            Refresh logs
+          </button>
+          <button
+            v-if="isAdminOrMunicipalOrResponse"
+            class="btn ghost"
+            @click="fetchCenters()"
+          >
+            Refresh centers
+          </button>
         </div>
       </div>
     </div>
 
-    <div v-if="!centerId" class="card warn">
-      <b>No assigned center found.</b>
-      <div class="muted">
-        Ask admin to assign your evacuation center (CustomUser.assigned_center).
+    <!-- TABLE -->
+    <div class="table-card">
+      <div class="pad" style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <b>Logs</b>
+          <div class="muted" style="font-size: 12px;">
+            {{ pagination.count || logs.length || 0 }} total
+          </div>
+        </div>
+
+        <div class="muted" v-if="loading">Loading...</div>
       </div>
-    </div>
 
-    <!-- Table -->
-    <div class="table-card" v-if="centerId">
-      <div v-if="loading" class="pad">Loading...</div>
-
-      <div v-else>
+      <div class="pad" v-if="!loading">
         <table class="table">
           <thead>
             <tr>
               <th>Date</th>
+              <th>Center</th>
               <th>In (Ind)</th>
               <th>Out (Ind)</th>
               <th>Vulnerable</th>
               <th>Total Current</th>
-              <th>Remarks</th>
+              <th class="remarks">Remarks</th>
+              <th style="width: 200px;">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-for="log in logs" :key="log.id">
-              <td>{{ formatDT(log.date_recorded) }}</td>
+              <td>{{ formatDate(log.date_recorded) }}</td>
+              <td>{{ log.center_name || log.center }}</td>
               <td>{{ log.individuals_in }}</td>
               <td>{{ log.individuals_out }}</td>
               <td>{{ log.vulnerable_individuals }}</td>
               <td><b>{{ log.total_current }}</b></td>
-              <td class="remarks">{{ log.remarks || "-" }}</td>
+              <td class="remarks">
+                {{ log.remarks || "-" }}
+              </td>
+              <td style="display:flex; gap:8px;">
+                <button class="btn ghost" @click="openEdit(log)">Edit</button>
+                <button class="btn" @click="deleteLog(log)">Delete</button>
+              </td>
             </tr>
 
-            <tr v-if="!loading && logs.length === 0">
-              <td colspan="6" class="empty">No logs yet.</td>
+            <tr v-if="logs.length === 0">
+              <td colspan="8" class="empty">No logs found.</td>
             </tr>
           </tbody>
         </table>
+      </div>
 
-        <div class="pager">
-          <button class="btn ghost" :disabled="!prevUrl" @click="fetchLogsByUrl(prevUrl)">Prev</button>
-          <button class="btn ghost" :disabled="!nextUrl" @click="fetchLogsByUrl(nextUrl)">Next</button>
+      <!-- Pagination -->
+      <div class="pager" v-if="pagination.count > 0">
+        <button class="btn ghost" :disabled="!pagination.previous" @click="fetchLogs(pagination.page - 1)">
+          Prev
+        </button>
+
+        <div class="muted" style="align-self:center;">
+          Page {{ pagination.page }} of {{ Math.ceil(pagination.count / pagination.page_size) }}
         </div>
+
+        <button class="btn ghost" :disabled="!pagination.next" @click="fetchLogs(pagination.page + 1)">
+          Next
+        </button>
       </div>
     </div>
 
-    <!-- Modal -->
-    <div v-if="openModal" class="backdrop" @click.self="closeModal">
+    <!-- MODAL (uses your .backdrop/.modal/.grid CSS) -->
+    <div v-if="modal.open" class="backdrop" @click.self="closeModal">
       <div class="modal">
-        <h3>Add Log</h3>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h3 style="margin:0;">
+            {{ modal.mode === 'create' ? 'Add Log' : 'Edit Log' }}
+          </h3>
+          <button class="btn ghost" @click="closeModal" :disabled="saving">Close</button>
+        </div>
 
-        <form @submit.prevent="submit">
-          <div class="grid">
-            <label>
-              Individuals In
-              <input type="number" min="0" v-model.number="form.individuals_in" />
-            </label>
+        <div class="grid">
+          <!-- Center selector -->
+          <label v-if="isAdminOrMunicipalOrResponse" class="wide">
+            Evacuation Center
+            <select v-model.number="modal.form.center">
+              <option :value="null">Select center</option>
+              <option v-for="c in centers" :key="c.id" :value="c.id">
+                {{ c.name }} ({{ c.municipality_name }})
+              </option>
+            </select>
+          </label>
 
-            <label>
-              Individuals Out
-              <input type="number" min="0" v-model.number="form.individuals_out" />
-            </label>
+          <label>
+            Families In
+            <input v-model.number="modal.form.families_in" type="number" min="0" />
+          </label>
 
-            <label>
-              Families In
-              <input type="number" min="0" v-model.number="form.families_in" />
-            </label>
+          <label>
+            Individuals In
+            <input v-model.number="modal.form.individuals_in" type="number" min="0" />
+          </label>
 
-            <label>
-              Families Out
-              <input type="number" min="0" v-model.number="form.families_out" />
-            </label>
+          <label>
+            Families Out
+            <input v-model.number="modal.form.families_out" type="number" min="0" />
+          </label>
 
-            <label>
-              Vulnerable Individuals
-              <input type="number" min="0" v-model.number="form.vulnerable_individuals" />
-            </label>
+          <label>
+            Individuals Out
+            <input v-model.number="modal.form.individuals_out" type="number" min="0" />
+          </label>
 
-            <label class="wide">
-              Remarks
-              <textarea rows="3" v-model="form.remarks"></textarea>
-            </label>
-          </div>
+          <label class="wide">
+            Vulnerable Individuals
+            <input v-model.number="modal.form.vulnerable_individuals" type="number" min="0" />
+          </label>
 
-          <div class="error" v-if="error">{{ error }}</div>
+          <label class="wide">
+            Remarks
+            <textarea v-model="modal.form.remarks" rows="3" placeholder="Optional notes..."></textarea>
+          </label>
+        </div>
 
-          <div class="modal-actions">
-            <button type="button" class="btn ghost" @click="closeModal">Cancel</button>
-            <button type="submit" class="btn" :disabled="submitting">
-              {{ submitting ? "Saving..." : "Save" }}
-            </button>
-          </div>
-        </form>
+        <div class="error" v-if="modalError">
+          {{ modalError }}
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn" @click="saveLog" :disabled="saving">
+            {{ saving ? "Saving..." : "Save" }}
+          </button>
+          <button class="btn ghost" @click="closeModal" :disabled="saving">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
 
@@ -128,93 +200,154 @@
 </template>
 
 <script>
-import api from "@/services/api"; // your axios instance with baseURL + auth header
-import { getUserProfile } from "@/services/authService";
+import api from "../../services/api";
 
 export default {
   name: "StaffLogs",
   data() {
     return {
-      loading: false,
-      submitting: false,
-      openModal: false,
-      error: "",
-
-      centerId: null,
-      centerName: "",
+      me: {},
+      centers: [],
       logs: [],
+      loading: false,
+      saving: false,
+      modalError: "",
 
-      nextUrl: null,
-      prevUrl: null,
+      filters: {
+        center: null, // admin filter
+      },
 
-      form: {
-        families_in: 0,
-        individuals_in: 0,
-        families_out: 0,
-        individuals_out: 0,
-        vulnerable_individuals: 0,
-        remarks: "",
+      pagination: {
+        page: 1,
+        page_size: 10,
+        count: 0,
+        next: null,
+        previous: null,
+      },
+
+      modal: {
+        open: false,
+        mode: "create", // create | edit
+        id: null,
+        form: {
+          center: null,
+          families_in: 0,
+          individuals_in: 0,
+          families_out: 0,
+          individuals_out: 0,
+          vulnerable_individuals: 0,
+          remarks: "",
+        },
       },
     };
   },
 
   computed: {
-    currentTotal() {
-      // newest log is first (ordering -date_recorded), so total_current is at logs[0]
-      return this.logs.length ? (this.logs[0].total_current ?? 0) : 0;
+    isStaff() {
+      return this.me.role === "EVAC_CENTER_STAFF";
+    },
+    isAdminOrMunicipalOrResponse() {
+      return ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "RESPONSE_TEAM"].includes(this.me.role);
+    },
+    canCreate() {
+      // Staff can create only if assigned
+      if (this.isStaff) return !!this.me.assigned_center_id;
+
+      // Admin/municipal/response can create (if you want)
+      return this.isAdminOrMunicipalOrResponse;
+    },
+    latestLog() {
+      return (this.logs && this.logs.length) ? this.logs[0] : null;
+    },
+    currentEvacuees() {
+      return this.latestLog ? (this.latestLog.total_current ?? 0) : 0;
+    },
+    lastUpdatedText() {
+      if (!this.latestLog?.date_recorded) return "-";
+      const d = new Date(this.latestLog.date_recorded);
+      return isNaN(d.getTime()) ? this.latestLog.date_recorded : d.toLocaleString();
+    },
+    activeCenterLabel() {
+      // For staff, show assigned center name
+      if (this.isStaff) return this.me.assigned_center_name || "Unassigned";
+
+      // For admin filter, show selected center name
+      if (this.filters.center) {
+        const c = this.centers.find(x => x.id === this.filters.center);
+        return c ? `${c.name}${c.municipality_name ? ` (${c.municipality_name})` : ""}` : `Center #${this.filters.center}`;
+      }
+      return "All Centers";
     },
   },
 
   async mounted() {
-    await this.loadCenterFromProfile();
-    if (this.centerId) {
-      await this.fetchLogs();
+    await this.fetchMe();
+    if (this.isAdminOrMunicipalOrResponse) {
+      await this.fetchCenters();
     }
+    await this.fetchLogs(1);
+    console.log("ME:", res.data);
   },
 
   methods: {
-    async loadCenterFromProfile() {
-      // Expect profile to include assigned_center_id + assigned_center_name (recommended)
-      const profile = await getUserProfile();
-      this.centerId = profile.assigned_center_id ?? null;
-      this.centerName = profile.assigned_center_name ?? "";
+    formatDate(dt) {
+      if (!dt) return "-";
+      const d = new Date(dt);
+      return isNaN(d.getTime()) ? dt : d.toLocaleString();
     },
 
-    async fetchLogs() {
+    async fetchMe() {
+      // Use your existing profile endpoint because it includes assigned_center_name/id
+      const res = await api.get("user/profile/");
+      this.me = res.data;
+    },
+
+    async fetchCenters() {
+      // IMPORTANT: evac module is under /api/evac_centers/
+      const res = await api.get("evac_centers/evacuation-centers/");
+      const data = res.data;
+      this.centers = Array.isArray(data) ? data : (data.results || []);
+    },
+
+    async fetchLogs(page = 1) {
       this.loading = true;
       try {
-        const res = await api.get("evacuation-logs/", { params: { center: this.centerId } });
-        const data = res.data;
-        this.logs = (data.results || []).filter(l => l && l.id != null);
-        this.nextUrl = data.next;
-        this.prevUrl = data.previous;
+        const pageNum = Number(page) || 1;
 
-        // If backend includes center_name in logs, we can derive it
-        if (!this.centerName && this.logs.length && this.logs[0].center_name) {
-          this.centerName = this.logs[0].center_name;
+        const params = new URLSearchParams();
+        params.append("page", pageNum);
+        params.append("page_size", this.pagination.page_size);
+
+        // admin filter by center
+        if (this.filters.center) params.append("center", this.filters.center);
+
+        // staff: backend should already scope, but we can also pass center for clarity
+        if (this.isStaff && this.me.assigned_center_id) {
+          params.append("center", this.me.assigned_center_id);
         }
-      } finally {
-        this.loading = false;
-      }
-    },
 
-    async fetchLogsByUrl(url) {
-      this.loading = true;
-      try {
-        const res = await api.get(url);
+        const res = await api.get(`evac_centers/evacuation-logs/?${params.toString()}`);
         const data = res.data;
-        this.logs = (data.results || []).filter(l => l && l.id != null);
-        this.nextUrl = data.next;
-        this.prevUrl = data.previous;
+
+        // supports paginated or not
+        this.logs = data.results || (Array.isArray(data) ? data : []);
+        this.pagination.count = data.count || this.logs.length || 0;
+        this.pagination.next = data.next || null;
+        this.pagination.previous = data.previous || null;
+        this.pagination.page = pageNum;
       } finally {
         this.loading = false;
       }
     },
 
-    closeModal() {
-      this.openModal = false;
-      this.error = "";
-      this.form = {
+    openCreate() {
+      this.modalError = "";
+      this.modal.open = true;
+      this.modal.mode = "create";
+      this.modal.id = null;
+
+      this.modal.form = {
+        center: this.isStaff ? (this.me.assigned_center_id || null) : null,
         families_in: 0,
         individuals_in: 0,
         families_out: 0,
@@ -224,38 +357,81 @@ export default {
       };
     },
 
-    async submit() {
-      this.error = "";
-      if (!this.centerId) return;
+    openEdit(log) {
+      this.modalError = "";
+      this.modal.open = true;
+      this.modal.mode = "edit";
+      this.modal.id = log.id;
 
-      // basic client guard
-      if (this.form.individuals_out > (this.currentTotal + this.form.individuals_in)) {
-        this.error = "Individuals out is too high compared to current total.";
-        return;
-      }
+      this.modal.form = {
+        center: log.center || null,
+        families_in: log.families_in ?? 0,
+        individuals_in: log.individuals_in ?? 0,
+        families_out: log.families_out ?? 0,
+        individuals_out: log.individuals_out ?? 0,
+        vulnerable_individuals: log.vulnerable_individuals ?? 0,
+        remarks: log.remarks || "",
+      };
+    },
 
-      this.submitting = true;
+    closeModal() {
+      this.modal.open = false;
+      this.modal.id = null;
+      this.modalError = "";
+    },
+
+    async saveLog() {
+      this.saving = true;
+      this.modalError = "";
       try {
-        await api.post("evacuation-logs/", {
-          center: this.centerId,
-          ...this.form,
-        });
+        // Staff must have assigned center
+        if (this.isStaff) {
+          if (!this.me.assigned_center_id) {
+            this.modalError = "You have no assigned evacuation center.";
+            return;
+          }
+          this.modal.form.center = this.me.assigned_center_id;
+        } else {
+          if (!this.modal.form.center) {
+            this.modalError = "Please select an evacuation center.";
+            return;
+          }
+        }
+
+        const payload = {
+          center: this.modal.form.center,
+          families_in: this.modal.form.families_in ?? 0,
+          individuals_in: this.modal.form.individuals_in ?? 0,
+          families_out: this.modal.form.families_out ?? 0,
+          individuals_out: this.modal.form.individuals_out ?? 0,
+          vulnerable_individuals: this.modal.form.vulnerable_individuals ?? 0,
+          remarks: this.modal.form.remarks || "",
+        };
+
+        if (this.modal.mode === "create") {
+          await api.post("evac_centers/evacuation-logs/", payload);
+        } else {
+          await api.patch(`evac_centers/evacuation-logs/${this.modal.id}/`, payload);
+        }
+
         this.closeModal();
-        await this.fetchLogs();
+        await this.fetchLogs(1);
       } catch (e) {
-        const msg =
+        this.modalError =
           e?.response?.data?.detail ||
-          (typeof e?.response?.data === "string" ? e.response.data : null) ||
-          "Failed to save log.";
-        this.error = msg;
+          (typeof e?.response?.data === "string" ? e.response.data : "") ||
+          "Save failed.";
+        console.error("saveLog error:", e);
       } finally {
-        this.submitting = false;
+        this.saving = false;
       }
     },
 
-    formatDT(dt) {
-      if (!dt) return "-";
-      return new Date(dt).toLocaleString();
+    async deleteLog(log) {
+      const ok = confirm("Delete this log? This cannot be undone.");
+      if (!ok) return;
+      await api.delete(`evac_centers/evacuation-logs/${log.id}/`);
+      await this.fetchLogs(1);
     },
   },
 };
@@ -293,4 +469,6 @@ input, textarea { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px;
 .wide { grid-column: 1 / -1; }
 .error { margin-top: 10px; color: #b91c1c; font-size: 13px; }
 .modal-actions { display:flex; justify-content:flex-end; gap: 10px; margin-top: 14px; }
+.btn.danger { background: #b91c1c; border-color: #b91c1c; }
+label {color: black;}
 </style>

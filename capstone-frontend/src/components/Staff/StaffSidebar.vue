@@ -70,9 +70,7 @@ const user = ref(JSON.parse(localStorage.getItem("userData") || "{}"));
 // Staff routes (separate group)
 const navItems = [
   { to: "/staff/dashboard", name: "Dashboard", icon: "📊" },
-  { to: "/staff/centers", name: "Evacuation Centers", icon: "🏢" },
   { to: "/staff/logs", name: "Evacuation Logs", icon: "📥" },
-  { to: "/staff/hazard_report", name: "Hazard Reports", icon: "📝" }, // optional
   { to: "/staff/map", name: "GIS Map", icon: "🗺️" },                 // optional
 ];
 </script>
