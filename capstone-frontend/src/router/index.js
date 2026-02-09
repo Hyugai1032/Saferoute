@@ -19,6 +19,11 @@ import UserMap from '../views/Users/UserMap.vue'
 import UserAlerts from '../views/Users/UserAlerts.vue'
 import UserProfile from '../views/Users/UserProfile.vue'
 
+//Staff Components
+import StaffLayout from "../views/Staff/StaffLayout.vue";
+import StaffDashboard from "../views/Staff/StaffDashboard.vue";
+import StaffLogs from "../views/Staff/StaffLogs.vue";
+
 const routes = [
   {
     path: '/',
@@ -62,6 +67,19 @@ const routes = [
       { path: 'map', name: 'GISMap', component: GISMap },
       { path: 'users', name: 'UserMgmt', component: UserMgnt }
     ]
+  },
+
+  //STAFF ROUTES
+  {
+    path: "/staff",
+    component: StaffLayout,
+    meta: { requiresAuth: true, role: "staff" },
+    children: [
+      { path: "dashboard", name: "StaffDashboard", component: StaffDashboard },
+      { path: "centers", name: "StaffCenters", component: EvacuationCenters },
+      { path: "logs", name: "StaffLogs", component: StaffLogs },
+      { path: "map", name: "StaffMap", component: GISMap },
+    ],
   }
 ]
 
@@ -81,10 +99,12 @@ router.beforeEach((to, from, next) => {
   }
 
   // prevent going back to login when already logged in
-  if (to.path === '/auth/login' && isAuthenticated) {
+  if (to.path === "/auth/login" && isAuthenticated) {
     return next(
-      (userType === 'admin' || userType === 'staff') ? '/admin/dashboard' : '/user/dashboard'
-    )
+      userData.userType === "admin" ? "/admin/dashboard"
+      : userData.userType === "staff" ? "/staff/dashboard"
+      : "/user/dashboard"
+    );
   }
 
   if (to.meta.requiresAuth && isAuthenticated) {

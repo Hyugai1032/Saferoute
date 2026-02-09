@@ -239,10 +239,12 @@ export default {
         localStorage.setItem('isAuthenticated', 'true');
         
         // Redirect based on role
-        if (ADMIN_ROLES.includes(roleCode) || STAFF_ROLES.includes(roleCode)) {
-          this.$router.push('/admin/dashboard');
+        if (ADMIN_ROLES.includes(roleCode)) {
+          this.$router.push("/admin/dashboard");
+        } else if (STAFF_ROLES.includes(roleCode)) {
+          this.$router.push("/staff/dashboard");
         } else {
-          this.$router.push('/user/dashboard');
+          this.$router.push("/user/dashboard");
         }
         
         this.$emit('login-success', userData);
