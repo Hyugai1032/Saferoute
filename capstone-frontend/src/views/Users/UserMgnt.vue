@@ -47,7 +47,7 @@
           <option :value="false">Inactive</option>
         </select>
 
-        <button @click="fetchUsers" style="padding:8px 12px;">Refresh</button>
+        <button @click="fetchUsers(1)" style="padding:8px 12px;">Refresh</button>
 
         <div style="margin-left:auto; opacity:.8;">
           Logged in as: <b>{{ me.email || "-" }}</b> ({{ me.role || "-" }})
@@ -73,7 +73,7 @@
             </thead>
 
             <tbody>
-              <tr v-for="u in users" :key="u.id">
+              <tr v-for="u in safeUsers" :key="u.id">
                 <td>{{ fullName(u) }}</td>
                 <td>{{ u.email }}</td>
                 <td>{{ u.role }}</td>
@@ -125,6 +125,30 @@
         </div>
       </div>
 
+      <div class="pagination" v-if="pagination.count > 0">
+        <button
+          :disabled="!pagination.previous"
+          @click="fetchUsers(Number(pagination.page) - 1)"
+        >
+          Prev
+        </button>
+
+        <span>
+          Page {{ pagination.page }}
+          of {{ Math.ceil(pagination.count / pagination.page_size) }}
+          ({{ pagination.count }} users)
+        </span>
+
+        <button
+          :disabled="!pagination.next"
+          @click="fetchUsers(Number(pagination.page) + 1)"
+        >
+          Next
+        </button>
+
+      </div>
+
+
       <!-- EDIT MODAL (simple) -->
       <div v-if="edit.open" style="margin-top:16px; padding:12px; border:1px solid #ddd; border-radius:8px;">
         <h3 style="margin:0 0 8px 0;">Edit User: {{ edit.user.email }}</h3>
@@ -172,6 +196,14 @@ export default {
       stats: {},
       me: {},
 
+      pagination: {
+        page: 1,
+        page_size: 10,
+        count: 0,
+        next: null,
+        previous: null,
+      },
+
       filters: {
         search: "",
         role: "",
@@ -191,6 +223,13 @@ export default {
       },
     };
   },
+
+  computed: {
+    safeUsers() {
+      return (this.users || []).filter(u => u && u.id != null);
+    }
+  },
+
   async mounted() {
     await this.fetchMe();
     await Promise.all([this.fetchStats(), this.fetchUsers()]);
@@ -218,17 +257,33 @@ export default {
       }
     },
 
-    async fetchUsers() {
+    async fetchUsers(page = this.pagination.page) {
       this.loading = true;
-      try {
-        const params = {};
-        if (this.filters.search) params.search = this.filters.search;
-        if (this.filters.role) params.role = this.filters.role;
-        if (this.filters.is_active !== "" && this.filters.is_active !== null)
-          params.is_active = this.filters.is_active;
 
-        const res = await api.get("users/", { params });
-        this.users = res.data;
+      try {
+        const pageNum = Number(page) || 1;
+
+        const params = new URLSearchParams();
+
+        // filters
+        if (this.filters.search) params.append("search", this.filters.search);
+        if (this.filters.role) params.append("role", this.filters.role);
+        if (this.filters.is_active !== "") params.append("is_active", this.filters.is_active);
+
+        // pagination
+        params.append("page", pageNum);
+        params.append("page_size", this.pagination.page_size);
+
+        const res = await api.get(`users/?${params.toString()}`);
+        const data = res.data;
+
+        // ✅ THIS is the fix
+        this.users = data.results || [];
+        this.pagination.count = data.count || 0;
+        this.pagination.next = data.next;
+        this.pagination.previous = data.previous;
+        this.pagination.page = pageNum;
+
       } finally {
         this.loading = false;
       }
