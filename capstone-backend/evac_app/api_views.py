@@ -1,9 +1,6 @@
-"""
-views.py - Final fixed version that handles spaced-out text
-"""
-
 import re
 from rest_framework import viewsets, status, permissions
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -12,7 +9,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from .models import EvacuationCenter, EvacuationLog
-from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer
+from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
 from django.db import transaction
 from auth_app.models import Municipality, Barangay
@@ -279,12 +276,31 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
     ordering = ["-date_recorded", "-id"]
 
     def get_queryset(self):
+        user = self.request.user
         qs = EvacuationLog.objects.select_related("center", "reporting_staff")
-        # Optional: apply role-based filtering here (provincial/municipal)
+
+        if getattr(user, "role", None) == "EVAC_CENTER_STAFF":
+            if not getattr(user, "assigned_center_id", None):
+                return qs.none()
+            return qs.filter(center_id=user.assigned_center_id)
+
+        # Municipal admin scope (if center has municipality FK)
+        if getattr(user, "role", None) == "MUNICIPAL_ADMIN":
+            return qs.filter(center__municipality=user.municipality)
+
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(reporting_staff=self.request.user)
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+
+        if getattr(user, "role", None) == "EVAC_CENTER_STAFF":
+            if not getattr(user, "assigned_center_id", None):
+                raise PermissionDenied("Staff has no assigned center.")
+            if center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only log for your assigned center.")
+
+        serializer.save(reporting_staff=user)
 
     @action(detail=False, methods=["get"])
     def latest_by_center(self, request):
@@ -305,3 +321,12 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             "total_current": latest.total_current,
             "date_recorded": latest.date_recorded
         })
+
+class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = EvacuationCenter.objects.select_related("municipality").all().order_by("name")
+    serializer_class = EvacuationCenterListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["municipality"]  # ✅ so frontend can filter by municipality
+    pagination_class = None
+

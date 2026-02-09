@@ -68,6 +68,7 @@
                 <th>Role</th>
                 <th>Municipality</th>
                 <th>Status</th>
+                <th>Assigned Center</th>
                 <th style="width: 260px;">Actions</th>
               </tr>
             </thead>
@@ -83,6 +84,7 @@
                     {{ u.is_active ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
+                <td>{{ u.assigned_center_name || "-" }}</td>
 
                 <td style="display:flex; gap:8px; flex-wrap:wrap;">
                   <button class="btn-edit" @click="openEdit(u)" :disabled="!canEditUser(u)">
@@ -166,13 +168,30 @@
             <option value="CITIZEN">CITIZEN</option>
           </select>
 
-          <input
+          <select
             v-model.number="edit.form.municipality"
-            placeholder="Municipality ID"
-            style="padding:8px; width:160px;"
+            style="padding:8px; width:240px;"
             :disabled="!canAssignMunicipality()"
-          />
+            @change="onMunicipalityChanged"
+          >
+            <option :value="null">No municipality</option>
+            <option v-for="m in municipalities" :key="m.id" :value="m.id">
+              {{ m.name }}
+            </option>
+          </select>
         </div>
+
+        <select
+          v-if="edit.form.role === 'EVAC_CENTER_STAFF'"
+          v-model.number="edit.form.assigned_center"
+          style="padding:8px; width:260px;"
+          :disabled="!isMunicipalOrHigher()"
+        >
+          <option :value="null">Unassigned</option>
+          <option v-for="c in centers" :key="c.id" :value="c.id">
+            {{ c.name }} ({{ c.municipality_name }})
+          </option>
+        </select>
 
         <div style="display:flex; gap:8px; margin-top:10px;">
           <button class="btn-edit" @click="saveEdit">Save</button>
@@ -185,7 +204,7 @@
 </template>
 
 <script>
-import api from "../../services/api"; // uses your api.js (JWT + refresh) :contentReference[oaicite:2]{index=2}
+import api from "../../services/api";
 
 export default {
   name: "UserMgnt",
@@ -195,6 +214,14 @@ export default {
       users: [],
       stats: {},
       me: {},
+
+      // ✅ dropdown data
+      municipalities: [],
+      centers: [],
+      dropdownLoading: {
+        municipalities: false,
+        centers: false,
+      },
 
       pagination: {
         page: 1,
@@ -219,6 +246,7 @@ export default {
           contact_number: "",
           role: "",
           municipality: null,
+          assigned_center: null,
         },
       },
     };
@@ -226,14 +254,19 @@ export default {
 
   computed: {
     safeUsers() {
-      return (this.users || []).filter(u => u && u.id != null);
-    }
+      return (this.users || []).filter((u) => u && u.id != null);
+    },
   },
 
   async mounted() {
     await this.fetchMe();
     await Promise.all([this.fetchStats(), this.fetchUsers()]);
+    await this.fetchMunicipalities();
+
+    // optional: preload all centers (or keep empty until a municipality is selected)
+    // await this.fetchCenters();
   },
+
   methods: {
     fullName(u) {
       const fn = (u.first_name || "").trim();
@@ -248,7 +281,6 @@ export default {
     },
 
     async fetchStats() {
-      // If stats is restricted by role, handle errors gracefully
       try {
         const res = await api.get("users/stats/");
         this.stats = res.data;
@@ -259,37 +291,65 @@ export default {
 
     async fetchUsers(page = this.pagination.page) {
       this.loading = true;
-
       try {
         const pageNum = Number(page) || 1;
-
         const params = new URLSearchParams();
 
-        // filters
         if (this.filters.search) params.append("search", this.filters.search);
         if (this.filters.role) params.append("role", this.filters.role);
-        if (this.filters.is_active !== "") params.append("is_active", this.filters.is_active);
+        if (this.filters.is_active !== "")
+          params.append("is_active", this.filters.is_active);
 
-        // pagination
         params.append("page", pageNum);
         params.append("page_size", this.pagination.page_size);
 
         const res = await api.get(`users/?${params.toString()}`);
         const data = res.data;
 
-        // ✅ THIS is the fix
         this.users = data.results || [];
         this.pagination.count = data.count || 0;
         this.pagination.next = data.next;
         this.pagination.previous = data.previous;
         this.pagination.page = pageNum;
-
       } finally {
         this.loading = false;
       }
     },
 
-    // RBAC helpers (frontend-only convenience; backend still enforces)
+    // ✅ dropdown fetchers (works whether paginated or not)
+    async fetchMunicipalities() {
+      this.dropdownLoading.municipalities = true;
+      try {
+        const res = await api.get("municipalities/", { params: { page_size: 9999 } });
+        const data = res.data;
+        this.municipalities = Array.isArray(data) ? data : (data.results || []);
+      } finally {
+        this.dropdownLoading.municipalities = false;
+      }
+    },
+
+    async fetchCenters(municipalityId = null) {
+      this.dropdownLoading.centers = true;
+      try {
+        const params = {};
+        if (municipalityId) params.municipality = municipalityId;
+
+        const res = await api.get("evac_centers/evacuation-centers/", { params: { page_size: 9999 } });
+        const data = res.data;
+
+        // ✅ store in centers (NOT evacCenters)
+        this.centers = Array.isArray(data) ? data : (data.results || []);
+      } finally {
+        this.dropdownLoading.centers = false;
+      }
+    },
+
+    async onMunicipalityChanged() {
+      await this.fetchCenters(this.edit.form.municipality);
+      this.edit.form.assigned_center = null;
+    },
+
+    // RBAC helpers
     isProvincial() {
       return this.me.role === "PROVINCIAL_ADMIN";
     },
@@ -303,30 +363,34 @@ export default {
       return this.isProvincial();
     },
     canEditUser(targetUser) {
-      // backend already scopes list; this is just UI gating
       if (!this.isStaffOrHigher()) return false;
-      if (this.me.id === targetUser.id) return false; // prevent editing self here (use /me)
+      if (this.me.id === targetUser.id) return false;
       return true;
     },
     canChangeRole() {
-      // safest: only provincial can assign roles
       return this.isProvincial();
     },
     canAssignMunicipality() {
       return this.isProvincial() || this.me.role === "MUNICIPAL_ADMIN";
     },
 
-    openEdit(u) {
+    async openEdit(u) {
       this.edit.open = true;
       this.edit.user = u;
+
       this.edit.form = {
         first_name: u.first_name || "",
         last_name: u.last_name || "",
         contact_number: u.contact_number || "",
         role: u.role || "CITIZEN",
-        municipality: u.municipality || null, // expects id
+        municipality: u.municipality || null,
+        assigned_center: u.assigned_center || null,
       };
+
+      // ✅ load centers for that municipality so the dropdown has items
+      await this.fetchCenters(this.edit.form.municipality);
     },
+
     closeEdit() {
       this.edit.open = false;
       this.edit.user = null;
@@ -335,7 +399,6 @@ export default {
     async saveEdit() {
       if (!this.edit.user) return;
 
-      // Prepare payload (only send what you allow)
       const payload = {
         first_name: this.edit.form.first_name,
         last_name: this.edit.form.last_name,
@@ -345,17 +408,21 @@ export default {
       if (this.canChangeRole()) payload.role = this.edit.form.role;
       if (this.canAssignMunicipality()) payload.municipality = this.edit.form.municipality;
 
+      if (this.edit.form.role === "EVAC_CENTER_STAFF") {
+        payload.assigned_center = this.edit.form.assigned_center ?? null;
+      } else {
+        payload.assigned_center = null;
+      }
+
       await api.patch(`users/${this.edit.user.id}/`, payload);
       this.closeEdit();
-      await this.fetchUsers();
-      await this.fetchStats();
+      await Promise.all([this.fetchUsers(), this.fetchStats()]);
     },
 
     async toggleActive(u) {
       const next = !u.is_active;
       await api.patch(`users/${u.id}/`, { is_active: next });
-      await this.fetchUsers();
-      await this.fetchStats();
+      await Promise.all([this.fetchUsers(), this.fetchStats()]);
     },
 
     async resetPassword(u) {
@@ -370,8 +437,7 @@ export default {
       const ok = confirm(`Delete user ${u.email}? This cannot be undone.`);
       if (!ok) return;
       await api.delete(`users/${u.id}/`);
-      await this.fetchUsers();
-      await this.fetchStats();
+      await Promise.all([this.fetchUsers(), this.fetchStats()]);
     },
   },
 };

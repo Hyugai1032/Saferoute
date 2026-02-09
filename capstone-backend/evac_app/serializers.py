@@ -69,3 +69,17 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({f: "Must be 0 or greater."})
 
         return attrs
+    
+class EvacuationCenterListSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+
+    class Meta:
+        model = EvacuationCenter
+        fields = ["id", "name", "municipality", "municipality_name"]
+
+class EvacCenterDropdownSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+
+    class Meta:
+        model = EvacuationCenter
+        fields = ["id", "name", "municipality", "municipality_name"]
