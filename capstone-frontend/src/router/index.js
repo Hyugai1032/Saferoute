@@ -53,7 +53,7 @@ const routes = [
   {
     path: '/admin',
     component: AdminLayout,
-    meta: { requiresAuth: true, role: 'admin' },
+    meta: { requiresAuth: true, role: ['admin', 'staff'] },
     children: [
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'hazard_report', name: 'Hazard Reports', component: HazardReport},
@@ -74,24 +74,29 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated')
   const userData = JSON.parse(localStorage.getItem('userData') || '{}')
+  const userType = userData.userType // 'admin' | 'staff' | 'citizen'
 
-  // Requires login
   if (to.meta.requiresAuth && !isAuthenticated) {
     return next('/auth/login')
   }
 
-  // Already logged in → prevent entering login page
+  // prevent going back to login when already logged in
   if (to.path === '/auth/login' && isAuthenticated) {
-    return next(userData.role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
+    return next(
+      (userType === 'admin' || userType === 'staff') ? '/admin/dashboard' : '/user/dashboard'
+    )
   }
 
-  // Role protection
   if (to.meta.requiresAuth && isAuthenticated) {
-    const userRole = userData.role
-    const requiredRole = to.meta.role
+    const required = to.meta.role // string or array
 
-    if (requiredRole && userRole !== requiredRole) {
-      return next(userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard')
+    if (required) {
+      const allowed = Array.isArray(required) ? required : [required]
+      if (!allowed.includes(userType)) {
+        return next(
+          (userType === 'admin' || userType === 'staff') ? '/admin/dashboard' : '/user/dashboard'
+        )
+      }
     }
   }
 

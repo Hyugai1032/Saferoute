@@ -211,22 +211,35 @@ export default {
         // After successful login, fetch user profile to get role and other details
         const userResponse = await getUserProfile();  // Assume you add this function to authService.js
         
-        const isAdmin = userResponse.role.includes('PROVINCIAL_ADMIN');  // Adjust based on your role values, e.g., 'PROVINCIAL_ADMIN' or 'MUNICIPAL_ADMIN'
-        
+        const ADMIN_ROLES = ['PROVINCIAL_ADMIN', 'MUNICIPAL_ADMIN'];
+
+        const STAFF_ROLES = ['EVAC_CENTER_STAFF'];
+
+        const roleCode = userResponse.role || 'CITIZEN';
+
+        let userType = 'citizen';
+
+        if (ADMIN_ROLES.includes(roleCode)) {
+          userType = 'admin';
+        } else if (STAFF_ROLES.includes(roleCode)) {
+          userType = 'staff';
+        }
+
         // Store user session
         const userData = {
-          role: isAdmin ? 'admin' : 'citizen',
+          userType,      // 'admin' | 'staff' | 'citizen'
+          roleCode,      // exact backend role
           first_name: userResponse.first_name,
           last_name: userResponse.last_name,
           email: userResponse.email,
           loginTime: new Date().toISOString()
         };
-        
+
         localStorage.setItem('userData', JSON.stringify(userData));
         localStorage.setItem('isAuthenticated', 'true');
         
         // Redirect based on role
-        if (isAdmin) {
+        if (ADMIN_ROLES.includes(roleCode) || STAFF_ROLES.includes(roleCode)) {
           this.$router.push('/admin/dashboard');
         } else {
           this.$router.push('/user/dashboard');
@@ -257,7 +270,7 @@ export default {
     const isAuthenticated = localStorage.getItem('isAuthenticated')
     if (isAuthenticated) {
       const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-      if (userData.role === 'admin') {
+      if (userData.userType === 'admin' || userData.userType === 'staff') {
         this.$router.push('/admin/dashboard')
       } else {
         this.$router.push('/user/dashboard')

@@ -48,3 +48,15 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export const evacLogsApi = {
+  list(params) {
+    return axios.get("/evacuation-logs/", { params });
+  },
+  create(payload) {
+    return axios.post("/evacuation-logs/", payload);
+  },
+  latestByCenter(centerId) {
+    return axios.get("/evacuation-logs/latest_by_center/", { params: { center: centerId } });
+  },
+};
