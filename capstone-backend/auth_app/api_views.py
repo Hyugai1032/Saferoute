@@ -3,6 +3,7 @@ from rest_framework import generics, permissions, viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import CustomUser, HazardPhoto, Municipality, Barangay
@@ -51,16 +52,24 @@ class UserProfileView(APIView):
 
 class HazardReportView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
-        serializer = HazardReportSerializer(data=request.data, context={'request': request})
-
+        serializer = HazardReportSerializer(data=request.data)
         if serializer.is_valid():
-            report = serializer.save()
-            return Response(HazardReportSerializer(report).data, status=status.HTTP_201_CREATED)
+            user = request.user
+            mun = getattr(user, "municipality", None) or serializer.validated_data.get("municipality")
+            if not mun:
+                return Response({"municipality": "Municipality is required."}, status=400)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+            report = serializer.save(
+                reporter=user,
+                municipality=mun,
+                status="REPORTED"
+            )
+            return Response(HazardReportSerializer(report).data, status=201)
+
+        return Response(serializer.errors, status=400)        
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')
     serializer_class = MunicipalitySerializer

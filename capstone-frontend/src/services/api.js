@@ -23,11 +23,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem('refresh_token');
+const refreshToken = localStorage.getItem('refresh_token');
+if (!refreshToken) {
+  localStorage.clear();
+  window.location.href = '/auth/login';
+  return Promise.reject(error);
+}
 
       try {
         const res = await axios.post(
-          'http://127.0.0.1:8000/api/token/refresh/',
+          'http://127.0.0.1:8000/api/auth/refresh/',
           { refresh: refreshToken }
         );
 
@@ -39,7 +44,7 @@ api.interceptors.response.use(
       } catch (err) {
         console.error("Token refresh failed:", err);
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       }
     }
 

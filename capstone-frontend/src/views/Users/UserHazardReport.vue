@@ -253,6 +253,7 @@
 </template>
 
 <script>
+import api from "@/services/api";
 export default {
   name: 'UserHazardReport',
   data() {
@@ -282,7 +283,7 @@ export default {
         address: '',
         latitude: '',
         longitude: '',
-        severity: 'medium',
+        severity: 'MEDIUM',
         photos: [],
         contactName: '',
         contactPhone: ''
@@ -378,49 +379,44 @@ export default {
       return level ? level.name : 'Medium'
     },
     
-    async submitReport() {
-      this.submitting = true;
+async submitReport() {
+  this.submitting = true;
 
-      try {
-        const form = new FormData();
+  try {
+    const form = new FormData();
 
-        Object.keys(this.formData).forEach(key => {
-          if (key !== "photos") form.append(key, this.formData[key]);
-        });
+    form.append("hazard_type", this.formData.type);
+    form.append("municipality", this.formData.municipality);
+    form.append("title", this.formData.title || "");
+    form.append("description", this.formData.description);
+    form.append("address", this.formData.address || "");
+    form.append("latitude", this.formData.latitude);
+    form.append("longitude", this.formData.longitude);
+    form.append("severity", this.formData.severity); // must be UPPERCASE
 
-        this.formData.photos.forEach((p, i) => {
-          form.append("uploaded_photos", p.file);
-        });
+    form.append("contact_name", this.formData.contactName || "");
+    form.append("contact_phone", this.formData.contactPhone || "");
 
-        const response = await fetch("http://localhost:8000/api/hazards/", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`
-          },
-          body: form,
-        });
+    this.formData.photos.forEach(p => {
+      form.append("uploaded_photos", p.file);
+    });
 
-        if (!response.ok) throw new Error("Submit failed");
+    // IMPORTANT: use axios api instance so token is included automatically
+ await api.post("hazards/", form, {
+  headers: { "Content-Type": "multipart/form-data" },
+});
 
-        // this.$notify({
-        //   title: "Report Submitted",
-        //   message: "Your hazard report is now pending verification.",
-        //   type: "success"
-        // });
+    alert("Report submitted!");
+    this.$router.push("/user/dashboard");
 
-        this.$router.push("/user/dashboard");
+  } catch (err) {
+    console.error("Submit failed:", err?.response?.data || err);
+    alert("Submit failed: " + JSON.stringify(err?.response?.data || err.message));
+  } finally {
+    this.submitting = false;
+  }
+}
 
-      } catch (err) {
-        console.error(err);
-        this.$notify({
-          title: "Error",
-          message: err.message,
-          type: "error"
-        });
-      } finally {
-        this.submitting = false;
-      }
-    }
   }
 }
 </script>

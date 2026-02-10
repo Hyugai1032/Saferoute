@@ -72,7 +72,7 @@ const router = createRouter({
 
 // AUTH + ROLE GUARD
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('isAuthenticated')
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
   const userData = JSON.parse(localStorage.getItem('userData') || '{}')
 
   // Requires login
@@ -91,8 +91,10 @@ router.beforeEach((to, from, next) => {
     const requiredRole = to.meta.role
 
     if (requiredRole && userRole !== requiredRole) {
-      return next(userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard')
-    }
+  const fallback = userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard'
+  if (to.path !== fallback) return next(fallback)
+  return next()
+}
   }
 
   next()

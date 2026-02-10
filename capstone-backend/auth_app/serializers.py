@@ -12,7 +12,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        user = CustomUser.objects.create_user(**validated_data, password=password)
+         # If your workflow is "wait for admin approval"
+        validated_data.setdefault("status", "PENDING")
+
+        user = CustomUser.objects.create_user(**validated_data)
         return user
 
     
@@ -28,6 +31,10 @@ class HazardPhotoSerializer(serializers.ModelSerializer):
         fields = ['id', 'image']
 
 
+# auth_app/serializers.py
+from rest_framework import serializers
+from .models import HazardReport, HazardPhoto
+
 class HazardReportSerializer(serializers.ModelSerializer):
     photos = HazardPhotoSerializer(many=True, read_only=True)
     uploaded_photos = serializers.ListField(
@@ -36,24 +43,43 @@ class HazardReportSerializer(serializers.ModelSerializer):
         required=False
     )
 
+    reporter_email = serializers.CharField(source="reporter.email", read_only=True)
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+
     class Meta:
         model = HazardReport
         fields = [
-            'id', 'user', 'municipality', 'hazard_type', 'title', 'description',
-            'address', 'latitude', 'longitude', 'severity',
-            'photos', 'uploaded_photos',
-            'contact_name', 'contact_phone',
-            'status', 'reported_at'
+            "id",
+            "reporter", "reporter_email",
+            "municipality", "municipality_name",
+            "hazard_type",
+            "description",
+            "latitude", "longitude",
+            "address",
+            "severity",
+            "title",
+            "contact_name", "contact_phone",
+            "status",
+            "reviewed_by", "reviewed_at",
+            "validated_at", "dismissed_at",
+            "created_at",
+            "photos", "uploaded_photos",
         ]
-        read_only_fields = ['user', 'photos', 'status', 'reported_at']
+        read_only_fields = [
+            "id",
+            "reporter",
+            "municipality",
+            "status",
+            "reviewed_by", "reviewed_at",
+            "validated_at", "dismissed_at",
+            "created_at",
+            "photos",
+            "reporter_email",
+            "municipality_name",
+        ]
 
     def create(self, validated_data):
-        photo_files = validated_data.pop('uploaded_photos', [])
-
-        request = self.context.get('request')
-        if request and request.user and request.user.is_authenticated:
-            validated_data['user'] = request.user
-
+        photo_files = validated_data.pop("uploaded_photos", [])
         report = HazardReport.objects.create(**validated_data)
 
         for img in photo_files:

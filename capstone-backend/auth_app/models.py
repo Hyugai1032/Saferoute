@@ -103,32 +103,75 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.email} — {self.first_name} {self.last_name}"
 
+HAZARD_TYPE_CHOICES = [
+    ('FLOOD', 'Flood'),
+    ('LANDSLIDE', 'Landslide'),
+    ('FIRE', 'Fire'),
+    ('TREE', 'Fallen Tree'),
+    ('ROAD_DAMAGE', 'Road Damage'),
+    ('BUILDING_DAMAGE', 'Building Damage'),
+    ('UTILITY', 'Utility Hazard'),
+    ('OTHER', 'Other'),
+]
+
+SEVERITY_CHOICES = [
+    ('LOW', 'Low'),
+    ('MEDIUM', 'Medium'),
+    ('HIGH', 'High'),
+    ('CRITICAL', 'Critical'),
+]
+
+STATUS_CHOICES = [
+    ('PENDING', 'Pending'),
+    ('APPROVED', 'Approved'),
+    ('DISMISSED', 'Dismissed'),
+]
 
 class HazardReport(models.Model):
-    # --- choices ---
-    HAZARD_TYPE_CHOICES = [
-        ('FLOOD', 'Flood'),
-        ('LANDSLIDE', 'Landslide'),
-        ('FIRE', 'Fire'),
-        ('TREE', 'Fallen Tree'),
-        ('ROAD_DAMAGE', 'Road Damage'),
-        ('BUILDING_DAMAGE', 'Building Damage'),
-        ('UTILITY', 'Utility Hazard'),
-        ('OTHER', 'Other'),
-    ]
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="hazard_reports"
+    )
 
-    SEVERITY_CHOICES = [
-        ('LOW', 'Low'),
-        ('MEDIUM', 'Medium'),
-        ('HIGH', 'High'),
-        ('CRITICAL', 'Critical'),
-    ]
+    hazard_type = models.CharField(
+        max_length=30,
+        choices=HAZARD_TYPE_CHOICES
+    )
 
-    STATUS_CHOICES = [
-        ('REPORTED', 'Reported'),
-        ('VALIDATED', 'Validated'),
-        ('DISMISSED', 'Dismissed'),
-    ]
+    severity = models.CharField(
+        max_length=10,
+        choices=SEVERITY_CHOICES
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='PENDING'
+    )
+
+    description = models.TextField()
+
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+
+    municipality = models.ForeignKey(
+        Municipality,
+        on_delete=models.CASCADE
+    )
+
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_hazard_reports"
+    )
+
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
 
     # --- relationships ---
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
