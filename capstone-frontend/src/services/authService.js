@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:8000/api/';
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const register = async (userData) => {
   try {
@@ -35,6 +35,7 @@ export const logout = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('userData');
 };
 
 export const getAuthHeader = () => {

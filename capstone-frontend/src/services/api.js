@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -53,3 +53,15 @@ if (!refreshToken) {
 );
 
 export default api;
+
+export const evacLogsApi = {
+  list(params) {
+    return axios.get("/evacuation-logs/", { params });
+  },
+  create(payload) {
+    return axios.post("/evacuation-logs/", payload);
+  },
+  latestByCenter(centerId) {
+    return axios.get("/evacuation-logs/latest_by_center/", { params: { center: centerId } });
+  },
+};

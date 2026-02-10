@@ -1,6 +1,7 @@
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from django.conf import settings
+from django.db.models import Max
 from auth_app.models import Municipality, CustomUser, Barangay
 
 # Create your models here.
@@ -49,10 +50,40 @@ class EvacuationLog(models.Model):
     total_current = models.IntegerField(default=0)  # Computed field
     remarks = models.TextField(null=True, blank=True)
 
-    def save(self, *args, **kwargs):
-        # Compute total_current if needed (logic depends on your requirements, e.g., aggregate from previous logs, e.g., previous_log.total_current + in - out)
-        # For simplicity, assuming it's updated externally or via signal; implement as needed
-        super().save(*args, **kwargs)
+    class Meta:
+        ordering = ["-date_recorded", "-id"]
+        indexes = [
+            models.Index(fields=["center", "date_recorded"]),
+        ]
 
     def __str__(self):
         return f"Log for {self.center.name} on {self.date_recorded}"
+    
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        # lock center logs to avoid race conditions on total_current
+        # (important when multiple staff can submit at the same time)
+        if self.center_id is None:
+            super().save(*args, **kwargs)
+            return
+
+        previous = (
+            EvacuationLog.objects
+            .select_for_update()
+            .filter(center_id=self.center_id)
+            .exclude(pk=self.pk)
+            .order_by("-date_recorded", "-id")
+            .first()
+        )
+
+        prev_total = previous.total_current if previous else 0
+
+        delta = int(self.individuals_in or 0) - int(self.individuals_out or 0)
+        new_total = prev_total + delta
+
+        # guardrails
+        if new_total < 0:
+            new_total = 0
+
+        self.total_current = new_total
+        super().save(*args, **kwargs)

@@ -1,16 +1,15 @@
-"""
-views.py - Final fixed version that handles spaced-out text
-"""
-
 import re
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from .models import EvacuationCenter
-from .serializers import EvacuationCenterSerializer
+from .models import EvacuationCenter, EvacuationLog
+from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
 from django.db import transaction
 from auth_app.models import Municipality, Barangay
@@ -266,3 +265,79 @@ class EvacUploadAPIView(APIView):
                 response_data["note"] = "Showing first 20 errors only"
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+class EvacuationLogViewSet(viewsets.ModelViewSet):
+    queryset = EvacuationLog.objects.select_related("center", "reporting_staff").all()
+    serializer_class = EvacuationLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["center"]
+    search_fields = ["remarks", "center__name"]
+    ordering_fields = ["date_recorded", "id"]
+    ordering = ["-date_recorded", "-id"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = EvacuationLog.objects.select_related("center", "reporting_staff")
+
+        # optional filter by center id (for admins)
+        center_id = self.request.query_params.get("center")
+        if center_id:
+            qs = qs.filter(center_id=center_id)
+
+        # Staff: only their assigned center
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(center_id=user.assigned_center_id)
+
+        # Municipal admin scope (if center has municipality FK)
+        if user.role in ["MUNICIPAL_ADMIN"]:
+            return qs.filter(center__municipality=user.municipality)
+
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                raise PermissionDenied("Staff has no assigned center.")
+            if center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only log for your assigned center.")
+
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only log for centers in your municipality.")
+
+        serializer.save(reporting_staff=user)
+
+    @action(detail=False, methods=["get"])
+    def latest_by_center(self, request):
+        center_id = request.query_params.get("center")
+        if not center_id:
+            return Response({"detail": "center query param is required"}, status=400)
+
+        latest = (
+            EvacuationLog.objects
+            .filter(center_id=center_id)
+            .order_by("-date_recorded", "-id")
+            .first()
+        )
+        if not latest:
+            return Response({"total_current": 0})
+
+        return Response({
+            "total_current": latest.total_current,
+            "date_recorded": latest.date_recorded
+        })
+
+class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = EvacuationCenter.objects.select_related("municipality").all().order_by("name")
+    serializer_class = EvacuationCenterListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["municipality"]  # ✅ so frontend can filter by municipality
+    pagination_class = None
+

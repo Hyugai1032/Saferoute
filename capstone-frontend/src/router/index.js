@@ -19,6 +19,11 @@ import UserMap from '../views/Users/UserMap.vue'
 import UserAlerts from '../views/Users/UserAlerts.vue'
 import UserProfile from '../views/Users/UserProfile.vue'
 
+//Staff Components
+import StaffLayout from "../views/Staff/StaffLayout.vue";
+import StaffDashboard from "../views/Staff/StaffDashboard.vue";
+import StaffLogs from "../views/Staff/StaffLogs.vue";
+
 const routes = [
   {
     path: '/',
@@ -53,15 +58,29 @@ const routes = [
   {
     path: '/admin',
     component: AdminLayout,
-    meta: { requiresAuth: true, role: 'admin' },
+    meta: { requiresAuth: true, role: ['admin', 'staff'] },
     children: [
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'hazard_report', name: 'Hazard Reports', component: HazardReport},
       { path: 'analytics', name: 'Analytics', component: Analytics },
       { path: 'centers', name: 'EvacuationCenters', component: EvacuationCenters },
       { path: 'map', name: 'GISMap', component: GISMap },
-      { path: 'users', name: 'UserMgmt', component: UserMgnt }
+      { path: 'users', name: 'UserMgmt', component: UserMgnt },
+      { path: 'logs', name: 'Evacuation Logs', component: StaffLogs }
     ]
+  },
+
+  //STAFF ROUTES
+  {
+    path: "/staff",
+    component: StaffLayout,
+    meta: { requiresAuth: true, role: "staff" },
+    children: [
+      { path: "dashboard", name: "StaffDashboard", component: StaffDashboard },
+      { path: "centers", name: "StaffCenters", component: EvacuationCenters },
+      { path: "logs", name: "StaffLogs", component: StaffLogs },
+      { path: "map", name: "StaffMap", component: GISMap },
+    ],
   }
 ]
 
@@ -74,27 +93,32 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
   const userData = JSON.parse(localStorage.getItem('userData') || '{}')
+  const userType = userData.userType // 'admin' | 'staff' | 'citizen'
 
-  // Requires login
   if (to.meta.requiresAuth && !isAuthenticated) {
     return next('/auth/login')
   }
 
-  // Already logged in → prevent entering login page
-  if (to.path === '/auth/login' && isAuthenticated) {
-    return next(userData.role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
+  // prevent going back to login when already logged in
+  if (to.path === "/auth/login" && isAuthenticated) {
+    return next(
+      userData.userType === "admin" ? "/admin/dashboard"
+      : userData.userType === "staff" ? "/staff/dashboard"
+      : "/user/dashboard"
+    );
   }
 
-  // Role protection
   if (to.meta.requiresAuth && isAuthenticated) {
-    const userRole = userData.role
-    const requiredRole = to.meta.role
+    const required = to.meta.role // string or array
 
-    if (requiredRole && userRole !== requiredRole) {
-  const fallback = userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard'
-  if (to.path !== fallback) return next(fallback)
-  return next()
-}
+    if (required) {
+      const allowed = Array.isArray(required) ? required : [required]
+      if (!allowed.includes(userType)) {
+        return next(
+          (userType === 'admin' || userType === 'staff') ? '/admin/dashboard' : '/user/dashboard'
+        )
+      }
+    }
   }
 
   next()

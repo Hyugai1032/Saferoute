@@ -1,5 +1,6 @@
 from django.db import models 
 from rest_framework import generics, permissions, viewsets, filters, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -73,7 +74,8 @@ class HazardReportView(APIView):
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')
     serializer_class = MunicipalitySerializer
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
     
     @action(detail=True, methods=['get'])
     def barangays(self, request, pk=None):
@@ -108,7 +110,7 @@ class UserViewSet(viewsets.ModelViewSet):
     - PATCH  /api/users/me/        → Update current user profile
     - GET    /api/users/stats/     → Get user statistics
     """
-    queryset = CustomUser.objects.select_related('municipality').all()
+    queryset = CustomUser.objects.select_related('municipality', 'assigned_center').all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['role', 'municipality', 'is_active']
     search_fields = ['email', 'first_name', 'last_name', 'contact_number']
@@ -213,4 +215,39 @@ class UserViewSet(viewsets.ModelViewSet):
             )
         
         return Response(stats)
+    
+    def perform_update(self, serializer):
+        actor = self.request.user
+        target = self.get_object()
+
+        # values being changed (fall back to existing)
+        new_municipality = serializer.validated_data.get("municipality", target.municipality)
+        new_role = serializer.validated_data.get("role", target.role)
+        new_center = serializer.validated_data.get("assigned_center", target.assigned_center)
+
+        # --- MUNICIPAL ADMIN restrictions ---
+        if actor.role == "MUNICIPAL_ADMIN":
+            # can only edit users in their municipality
+            if target.municipality_id != actor.municipality_id:
+                raise PermissionDenied("You can only manage users in your municipality.")
+
+            # cannot move user to another municipality
+            if new_municipality and new_municipality.id != actor.municipality_id:
+                raise PermissionDenied("You cannot assign users to another municipality.")
+
+            # cannot assign center outside their municipality
+            if new_center and hasattr(new_center, "municipality_id"):
+                if new_center.municipality_id != actor.municipality_id:
+                    raise PermissionDenied("You can only assign centers within your municipality.")
+
+            # (optional) cannot promote users to provincial admin
+            if "role" in serializer.validated_data and new_role == "PROVINCIAL_ADMIN":
+                raise PermissionDenied("You cannot assign PROVINCIAL_ADMIN role.")
+
+        # --- STAFF restrictions (optional safety) ---
+        if actor.role in ["RESPONSE_TEAM", "EVAC_CENTER_STAFF"]:
+            raise PermissionDenied("You do not have permission to update other users.")
+
+        serializer.save()
+
 

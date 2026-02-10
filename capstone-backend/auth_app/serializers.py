@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from django.apps import apps
+EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -20,9 +22,27 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     
 class UserProfileSerializer(serializers.ModelSerializer):
+    assigned_center_id = serializers.IntegerField(
+        source="assigned_center.id",
+        read_only=True
+    )
+    assigned_center_name = serializers.CharField(
+        source="assigned_center.name",
+        read_only=True
+    )
+
     class Meta:
         model = CustomUser
-        fields = ['first_name', 'last_name', 'email', 'role', 'contact_number']  # Add fields as needed
+        fields = [
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "contact_number",
+            "assigned_center_id",
+            "assigned_center_name",
+        ]
+
 
 
 class HazardPhotoSerializer(serializers.ModelSerializer):
@@ -97,6 +117,10 @@ class MunicipalitySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'province']
         read_only_fields = ['id']
 
+class MunicipalityListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Municipality
+        fields = ["id", "name"]
 
 class BarangaySerializer(serializers.ModelSerializer):
     """
@@ -113,12 +137,15 @@ class BarangaySerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views"""
     municipality_name = serializers.CharField(source='municipality.name', read_only=True)
+    assigned_center_name = serializers.CharField(source="assigned_center.name", read_only=True)
+    assigned_center = serializers.IntegerField(source="assigned_center.id", read_only=True)
     full_name = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role',
                   'contact_number', 'municipality', 'municipality_name', 
+                  'assigned_center', 'assigned_center_name',
                   'is_active', 'created_at']
 
     def get_full_name(self, obj):
@@ -167,11 +194,44 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         validators=[validate_password],
         style={'input_type': 'password'}
     )
+    assigned_center = serializers.PrimaryKeyRelatedField(
+        queryset=EvacuationCenter.objects.all(),
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = CustomUser
         fields = ['email', 'password', 'first_name', 'last_name', 'role',
-                  'contact_number', 'municipality', 'is_active']
+                  'contact_number', 'municipality', 'is_active', "assigned_center"]
+        
+    def validate(self, attrs):
+        """
+        Optional: enforce rules:
+        - Only allow assigned_center when role is EVAC_CENTER_STAFF
+        - Staff must be in same municipality as the center (if your EvacuationCenter has municipality FK)
+        """
+        role = attrs.get("role", getattr(self.instance, "role", None))
+        assigned_center = attrs.get("assigned_center", getattr(self.instance, "assigned_center", None))
+        municipality = attrs.get("municipality", getattr(self.instance, "municipality", None))
+
+        if role != "EVAC_CENTER_STAFF":
+            # if changing role away from staff, auto-clear assigned center
+            if "assigned_center" in attrs:
+                # allow clearing explicitly
+                pass
+            else:
+                # no assigned_center supplied; keep as-is or clear depending on your policy
+                # I recommend clearing when not staff:
+                attrs["assigned_center"] = None
+        else:
+            # role is staff, center can be set
+            if assigned_center and municipality and hasattr(assigned_center, "municipality_id"):
+                if assigned_center.municipality_id != municipality.id:
+                    raise serializers.ValidationError({
+                        "assigned_center": "Assigned center must be within the user's municipality."
+                    })
+        return attrs
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
@@ -186,15 +246,23 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         return instance
     
 class UserDetailSerializer(serializers.ModelSerializer):
-    """Full serializer for detail views"""
     municipality_details = MunicipalitySerializer(source='municipality', read_only=True)
+    assigned_center = serializers.PrimaryKeyRelatedField(
+        queryset=EvacuationCenter.objects.all(),  
+        required=False,
+        allow_null=True
+    )
+    assigned_center_name = serializers.CharField(source="assigned_center.name", read_only=True)
     full_name = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'first_name', 'last_name', 'full_name', 'role',
-                  'contact_number', 'municipality', 'municipality_details',
-                  'is_active', 'is_staff', 'last_login_at', 'created_at', 'updated_at']
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'full_name', 'role',
+            'contact_number', 'municipality', 'municipality_details',
+            'assigned_center', 'assigned_center_name',  
+            'is_active', 'is_staff', 'last_login_at', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'last_login_at', 'created_at', 'updated_at']
 
     def get_full_name(self, obj):

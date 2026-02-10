@@ -90,6 +90,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    assigned_center = models.ForeignKey(
+        "evac_app.EvacuationCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_staff"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
