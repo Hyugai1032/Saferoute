@@ -321,3 +321,62 @@ class GisLayerSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("FeatureCollection must include 'features' as a list.")
 
         return value
+    
+class EvacCenterPinSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+    barangay_name = serializers.CharField(source="barangay.name", read_only=True)
+
+    # Leaflet wants numbers; DecimalField becomes string sometimes.
+    latitude = serializers.FloatField(allow_null=True)
+    longitude = serializers.FloatField(allow_null=True)
+
+    # Placeholder occupancy fields (until you compute from logs)
+    current_family_occupancy = serializers.IntegerField(default=0)
+    current_individual_occupancy = serializers.IntegerField(default=0)
+
+    class Meta:
+        model = EvacuationCenter
+        fields = [
+            "id",
+            "name",
+            "province",
+            "municipality",
+            "municipality_name",
+            "barangay",
+            "barangay_name",
+            "fund_source",
+            "family_capacity_max",
+            "individual_capacity_max",
+            "used_for_covid",
+            "latitude",
+            "longitude",
+            "flood_susceptibility",
+            "landslide_susceptibility",
+            "status",
+            "remarks",
+            "current_family_occupancy",
+            "current_individual_occupancy",
+            "updated_at",
+        ]
+
+
+class HazardPinSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+
+    latitude = serializers.FloatField(allow_null=True)
+    longitude = serializers.FloatField(allow_null=True)
+
+    class Meta:
+        model = HazardReport
+        fields = [
+            "id",
+            "hazard_type",
+            "severity",
+            "status",
+            "title",
+            "latitude",
+            "longitude",
+            "municipality",
+            "municipality_name",
+            "created_at",
+        ]

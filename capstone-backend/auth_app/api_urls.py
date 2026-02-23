@@ -6,7 +6,8 @@ from .api_views import (
     MunicipalityViewSet,
     BarangayViewSet,
     UserViewSet,
-    GisLayerViewSet
+    GisLayerViewSet,
+    MapOverviewView
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -19,7 +20,7 @@ router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'municipalities', MunicipalityViewSet, basename='municipality')
 router.register(r'barangays', BarangayViewSet, basename='barangay')
-router.register(r"gis-layers", GisLayerViewSet, basename="gis-layers")
+router.register(r'gis-layers', GisLayerViewSet, basename="gis-layers")
 
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
@@ -28,6 +29,7 @@ urlpatterns = [
     path('user/profile/', UserProfileView.as_view(), name='user_profile'),
     path('hazards/', HazardReportView.as_view()),
     path('hazards/<int:pk>/', HazardReportView.as_view()),
+    path("map/overview/", MapOverviewView.as_view(), name="map_overview"),
     path('', include(router.urls)),
     # path("hazards/pending", HazardPendingList.as_view()),
 ]

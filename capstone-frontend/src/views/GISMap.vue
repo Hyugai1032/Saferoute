@@ -198,7 +198,7 @@ const createCustomIcon = (center) => {
 const fetchCenters = async () => {
   // Adjust endpoint to your backend
   // Example expected response: [{id,name,lat,lng,capacity,occupants,municipality,contact,lastUpdate,supplies}, ...]
-  const res = await api.get('/evacuation-centers/')
+  const res = await api.get('/gis-layers/')
   centers.value = Array.isArray(res.data) ? res.data : (res.data.results || [])
 }
 

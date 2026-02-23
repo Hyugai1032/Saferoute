@@ -1,3 +1,6 @@
+from datetime import timedelta
+from django.utils import timezone
+from django.apps import apps
 from django.db import models 
 from rest_framework import generics, permissions, viewsets, filters, status
 from rest_framework.exceptions import PermissionDenied
@@ -18,7 +21,9 @@ from .serializers import (UserProfileSerializer,
                           UserCreateSerializer, 
                           UserUpdateSerializer,
                           MeUpdateSerializer,
-                          GisLayerSerializer)
+                          GisLayerSerializer,
+                          EvacCenterPinSerializer,
+                          HazardPinSerializer)
 
 from .permissions import (
     IsProvincialAdmin, 
@@ -73,6 +78,7 @@ class HazardReportView(APIView):
             return Response(HazardReportSerializer(report).data, status=201)
 
         return Response(serializer.errors, status=400)        
+    
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')
     serializer_class = MunicipalitySerializer
@@ -290,3 +296,38 @@ class GisLayerViewSet(viewsets.ModelViewSet):
         if not layer:
             return Response({"detail": "No GIS layers found."}, status=404)
         return Response(self.get_serializer(layer).data)
+    
+
+class MapOverviewView(APIView):
+    """
+    GET /api/map/overview/?recent_hours=48&municipality_id=3
+    Returns center pins + recent hazard pins.
+    """
+    permission_classes = [IsAuthenticated, IsStaffOrHigher]
+    EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
+
+    def get(self, request):
+        recent_hours = int(request.query_params.get("recent_hours", 48))
+        municipality_id = request.query_params.get("municipality_id")
+
+        # --- centers ---
+        centers_qs = EvacuationCenter.objects.all()
+        if municipality_id:
+            centers_qs = centers_qs.filter(municipality_id=municipality_id)
+
+        # --- hazards ---
+        since = timezone.now() - timedelta(hours=recent_hours)
+        hazards_qs = HazardReport.objects.filter(created_at__gte=since)
+
+        # Only show approved/active hazards (adjust to your workflow)
+        # If you use "REPORTED" then you probably want to filter by "APPROVED"
+        # Example:
+        # hazards_qs = hazards_qs.filter(status="APPROVED")
+
+        if municipality_id:
+            hazards_qs = hazards_qs.filter(municipality_id=municipality_id)
+
+        return Response({
+            "centers": EvacCenterPinSerializer(centers_qs, many=True).data,
+            "hazards": HazardPinSerializer(hazards_qs, many=True).data,
+        })
