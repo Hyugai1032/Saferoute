@@ -61,8 +61,7 @@ class GisLayerRolePermission(BasePermission):
 
         # --- READ ---
         if request.method in SAFE_METHODS:
-            return user and user.is_authenticated and user.role in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN"]
-
+            return user and user.is_authenticated and user.role in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "RESPONSE_TEAM", "EVAC_CENTER_STAFF"]
         # --- WRITE ---
         if not user or not user.is_authenticated:
             return False

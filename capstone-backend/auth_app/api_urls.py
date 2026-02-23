@@ -9,7 +9,7 @@ from .api_views import (
     GisLayerViewSet
 )
 
-from .views import HazardReportView   # ✅ IMPORTANT
+from .api_views import HazardReportView   # ✅ IMPORTANT
 
 #from .api_views import UserProfileView, HazardReportView, RegisterView, MunicipalityViewSet, BarangayViewSet, UserViewSet
 # from .views import HazardPendingList, HazardCreate
