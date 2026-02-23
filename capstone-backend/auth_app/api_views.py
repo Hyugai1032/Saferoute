@@ -25,7 +25,7 @@ from .permissions import (
     IsMunicipalAdminOrHigher, 
     IsStaffOrHigher,
     IsOwnerOrAdmin,
-    GisLayerAdminWriteElseReadOnly
+    GisLayerRolePermission
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -254,23 +254,36 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class GisLayerViewSet(viewsets.ModelViewSet):
-    queryset = GisLayer.objects.select_related("municipality").order_by("-updated_at")
     serializer_class = GisLayerSerializer
-    permission_classes = [GisLayerAdminWriteElseReadOnly]
+    permission_classes = [GisLayerRolePermission]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = GisLayer.objects.select_related("municipality").order_by("-updated_at")
+
+        user = self.request.user
+        if user.is_authenticated and user.role == "MUNICIPAL_ADMIN":
+            user_mun = getattr(user, "municipality", None)
+            if user_mun:
+                qs = qs.filter(municipality_id=user_mun.id)
+            else:
+                qs = qs.none()
+
         municipality_id = self.request.query_params.get("municipality_id")
         if municipality_id:
             qs = qs.filter(municipality_id=municipality_id)
+
+        # optional: search by name
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(name__icontains=q)
+
         return qs
 
     @action(detail=False, methods=["get"], url_path="latest")
     def latest(self, request):
         """
-        Optional helper: get latest updated layer per municipality or overall.
-        - /gis-layers/latest/
-        - /gis-layers/latest/?municipality_id=5
+        GET /api/gis-layers/latest/
+        GET /api/gis-layers/latest/?municipality_id=5
         """
         qs = self.get_queryset()
         layer = qs.first()

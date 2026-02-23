@@ -275,24 +275,31 @@ class MeUpdateSerializer(serializers.ModelSerializer):
 
 
 class GisLayerSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+
     class Meta:
         model = GisLayer
-        fields = ["id", "name", "municipality", "geojson_data", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "municipality",
+            "municipality_name",
+            "geojson_data",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "municipality_name"]
 
     def validate_geojson_data(self, value):
         """
-        Minimal GeoJSON validation:
-        - must be dict
-        - must have "type"
-        - must have valid root type
+        Minimal GeoJSON validation (good enough for Leaflet rendering).
         """
         if not isinstance(value, dict):
             raise serializers.ValidationError("geojson_data must be a JSON object.")
 
         geo_type = value.get("type")
         if not geo_type:
-            raise serializers.ValidationError("GeoJSON must include a root 'type'.")
+            raise serializers.ValidationError("GeoJSON must have a root 'type' field.")
 
         allowed = {
             "FeatureCollection",
@@ -308,7 +315,6 @@ class GisLayerSerializer(serializers.ModelSerializer):
         if geo_type not in allowed:
             raise serializers.ValidationError(f"Invalid GeoJSON type '{geo_type}'.")
 
-        # If FeatureCollection: must have features list
         if geo_type == "FeatureCollection":
             feats = value.get("features")
             if not isinstance(feats, list):
