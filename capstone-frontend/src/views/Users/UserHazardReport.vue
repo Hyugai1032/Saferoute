@@ -52,7 +52,7 @@
                   type="text" 
                   v-model="formData.latitude"
                   placeholder="Auto-detected"
-                  readonly
+                  required
                 >
               </div>
               <div class="input-group">
@@ -61,7 +61,7 @@
                   type="text" 
                   v-model="formData.longitude"
                   placeholder="Auto-detected"
-                  readonly
+                  required
                 >
               </div>
             </div>
@@ -286,13 +286,19 @@ export default {
         severity: 'MEDIUM',
         photos: [],
         contactName: '',
-        contactPhone: ''
+        contactPhone: '',
+        municipality: "Calapan"
       }
     }
   },
   mounted() {
     // Auto-detect location on component mount
     this.getCurrentLocation()
+
+    const user = JSON.parse(localStorage.getItem("userData") || "{}");
+    if (user.municipality) {
+      this.formData.municipality = user.municipality;
+    }
   },
   methods: {
     async getCurrentLocation() {

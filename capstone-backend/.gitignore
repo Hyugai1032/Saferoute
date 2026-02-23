@@ -6,3 +6,4 @@ staticfiles/
 media/
 models_kaggle_only/
 myenv/
+hazard_photos/

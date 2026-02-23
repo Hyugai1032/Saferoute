@@ -253,7 +253,7 @@ export default {
       // Staff can create only if assigned
       if (this.isStaff) return !!this.me.assigned_center_id;
 
-      // Admin/municipal/response can create (if you want)
+      // Admin/municipal/response can create 
       return this.isAdminOrMunicipalOrResponse;
     },
     latestLog() {

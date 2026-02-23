@@ -66,7 +66,8 @@
             <option :value="false">Inactive</option>
           </select>
 
-        <button @click="fetchUsers(1)" style="padding:8px 12px;">Refresh</button>
+          <button @click="fetchUsers(1)" style="padding:8px 12px;">Refresh</button>
+        </div>
 
         <div class="filters-right">
           <div class="me-pill">
@@ -77,7 +78,7 @@
             </div>
           </div>
         </div>
-      </div>
+      
 
       <!-- TABLE -->
       <div class="users-table">
@@ -581,7 +582,12 @@ roleClass(role) {
 .title-wrap h1{ margin:0; font-size:1.6rem; color:#f8fafc; letter-spacing:.2px;}
 .title-wrap p{ margin:6px 0 0; color:var(--muted); font-size:13px; }
 
-.content{ display:grid; gap:14px; }
+.content{
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 
 /* ===== STATS ===== */
 .stats-cards{

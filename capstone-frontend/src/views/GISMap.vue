@@ -206,7 +206,7 @@ const initializeMap = async () => {
   // Add evacuation centers
   centers.forEach(center => {
     const icon = createCustomIcon(center)
-    const marker = L.marker([center.lat, center.lon], { icon }).addTo(map.value)
+    const marker = L.marker([center.lat, center.lng], { icon }).addTo(map.value)
 
     // Bind popup with basic info
     marker.bindPopup(`
@@ -240,7 +240,7 @@ const initializeMap = async () => {
   })
 
   // Fit map to show all markers
-  const group = new L.featureGroup(centers.map(c => L.marker([c.lat, c.lon])))
+  const group = new L.featureGroup(centers.map(c => L.marker([c.lat, c.lng])))
   map.value.fitBounds(group.getBounds().pad(0.1))
 
   // Important: Invalidate size to fix visibility issues in router views
@@ -266,7 +266,7 @@ const toggleSatellite = () => {
 }
 
 const fitToBounds = () => {
-  const group = new L.featureGroup(centers.map(c => L.marker([c.lat, c.lon])))
+  const group = new L.featureGroup(centers.map(c => L.marker([c.lat, c.lng])))
   map.value.fitBounds(group.getBounds().pad(0.1))
   if (map.value) {
     map.value.invalidateSize()
