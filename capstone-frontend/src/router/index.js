@@ -46,6 +46,7 @@ const routes = [
     component: UserLayout,
     meta: { requiresAuth: true, role: 'citizen' },
     children: [
+      { path: "", redirect: "/user/dashboard" },
       { path: 'dashboard', name: 'UserDashboard', component: UserDashboard },
       { path: 'report', name: 'UserHazardReport', component: UserHazardReport },
       { path: 'map', name: 'UserMap', component: UserMap },
@@ -58,8 +59,9 @@ const routes = [
   {
     path: '/admin',
     component: AdminLayout,
-    meta: { requiresAuth: true, role: ['admin', 'staff'] },
+    meta: { requiresAuth: true, role: ['admin'] },
     children: [
+      { path: "", redirect: "/admin/dashboard" },
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'hazard_report', name: 'Hazard Reports', component: HazardReport},
       { path: 'analytics', name: 'Analytics', component: Analytics },
@@ -76,6 +78,7 @@ const routes = [
     component: StaffLayout,
     meta: { requiresAuth: true, role: "staff" },
     children: [
+      { path: "", redirect: "/staff/dashboard" }, 
       { path: "dashboard", name: "StaffDashboard", component: StaffDashboard },
       { path: "centers", name: "StaffCenters", component: EvacuationCenters },
       { path: "logs", name: "StaffLogs", component: StaffLogs },
@@ -91,37 +94,44 @@ const router = createRouter({
 
 // AUTH + ROLE GUARD
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
-  const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-  const userType = userData.userType // 'admin' | 'staff' | 'citizen'
+  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+  const userType = userData.userType || "citizen"; // default
 
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    return next('/auth/login')
+  const isAuthRoute = to.path.startsWith("/auth/");
+  const needsAuth = to.matched.some(r => r.meta?.requiresAuth); // handles children properly
+
+  // 1) if route needs auth but not logged in -> login
+  if (needsAuth && !isAuthenticated) {
+    return next("/auth/login");
   }
 
-  // prevent going back to login when already logged in
-  if (to.path === "/auth/login" && isAuthenticated) {
-    return next(
-      userData.userType === "admin" ? "/admin/dashboard"
-      : userData.userType === "staff" ? "/staff/dashboard"
-      : "/user/dashboard"
-    );
+  // 2) if already logged in and trying to go auth pages -> redirect to proper dashboard
+  if (isAuthenticated && isAuthRoute) {
+    const target =
+      userType === "admin" ? "/admin/dashboard"
+      : userType === "staff" ? "/staff/dashboard"
+      : "/user/dashboard";
+
+    // prevent redirect loop
+    if (to.path !== target) return next(target);
+    return next();
   }
 
-  if (to.meta.requiresAuth && isAuthenticated) {
-    const required = to.meta.role // string or array
+  // 3) role-based restriction (only when logged in)
+  const requiredRole = to.meta?.role;
+  if (isAuthenticated && requiredRole) {
+    const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    if (!allowed.includes(userType)) {
+      const fallback =
+        (userType === "admin" || userType === "staff") ? "/admin/dashboard" : "/user/dashboard";
 
-    if (required) {
-      const allowed = Array.isArray(required) ? required : [required]
-      if (!allowed.includes(userType)) {
-        return next(
-          (userType === 'admin' || userType === 'staff') ? '/admin/dashboard' : '/user/dashboard'
-        )
-      }
+      if (to.path !== fallback) return next(fallback);
+      return next(); // ✅ add this
     }
   }
 
-  next()
-})
+  return next();
+});
 
 export default router

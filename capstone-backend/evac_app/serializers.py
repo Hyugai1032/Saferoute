@@ -50,18 +50,28 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "date_recorded",
             "families_in", "individuals_in",
             "families_out", "individuals_out",
+            
+            # ✅ new breakdown
+            "children_count",
+            "senior_count",
+            "pwd_count",
+            "pregnant_count",
+            "lactating_count",
+
             "vulnerable_individuals",
             "total_current",
+            "total_current_families",  # ✅ new
             "remarks",
         ]
         read_only_fields = ["reporting_staff", "total_current"]
 
     def validate(self, attrs):
         numeric_fields = [
-            "families_in", "individuals_in",
-            "families_out", "individuals_out",
-            "vulnerable_individuals",
+        "families_in","individuals_in","families_out","individuals_out",
+        "vulnerable_individuals",
+        "children_count","senior_count","pwd_count","pregnant_count","lactating_count"
         ]
+        read_only_fields = ["reporting_staff", "total_current", "vulnerable_individuals"]
         for f in numeric_fields:
             if attrs.get(f, 0) is None:
                 attrs[f] = 0

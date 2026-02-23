@@ -52,16 +52,19 @@ if (!refreshToken) {
   }
 );
 
-export default api;
 
 export const evacLogsApi = {
   list(params) {
-    return axios.get("/evacuation-logs/", { params });
+    return api.get("evac_centers/evacuation-logs/", { params });
   },
   create(payload) {
-    return axios.post("/evacuation-logs/", payload);
+    return api.post("evac_centers/evacuation-logs/", payload);
   },
   latestByCenter(centerId) {
-    return axios.get("/evacuation-logs/latest_by_center/", { params: { center: centerId } });
+    return api.get("evac_centers/evacuation-logs/latest_by_center/", { params: { center: centerId } });
   },
 };
+
+export default api;
+
+

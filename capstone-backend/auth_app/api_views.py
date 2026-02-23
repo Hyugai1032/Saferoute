@@ -56,9 +56,7 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UserProfileSerializer(request.user)
-        return Response(serializer.data)
-    
+        return Response(UserProfileSerializer(request.user).data)    
 
 class HazardReportView(APIView):
     permission_classes = [IsAuthenticated]

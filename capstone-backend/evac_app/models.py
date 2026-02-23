@@ -39,16 +39,49 @@ class EvacuationCenter(models.Model):
         return self.name
 
 class EvacuationLog(models.Model):
+
     center = models.ForeignKey(EvacuationCenter, on_delete=models.CASCADE)
     reporting_staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
     date_recorded = models.DateTimeField(default=timezone.now)
+
     families_in = models.IntegerField(default=0)
     individuals_in = models.IntegerField(default=0)
     families_out = models.IntegerField(default=0)
     individuals_out = models.IntegerField(default=0)
+
+    # ✅ breakdown
+    children_count = models.IntegerField(default=0)
+    senior_count = models.IntegerField(default=0)
+    pwd_count = models.IntegerField(default=0)
+    pregnant_count = models.IntegerField(default=0)
+    lactating_count = models.IntegerField(default=0)
+
+    # optional: keep this, or compute it automatically
     vulnerable_individuals = models.IntegerField(default=0)
-    total_current = models.IntegerField(default=0)  # Computed field
+
+    total_current = models.IntegerField(default=0)          # individuals current
+    total_current_families = models.IntegerField(default=0) # ✅ families current
+
     remarks = models.TextField(null=True, blank=True)
+
+
+    # center = models.ForeignKey(EvacuationCenter, on_delete=models.CASCADE)
+    # reporting_staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    # date_recorded = models.DateTimeField(default=timezone.now)
+    # families_in = models.IntegerField(default=0)
+    # individuals_in = models.IntegerField(default=0)
+    # families_out = models.IntegerField(default=0)
+    # individuals_out = models.IntegerField(default=0)
+    # vulnerable_individuals = models.IntegerField(default=0)
+    # total_current = models.IntegerField(default=0)  # Computed field
+    # remarks = models.TextField(null=True, blank=True)
+
+    #  # ✅ breakdown
+    # children = models.IntegerField(default=0)
+    # seniors = models.IntegerField(default=0)
+    # pwd = models.IntegerField(default=0)
+    # pregnant = models.IntegerField(default=0)
+    # lactating = models.IntegerField(default=0)
 
     class Meta:
         ordering = ["-date_recorded", "-id"]
@@ -59,31 +92,42 @@ class EvacuationLog(models.Model):
     def __str__(self):
         return f"Log for {self.center.name} on {self.date_recorded}"
     
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        # lock center logs to avoid race conditions on total_current
-        # (important when multiple staff can submit at the same time)
-        if self.center_id is None:
-            super().save(*args, **kwargs)
-            return
+@transaction.atomic
+def save(self, *args, **kwargs):
+    if self.center_id is None:
+        return super().save(*args, **kwargs)
 
-        previous = (
-            EvacuationLog.objects
-            .select_for_update()
-            .filter(center_id=self.center_id)
-            .exclude(pk=self.pk)
-            .order_by("-date_recorded", "-id")
-            .first()
-        )
+    previous = (
+        EvacuationLog.objects
+        .select_for_update()
+        .filter(center_id=self.center_id)
+        .exclude(pk=self.pk)
+        .order_by("-date_recorded", "-id")
+        .first()
+    )
 
-        prev_total = previous.total_current if previous else 0
+    prev_ind = previous.total_current if previous else 0
+    prev_fam = previous.total_current_families if previous else 0
 
-        delta = int(self.individuals_in or 0) - int(self.individuals_out or 0)
-        new_total = prev_total + delta
+    ind_delta = int(self.individuals_in or 0) - int(self.individuals_out or 0)
+    fam_delta = int(self.families_in or 0) - int(self.families_out or 0)
 
-        # guardrails
-        if new_total < 0:
-            new_total = 0
+    new_ind = prev_ind + ind_delta
+    new_fam = prev_fam + fam_delta
 
-        self.total_current = new_total
-        super().save(*args, **kwargs)
+    if new_ind < 0: new_ind = 0
+    if new_fam < 0: new_fam = 0
+
+    # auto compute vulnerable total from breakdown
+    self.vulnerable_individuals = (
+        int(self.children or 0) +
+        int(self.seniors or 0) +
+        int(self.pwd or 0) +
+        int(self.pregnant or 0) +
+        int(self.lactating or 0)
+    )
+
+    self.total_current = new_ind
+    self.total_current_families = new_fam
+
+    return super().save(*args, **kwargs)

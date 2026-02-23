@@ -95,7 +95,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="assigned_staff"
+        related_name="assigned_staff",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

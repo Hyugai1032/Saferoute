@@ -332,6 +332,55 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             "total_current": latest.total_current,
             "date_recorded": latest.date_recorded
         })
+    
+    from django.utils import timezone
+
+from django.db.models import Sum
+
+@action(detail=False, methods=["get"])
+def staff_summary(self, request):
+    user = request.user
+
+    # Determine which center is being summarized
+    if user.role == "EVAC_CENTER_STAFF":
+        if not user.assigned_center_id:
+            return Response({"detail": "No assigned center."}, status=400)
+        center_id = user.assigned_center_id
+    else:
+        center_id = request.query_params.get("center")
+        if not center_id:
+            return Response({"detail": "center query param is required"}, status=400)
+
+    latest = (
+        EvacuationLog.objects
+        .filter(center_id=center_id)
+        .order_by("-date_recorded", "-id")
+        .first()
+    )
+
+    if not latest:
+        return Response({
+            "center": int(center_id),
+            "latest": None,
+            "breakdown": {"children": 0, "seniors": 0, "pwd": 0, "pregnant": 0, "lactating": 0},
+            "total_current": 0,
+        })
+
+    return Response({
+        "center": int(center_id),
+        "latest": {
+            "date_recorded": latest.date_recorded,
+            "total_current": latest.total_current,
+        },
+        "breakdown": {
+            "children_count": latest.children_count,
+            "senior_count": latest.senior_count,
+            "pwd_count": latest.pwd_count,
+            "pregnant_count": latest.pregnant_count,
+            "lactating_count": latest.lactating_count,
+        },
+        "total_current": latest.total_current,
+    })
 
 class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = EvacuationCenter.objects.select_related("municipality").all().order_by("name")

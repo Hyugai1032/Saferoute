@@ -7,9 +7,13 @@
       </div>
 
       <div class="actions">
-        <button class="btn" @click="openCreate" :disabled="!canCreate">
-          + Add Log
-        </button>
+          <button class="btn" @click="openCreate" :disabled="!canCreate" :title="!canCreate ? 'Ask admin to assign you a center first' : ''">
+            + Add Log
+          </button>
+            <div v-if="isStaff && !me.assigned_center_id" class="card warn">
+                <b>Unassigned center</b>
+            <div class="muted">You can’t add logs until an admin assigns you to an evacuation center.</div>
+</div>
       </div>
     </div>
 
@@ -170,10 +174,41 @@
             <input v-model.number="modal.form.individuals_out" type="number" min="0" />
           </label>
 
-          <label class="wide">
-            Vulnerable Individuals
-            <input v-model.number="modal.form.vulnerable_individuals" type="number" min="0" />
-          </label>
+          <div class="wide">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <b style="color:black;">Vulnerable Breakdown</b>
+              <span style="font-size:12px; opacity:.7;">
+                Total: {{ vulnerableTotal }}
+              </span>
+            </div>
+
+            <div class="vgrid">
+              <label>
+                Children
+                <input v-model.number="modal.form.children" type="number" min="0" />
+              </label>
+
+              <label>
+                Seniors
+                <input v-model.number="modal.form.seniors" type="number" min="0" />
+              </label>
+
+              <label>
+                PWD
+                <input v-model.number="modal.form.pwd" type="number" min="0" />
+              </label>
+
+              <label>
+                Pregnant
+                <input v-model.number="modal.form.pregnant" type="number" min="0" />
+              </label>
+
+              <label>
+                Lactating
+                <input v-model.number="modal.form.lactating" type="number" min="0" />
+              </label>
+            </div>
+          </div>
 
           <label class="wide">
             Remarks
@@ -237,10 +272,20 @@ export default {
           individuals_out: 0,
           vulnerable_individuals: 0,
           remarks: "",
+          children: 0,
+          seniors: 0,
+          pwd: 0,
+          pregnant: 0,
+          lactating: 0
         },
       },
     };
   },
+
+  vulnerableTotal() {
+  const f = this.modal.form;
+  return (f.children||0)+(f.seniors||0)+(f.pwd||0)+(f.pregnant||0)+(f.lactating||0);
+},
 
   computed: {
     isStaff() {
@@ -286,7 +331,7 @@ export default {
       await this.fetchCenters();
     }
     await this.fetchLogs(1);
-    console.log("ME:", res.data);
+    // console.log("ME:", res.data);
   },
 
   methods: {
@@ -352,6 +397,11 @@ export default {
         individuals_in: 0,
         families_out: 0,
         individuals_out: 0,
+        children: 0,
+        seniors: 0,
+        pwd: 0,
+        pregnant: 0,
+        lactating: 0,
         vulnerable_individuals: 0,
         remarks: "",
       };
@@ -369,6 +419,11 @@ export default {
         individuals_in: log.individuals_in ?? 0,
         families_out: log.families_out ?? 0,
         individuals_out: log.individuals_out ?? 0,
+        children: log.children ?? 0,
+        seniors: log.seniors ?? 0,
+        pwd: log.pwd ?? 0,
+        pregnant: log.pregnant ?? 0,
+        lactating: log.lactating ?? 0,
         vulnerable_individuals: log.vulnerable_individuals ?? 0,
         remarks: log.remarks || "",
       };
@@ -404,7 +459,13 @@ export default {
           individuals_in: this.modal.form.individuals_in ?? 0,
           families_out: this.modal.form.families_out ?? 0,
           individuals_out: this.modal.form.individuals_out ?? 0,
-          vulnerable_individuals: this.modal.form.vulnerable_individuals ?? 0,
+
+          children: this.modal.form.children ?? 0,
+          seniors: this.modal.form.seniors ?? 0,
+          pwd: this.modal.form.pwd ?? 0,
+          pregnant: this.modal.form.pregnant ?? 0,
+          lactating: this.modal.form.lactating ?? 0,
+
           remarks: this.modal.form.remarks || "",
         };
 
@@ -438,11 +499,22 @@ export default {
 </script>
 
 <style scoped>
+
+.vgrid{
+  display:grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px){
+  .vgrid{ grid-template-columns: 1fr 1fr; }
+}
+
+
 .page { padding: 20px; }
 .page-header { display:flex; align-items:flex-end; justify-content:space-between; gap: 12px; }
 .actions { display:flex; gap: 10px; }
 .card { margin-top: 14px; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; }
-.card.warn { border-color: #f59e0b55; background: #fff7ed; }
+.card.warn { border-color: #0b2ef555; }
 .row { display:flex; gap: 24px; flex-wrap: wrap; }
 .label { font-size: 12px; opacity: 0.7; }
 .value { font-size: 22px; font-weight: 800; margin-top: 4px; }

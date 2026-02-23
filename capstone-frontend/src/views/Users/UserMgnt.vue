@@ -47,11 +47,11 @@
             <input
               v-model="filters.search"
               placeholder="Search name, email, or contact..."
-              @keyup.enter="fetchUsers"
+              @keyup.enter="fetchUsers(1)"
             />
           </div>
 
-          <select v-model="filters.role" @change="fetchUsers">
+          <select v-model="filters.role" @change="fetchUsers(1)">
             <option value="">All roles</option>
             <option value="PROVINCIAL_ADMIN">Provincial Admin</option>
             <option value="MUNICIPAL_ADMIN">Municipal Admin</option>
@@ -60,13 +60,13 @@
             <option value="CITIZEN">Citizen</option>
           </select>
 
-          <select v-model="filters.is_active" @change="fetchUsers">
+          <select v-model="filters.is_active" @change="fetchUsers(1)">
             <option value="">All status</option>
             <option :value="true">Active</option>
             <option :value="false">Inactive</option>
           </select>
 
-          <button @click="fetchUsers(1)" style="padding:8px 12px;">Refresh</button>
+          <button class="btn ghost" @click="fetchUsers(1)">Refresh</button>
         </div>
 
         <div class="filters-right">
@@ -85,7 +85,7 @@
         <div class="table-head">
           <h3>Registered Users</h3>
           <div class="table-sub">
-            <span class="chip">{{ users.length }} shown</span>
+            <span class="chip">{{ safeUsers.length }} shown</span>
           </div>
         </div>
 
@@ -100,18 +100,15 @@
                 <th>User</th>
                 <th>Role</th>
                 <th>Municipality</th>
-                <th>Status</th>
                 <th>Assigned Center</th>
+                <th>Status</th>
                 <th style="width: 260px;">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               <tr v-for="u in safeUsers" :key="u.id">
-                <td>{{ fullName(u) }}</td>
-                <td>{{ u.email }}</td>
-                <td>{{ u.role }}</td>
-                <td>{{ u.municipality_name || "-" }}</td>
+                <!-- USER -->
                 <td>
                   <div class="user-cell">
                     <div class="avatar" :class="{ dim: !u.is_active }">
@@ -134,9 +131,12 @@
                     {{ u.role }}
                   </span>
                 </td>
-                <td>{{ u.assigned_center_name || "-" }}</td>
 
+                <!-- MUNICIPALITY -->
                 <td class="muted">{{ u.municipality_name || "-" }}</td>
+
+                <!-- ASSIGNED CENTER -->
+                <td class="muted">{{ u.assigned_center_name || "-" }}</td>
 
                 <!-- STATUS -->
                 <td>
@@ -168,13 +168,16 @@
                 </td>
               </tr>
 
-              <tr v-if="users.length === 0">
-                <td colspan="5" class="empty">
+              <tr v-if="safeUsers.length === 0">
+                <td colspan="6" class="empty">
                   <div class="empty-box">
                     <div class="empty-ico">🧾</div>
                     <div class="empty-title">No users found</div>
                     <div class="empty-text">Try changing filters or searching a different keyword.</div>
-                    <button class="btn ghost" @click="() => { filters.search=''; filters.role=''; filters.is_active=''; fetchUsers(); }">
+                    <button
+                      class="btn ghost"
+                      @click="() => { filters.search=''; filters.role=''; filters.is_active=''; fetchUsers(1); }"
+                    >
                       Clear filters
                     </button>
                   </div>
@@ -185,6 +188,7 @@
         </div>
       </div>
 
+      <!-- Pagination -->
       <div class="pagination" v-if="pagination.count > 0">
         <button
           :disabled="!pagination.previous"
@@ -205,13 +209,22 @@
         >
           Next
         </button>
-
       </div>
 
-
-      <!-- EDIT MODAL (simple) -->
-      <div v-if="edit.open" style="margin-top:16px; padding:12px; border:1px solid #ddd; border-radius:8px;">
-        <h3 style="margin:0 0 8px 0;">Edit User: {{ edit.user.email }}</h3>
+      <!-- EDIT SECTION -->
+      <div
+        v-if="edit.open"
+        class="modal-backdrop"
+        @click.self="closeEdit"
+      >
+        <div class="modal">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Edit User</div>
+              <div class="modal-sub">{{ edit.user?.email }}</div>
+            </div>
+            <button class="icon-btn" @click="closeEdit">✕</button>
+          </div>
 
           <div class="modal-body">
             <div class="form-grid">
@@ -242,12 +255,30 @@
               </div>
 
               <div class="field">
-                <label>Municipality ID</label>
-                <input
+                <label>Municipality</label>
+                <select
                   v-model.number="edit.form.municipality"
-                  placeholder="Municipality ID"
                   :disabled="!canAssignMunicipality()"
-                />
+                  @change="onMunicipalityChanged"
+                >
+                  <option :value="null">No municipality</option>
+                  <option v-for="m in municipalities" :key="m.id" :value="m.id">
+                    {{ m.name }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="field" v-if="edit.form.role === 'EVAC_CENTER_STAFF'">
+                <label>Assigned center</label>
+                <select
+                  v-model.number="edit.form.assigned_center"
+                  :disabled="!isMunicipalOrHigher()"
+                >
+                  <option :value="null">Unassigned</option>
+                  <option v-for="c in centers" :key="c.id" :value="c.id">
+                    {{ c.name }} ({{ c.municipality_name }})
+                  </option>
+                </select>
               </div>
             </div>
           </div>
@@ -256,34 +287,6 @@
             <button class="btn ghost" @click="closeEdit">Cancel</button>
             <button class="btn primary" @click="saveEdit">Save changes</button>
           </div>
-          <select
-            v-model.number="edit.form.municipality"
-            style="padding:8px; width:240px;"
-            :disabled="!canAssignMunicipality()"
-            @change="onMunicipalityChanged"
-          >
-            <option :value="null">No municipality</option>
-            <option v-for="m in municipalities" :key="m.id" :value="m.id">
-              {{ m.name }}
-            </option>
-          </select>
-        </div>
-
-        <select
-          v-if="edit.form.role === 'EVAC_CENTER_STAFF'"
-          v-model.number="edit.form.assigned_center"
-          style="padding:8px; width:260px;"
-          :disabled="!isMunicipalOrHigher()"
-        >
-          <option :value="null">Unassigned</option>
-          <option v-for="c in centers" :key="c.id" :value="c.id">
-            {{ c.name }} ({{ c.municipality_name }})
-          </option>
-        </select>
-
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <button class="btn-edit" @click="saveEdit">Save</button>
-          <button class="btn-delete" @click="closeEdit">Cancel</button>
         </div>
       </div>
 
@@ -446,8 +449,9 @@ roleClass(role) {
         const params = {};
         if (municipalityId) params.municipality = municipalityId;
 
-        const res = await api.get("evac_centers/evacuation-centers/", { params: { page_size: 9999 } });
-        const data = res.data;
+        const res = await api.get("evac_centers/evacuation-centers/", {
+          params: { page_size: 9999, ...params },
+        });
 
         // ✅ store in centers (NOT evacCenters)
         this.centers = Array.isArray(data) ? data : (data.results || []);

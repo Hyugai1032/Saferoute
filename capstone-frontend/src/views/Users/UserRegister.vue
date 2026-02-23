@@ -95,6 +95,25 @@
                 </div>
               </div>
 
+              <!-- Municipality -->
+<div class="form-group">
+  <label class="form-label">Municipality</label>
+  <div class="input-group">
+    <i class="fas fa-map-marker-alt input-icon"></i>
+
+    <select class="form-input" v-model="form.municipality" required>
+      <option value="" disabled>Select Municipality</option>
+
+      <option
+        v-for="m in municipalities"
+        :key="m.id"
+        :value="m.id"
+      >
+        {{ m.name }}
+      </option>
+    </select>
+  </div>
+</div>
               <div class="form-group">
                 <label class="form-label">Password</label>
                 <div class="input-group">
@@ -138,7 +157,7 @@
 
 <script>
 import { register } from "@/services/authService"
-
+import axios from "axios";
 export default {
   name: "UserRegister",
   data() {
@@ -148,8 +167,10 @@ export default {
         last_name: "",
         email: "",
         password: "",
-        contact_number: ""
+        contact_number: "",
+         municipality: ""  
       },
+      municipalities: [],
       loading: false,
       showPassword: false,
 
@@ -201,12 +222,20 @@ export default {
     }
   },
 
-  mounted() {
-    const shapes = document.querySelectorAll(".floating-shape");
-    shapes.forEach((shape, index) => {
-      shape.style.animation = `float ${3 + index}s ease-in-out infinite`;
-    });
-  }
+    async mounted() {
+      try {
+        const API = import.meta.env.VITE_API_BASE_URL; // should be http://127.0.0.1:8000/api
+        const res = await axios.get(`${API}/municipalities/`);
+        this.municipalities = res.data || [];
+      } catch (e) {
+        console.error("Failed to load municipalities:", e);
+      }
+
+      const shapes = document.querySelectorAll(".floating-shape");
+      shapes.forEach((shape, index) => {
+        shape.style.animation = `float ${3 + index}s ease-in-out infinite`;
+      });
+    }
 };
 </script>
 

@@ -13,23 +13,20 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['email', 'first_name', 'last_name', 'password', 'contact_number', 'municipality']
 
     def create(self, validated_data):
-        password = validated_data.pop("password")
-         # If your workflow is "wait for admin approval"
-        validated_data.setdefault("status", "PENDING")
+        # Remove non-model fields that may be included in request/serializer
+        validated_data.pop("status", None)
 
-        user = CustomUser.objects.create_user(**validated_data)
-        return user
+        # If your serializer has password confirmation, remove it too
+        validated_data.pop("password2", None)
 
+        return CustomUser.objects.create_user(**validated_data)
     
 class UserProfileSerializer(serializers.ModelSerializer):
-    assigned_center_id = serializers.IntegerField(
-        source="assigned_center.id",
-        read_only=True
-    )
-    assigned_center_name = serializers.CharField(
-        source="assigned_center.name",
-        read_only=True
-    )
+    municipality_id = serializers.IntegerField(source="municipality.id", read_only=True)
+    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+
+    assigned_center_id = serializers.IntegerField(source="assigned_center.id", read_only=True)
+    assigned_center_name = serializers.CharField(source="assigned_center.name", read_only=True)
 
     class Meta:
         model = CustomUser
@@ -39,6 +36,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "email",
             "role",
             "contact_number",
+            "municipality_id",
+            "municipality_name",
             "assigned_center_id",
             "assigned_center_name",
         ]
