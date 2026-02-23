@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer
+from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport
 from .serializers import RegisterSerializer
 from .serializers import (UserProfileSerializer, 
                           HazardReportSerializer, 
@@ -32,6 +32,8 @@ from .permissions import (
     IsOwnerOrAdmin,
     GisLayerRolePermission
 )
+
+EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -304,7 +306,6 @@ class MapOverviewView(APIView):
     Returns center pins + recent hazard pins.
     """
     permission_classes = [IsAuthenticated, IsStaffOrHigher]
-    EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 
     def get(self, request):
         recent_hours = int(request.query_params.get("recent_hours", 48))

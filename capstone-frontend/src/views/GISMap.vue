@@ -54,15 +54,15 @@
             <div class="center-info">
               <div class="info-item">
                 <span class="info-label">📍 Location:</span>
-                <span class="info-value">{{ selectedCenter.municipality }}</span>
+                <span class="info-value">{{ selectedCenter.municipality_name }} - {{ selectedCenter.barangay_name || "N/A" }}</span>
               </div>
-              <div class="info-item">
+              <!-- <div class="info-item">
                 <span class="info-label">📞 Contact:</span>
                 <span class="info-value">{{ selectedCenter.contact }}</span>
-              </div>
+              </div> -->
               <div class="info-item">
                 <span class="info-label">🕒 Last Update:</span>
-                <span class="info-value">{{ selectedCenter.lastUpdate }}</span>
+                <span class="info-value">{{ selectedCenter.updated_at }}</span>
               </div>
             </div>
 
@@ -79,7 +79,7 @@
                     ></div>
                   </div>
                   <div class="progress-text">
-                    {{ selectedCenter.occupants }} / {{ selectedCenter.capacity }} 
+                    {{ getTotalOccupancy(selectedCenter) }} / {{ getTotalCapacity(selectedCenter) }} 
                     ({{ getOccupancyPercentage(selectedCenter) }}%)
                   </div>
                 </div>
@@ -87,7 +87,7 @@
             </div>
 
             <!-- Supplies Section -->
-            <div class="metrics-section">
+            <!-- <div class="metrics-section">
               <h4>Supplies Status</h4>
               <div class="supplies-grid">
                 <div v-for="(value, key) in selectedCenter.supplies" :key="key" class="supply-card">
@@ -106,7 +106,7 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </div> -->
 
             <!-- Quick Actions -->
             <div class="action-buttons">
@@ -142,6 +142,7 @@ import 'leaflet/dist/leaflet.css'
 import api from '@/services/api'
 
 const centers = ref([])
+const hazards = ref([])
 
 const centerLayer = ref(null)
 const hazardLayer = ref(null)
@@ -164,19 +165,31 @@ const selectedCenter = ref(null)
 const isSatelliteView = ref(false)
 
 // Methods
-const getOccupancyPercentage = (center) => 
-  Math.round((center.occupants / center.capacity) * 100)
+const getStatusColor = (center) => {
+  const pct = getOccupancyPercentage(center)
+  if (pct >= 90) return '#ef4444'
+  if (pct >= 70) return '#f59e0b'
+  return '#22c55e'
+}
 
-const getSupplyLevel = (value) => {
-  if (value < 30) return 'critical'
-  if (value < 60) return 'warning'
+const getStatusLevel = (center) => {
+  const pct = getOccupancyPercentage(center)
+  if (pct >= 90) return 'critical'
+  if (pct >= 70) return 'warning'
   return 'normal'
 }
 
-const createCustomIcon = (center) => {
+const getStatusText = (center) => {
+  const pct = getOccupancyPercentage(center)
+  if (pct >= 90) return 'Critical'
+  if (pct >= 70) return 'Nearly Full'
+  return 'Available'
+}
+
+const createCenterIcon = (center) => {
   const percentage = getOccupancyPercentage(center)
-  let color = getStatusColor(center)
-  let pulseClass = percentage >= 90 ? 'pulse-marker' : ''
+  const color = getStatusColor(center)
+  const pulseClass = percentage >= 90 ? 'pulse-marker' : ''
 
   return L.divIcon({
     className: `custom-marker ${pulseClass}`,
@@ -190,44 +203,97 @@ const createCustomIcon = (center) => {
     `,
     iconSize: [40, 40],
     iconAnchor: [20, 40],
-    popupAnchor: [0, -40]
   })
 }
 
+const createHazardIcon = (hazard) => {
+  // simple: red default marker (you can customize later)
+  return L.divIcon({
+    className: 'hazard-marker',
+    html: `⚠️`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  })
+}
+
+const getTotalCapacity = (c) =>
+  Number(c.family_capacity_max || 0) + Number(c.individual_capacity_max || 0)
+
+// until you compute occupancy, show 0
+const getTotalOccupancy = (c) => 0
+
+const getOccupancyPercentage = (c) => {
+  const cap = getTotalCapacity(c)
+  const occ = getTotalOccupancy(c)
+  if (!cap) return 0
+  return Math.round((occ / cap) * 100)
+}
+
 // ---- API ----
-const fetchCenters = async () => {
-  // Adjust endpoint to your backend
-  // Example expected response: [{id,name,lat,lng,capacity,occupants,municipality,contact,lastUpdate,supplies}, ...]
-  const res = await api.get('/gis-layers/')
-  centers.value = Array.isArray(res.data) ? res.data : (res.data.results || [])
+const fetchMapOverview = async () => {
+  const res = await api.get('/map/overview/')
+  centers.value = res.data.centers || []
+  hazards.value = res.data.hazards || []
+}
+
+const fetchCenterDetail = async (id) => {
+  const res = await api.get(`/evac_centers/evac-centers/${id}/`)
+  return res.data
 }
 
 // ---- Rendering ----
 const renderCenters = () => {
   if (!centerLayer.value) return
-
   centerLayer.value.clearLayers()
 
   centers.value.forEach((center) => {
-    // Guard: must have coordinates
-    if (center.lat == null || center.lng == null) return
+    if (center.latitude == null || center.longitude == null) return
 
-    const icon = createCustomIcon(center)
-    const marker = L.marker([center.lat, center.lng], { icon })
-      .addTo(centerLayer.value)
+    const marker = L.marker([center.latitude, center.longitude], {
+      icon: createCenterIcon(center),
+    }).addTo(centerLayer.value)
 
-    marker.on('click', () => {
+    marker.on('click', async () => {
       selectedCenter.value = center
+
+      try {
+        const full = await fetchCenterDetail(center.id)
+        selectedCenter.value = full // now has full serializer data
+      } catch (e) {
+        console.error("Failed to fetch center detail:", e)
+      }
     })
+  })
+}
+
+const renderHazards = () => {
+  if (!hazardLayer.value) return
+  hazardLayer.value.clearLayers()
+
+  hazards.value.forEach((haz) => {
+    if (haz.latitude == null || haz.longitude == null) return
+
+    const marker = L.marker([haz.latitude, haz.longitude], {
+      icon: createHazardIcon(haz),
+    }).addTo(hazardLayer.value)
+
+    marker.bindPopup(`
+      <div>
+        <b>${haz.title || 'Hazard'}</b><br/>
+        Type: ${haz.hazard_type}<br/>
+        Severity: ${haz.severity}<br/>
+        Status: ${haz.status}
+      </div>
+    `)
   })
 }
 
 const fitMapToCenters = () => {
   const coords = centers.value
-    .filter(c => c.lat != null && c.lng != null)
-    .map(c => [c.lat, c.lng])
+    .filter(c => c.latitude != null && c.longitude != null)
+    .map(c => [c.latitude, c.longitude])
 
-  if (!coords.length) return
+  if (!coords.length || !map.value) return
 
   const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
   map.value.fitBounds(group.getBounds().pad(0.1))
@@ -238,10 +304,10 @@ const initializeMap = async () => {
 
   map.value = L.map('map').setView([13.0, 121.1], 9)
 
-  // base layers
   osmLayer.value = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
   })
+
   satelliteLayer.value = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
     maxZoom: 20,
     subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
@@ -250,16 +316,13 @@ const initializeMap = async () => {
 
   osmLayer.value.addTo(map.value)
 
-  // overlay groups (must be after map exists)
   centerLayer.value = L.layerGroup().addTo(map.value)
   hazardLayer.value = L.layerGroup().addTo(map.value)
-  gisLayer.value = L.layerGroup().addTo(map.value)
-  routeLayer.value = L.layerGroup().addTo(map.value)
 
-  // fetch and render
-  await fetchCenters()
+  await fetchMapOverview()
   renderCenters()
-  fitMapToCenters()
+  renderHazards()
+  fitToBounds()
 
   map.value.invalidateSize()
 }
@@ -267,8 +330,9 @@ const initializeMap = async () => {
 // ---- UI Buttons ----
 const refreshData = async () => {
   if (!map.value) return
-  await fetchCenters()
+  await fetchMapOverview()
   renderCenters()
+  renderHazards()
   map.value.invalidateSize()
 }
 
@@ -289,9 +353,14 @@ const toggleSatellite = () => {
 }
 
 const fitToBounds = () => {
-  if (!map.value) return
-  fitMapToCenters()
-  map.value.invalidateSize()
+  const coords = centers.value
+    .filter(c => c.latitude != null && c.longitude != null)
+    .map(c => [c.latitude, c.longitude])
+
+  if (!coords.length || !map.value) return
+
+  const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
+  map.value.fitBounds(group.getBounds().pad(0.1))
 }
 
 const sendSupplies = (center) => {
@@ -305,7 +374,7 @@ const viewEvacuees = (center) => {
 }
 
 const contactCenter = (center) => {
-  alert(`Contacting ${center.name} at ${center.contact}`)
+  alert(`Contacting ${center.name}`)
   // Implement contact logic
 }
 
