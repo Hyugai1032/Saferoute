@@ -232,7 +232,7 @@ class AnalyticsEvent(models.Model):
 class GisLayer(models.Model):
     name = models.CharField(max_length=100)
     municipality = models.ForeignKey(Municipality, on_delete=models.CASCADE)
-    geojson_data = models.TextField()  # Assuming LONGTEXT for large data
+    geojson_data = models.JSONField()  # Assuming LONGTEXT for large data
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

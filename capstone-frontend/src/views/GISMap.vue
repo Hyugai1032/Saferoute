@@ -139,7 +139,17 @@
 import { ref, onMounted, onUnmounted, nextTick, watch, onActivated } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { centers, getStatusLevel, getStatusText, getStatusColor } from '@/data/centers'
+import api from '@/services/api'
+
+const centers = ref([])
+
+const centerLayer = ref(null)
+const hazardLayer = ref(null)
+const gisLayer = ref(null)
+const routeLayer = ref(null)
+
+const osmLayer = ref(null)
+const satelliteLayer = ref(null)
 
 // Fix for default markers in Leaflet
 delete L.Icon.Default.prototype._getIconUrl
@@ -184,93 +194,104 @@ const createCustomIcon = (center) => {
   })
 }
 
-const initializeMap = async () => {
-  await nextTick()
-  
-  // Oriental Mindoro coordinates
-  map.value = L.map('map').setView([13.0, 121.1], 9)
+// ---- API ----
+const fetchCenters = async () => {
+  // Adjust endpoint to your backend
+  // Example expected response: [{id,name,lat,lng,capacity,occupants,municipality,contact,lastUpdate,supplies}, ...]
+  const res = await api.get('/evacuation-centers/')
+  centers.value = Array.isArray(res.data) ? res.data : (res.data.results || [])
+}
 
-  // Base layers
-  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  })
+// ---- Rendering ----
+const renderCenters = () => {
+  if (!centerLayer.value) return
 
-  const satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: '&copy; Google'
-  })
+  centerLayer.value.clearLayers()
 
-  osmLayer.addTo(map.value)
+  centers.value.forEach((center) => {
+    // Guard: must have coordinates
+    if (center.lat == null || center.lng == null) return
 
-  // Add evacuation centers
-  centers.forEach(center => {
     const icon = createCustomIcon(center)
-    const marker = L.marker([center.lat, center.lng], { icon }).addTo(map.value)
+    const marker = L.marker([center.lat, center.lng], { icon })
+      .addTo(centerLayer.value)
 
-    // Bind popup with basic info
-    marker.bindPopup(`
-      <div class="marker-popup">
-        <h4>${center.name}</h4>
-        <p><strong>Location:</strong> ${center.municipality}</p>
-        <p><strong>Occupancy:</strong> ${center.occupants}/${center.capacity} (${getOccupancyPercentage(center)}%)</p>
-        <p><strong>Status:</strong> <span style="color: ${getStatusColor(center)}">${getStatusText(center)}</span></p>
-        <button onclick="this.dispatchEvent(new CustomEvent('centerClick', { bubbles: true, detail: ${center.id} }))" 
-                style="margin-top: 8px; padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          View Details
-        </button>
-      </div>
-    `)
-
-    // Add click event
     marker.on('click', () => {
       selectedCenter.value = center
-      // Close other popups
-      map.value.eachLayer(layer => {
-        if (layer instanceof L.Marker && layer !== marker) {
-          layer.closePopup()
-        }
-      })
-    })
-
-    // Custom event for popup button
-    marker.getElement()?.addEventListener('centerClick', (e) => {
-      selectedCenter.value = centers.find(c => c.id === e.detail)
     })
   })
+}
 
-  // Fit map to show all markers
-  const group = new L.featureGroup(centers.map(c => L.marker([c.lat, c.lng])))
+const fitMapToCenters = () => {
+  const coords = centers.value
+    .filter(c => c.lat != null && c.lng != null)
+    .map(c => [c.lat, c.lng])
+
+  if (!coords.length) return
+
+  const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
   map.value.fitBounds(group.getBounds().pad(0.1))
+}
 
-  // Important: Invalidate size to fix visibility issues in router views
+const initializeMap = async () => {
+  await nextTick()
+
+  map.value = L.map('map').setView([13.0, 121.1], 9)
+
+  // base layers
+  osmLayer.value = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+  })
+  satelliteLayer.value = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google',
+  })
+
+  osmLayer.value.addTo(map.value)
+
+  // overlay groups (must be after map exists)
+  centerLayer.value = L.layerGroup().addTo(map.value)
+  hazardLayer.value = L.layerGroup().addTo(map.value)
+  gisLayer.value = L.layerGroup().addTo(map.value)
+  routeLayer.value = L.layerGroup().addTo(map.value)
+
+  // fetch and render
+  await fetchCenters()
+  renderCenters()
+  fitMapToCenters()
+
   map.value.invalidateSize()
 }
 
-const refreshData = () => {
-  // Simulate data refresh
-  console.log('Refreshing map data...')
-  // In real app, this would fetch new data from API
-  if (map.value) {
-    map.value.invalidateSize()
-  }
+// ---- UI Buttons ----
+const refreshData = async () => {
+  if (!map.value) return
+  await fetchCenters()
+  renderCenters()
+  map.value.invalidateSize()
 }
 
 const toggleSatellite = () => {
+  if (!map.value || !osmLayer.value || !satelliteLayer.value) return
+
   isSatelliteView.value = !isSatelliteView.value
-  // Toggle between map layers (implementation would depend on your tile layers)
-  console.log('Toggle satellite view:', isSatelliteView.value)
-  if (map.value) {
-    map.value.invalidateSize()
+
+  if (isSatelliteView.value) {
+    if (map.value.hasLayer(osmLayer.value)) map.value.removeLayer(osmLayer.value)
+    if (!map.value.hasLayer(satelliteLayer.value)) map.value.addLayer(satelliteLayer.value)
+  } else {
+    if (map.value.hasLayer(satelliteLayer.value)) map.value.removeLayer(satelliteLayer.value)
+    if (!map.value.hasLayer(osmLayer.value)) map.value.addLayer(osmLayer.value)
   }
+
+  map.value.invalidateSize()
 }
 
 const fitToBounds = () => {
-  const group = new L.featureGroup(centers.map(c => L.marker([c.lat, c.lng])))
-  map.value.fitBounds(group.getBounds().pad(0.1))
-  if (map.value) {
-    map.value.invalidateSize()
-  }
+  if (!map.value) return
+  fitMapToCenters()
+  map.value.invalidateSize()
 }
 
 const sendSupplies = (center) => {

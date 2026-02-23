@@ -1,6 +1,6 @@
 # auth_app/permissions.py
 
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
 class IsProvincialAdmin(BasePermission):
@@ -47,3 +47,9 @@ class IsOwnerOrAdmin(BasePermission):
             return True
         # Users can only access themselves
         return obj.id == request.user.id
+    
+class GisLayerAdminWriteElseReadOnly(BasePermission):
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return request.user.is_authenticated and request.user.is_staff

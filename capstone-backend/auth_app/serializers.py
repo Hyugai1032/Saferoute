@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay
+from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay, GisLayer
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.apps import apps
@@ -273,4 +273,45 @@ class MeUpdateSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['first_name', 'last_name', 'contact_number']  # ✅ only safe fields
 
-    
+
+class GisLayerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GisLayer
+        fields = ["id", "name", "municipality", "geojson_data", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_geojson_data(self, value):
+        """
+        Minimal GeoJSON validation:
+        - must be dict
+        - must have "type"
+        - must have valid root type
+        """
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("geojson_data must be a JSON object.")
+
+        geo_type = value.get("type")
+        if not geo_type:
+            raise serializers.ValidationError("GeoJSON must include a root 'type'.")
+
+        allowed = {
+            "FeatureCollection",
+            "Feature",
+            "Polygon",
+            "MultiPolygon",
+            "LineString",
+            "MultiLineString",
+            "Point",
+            "MultiPoint",
+            "GeometryCollection",
+        }
+        if geo_type not in allowed:
+            raise serializers.ValidationError(f"Invalid GeoJSON type '{geo_type}'.")
+
+        # If FeatureCollection: must have features list
+        if geo_type == "FeatureCollection":
+            feats = value.get("features")
+            if not isinstance(feats, list):
+                raise serializers.ValidationError("FeatureCollection must include 'features' as a list.")
+
+        return value

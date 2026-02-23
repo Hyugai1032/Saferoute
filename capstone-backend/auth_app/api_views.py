@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import CustomUser, HazardPhoto, Municipality, Barangay
+from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer
 from .serializers import RegisterSerializer
 from .serializers import (UserProfileSerializer, 
                           HazardReportSerializer, 
@@ -17,13 +17,15 @@ from .serializers import (UserProfileSerializer,
                           UserDetailSerializer, 
                           UserCreateSerializer, 
                           UserUpdateSerializer,
-                          MeUpdateSerializer)
+                          MeUpdateSerializer,
+                          GisLayerSerializer)
 
 from .permissions import (
     IsProvincialAdmin, 
     IsMunicipalAdminOrHigher, 
     IsStaffOrHigher,
-    IsOwnerOrAdmin
+    IsOwnerOrAdmin,
+    GisLayerAdminWriteElseReadOnly
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -251,3 +253,27 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
+class GisLayerViewSet(viewsets.ModelViewSet):
+    queryset = GisLayer.objects.select_related("municipality").order_by("-updated_at")
+    serializer_class = GisLayerSerializer
+    permission_classes = [GisLayerAdminWriteElseReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        municipality_id = self.request.query_params.get("municipality_id")
+        if municipality_id:
+            qs = qs.filter(municipality_id=municipality_id)
+        return qs
+
+    @action(detail=False, methods=["get"], url_path="latest")
+    def latest(self, request):
+        """
+        Optional helper: get latest updated layer per municipality or overall.
+        - /gis-layers/latest/
+        - /gis-layers/latest/?municipality_id=5
+        """
+        qs = self.get_queryset()
+        layer = qs.first()
+        if not layer:
+            return Response({"detail": "No GIS layers found."}, status=404)
+        return Response(self.get_serializer(layer).data)
