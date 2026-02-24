@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport
@@ -23,7 +23,8 @@ from .serializers import (UserProfileSerializer,
                           MeUpdateSerializer,
                           GisLayerSerializer,
                           EvacCenterPinSerializer,
-                          HazardPinSerializer)
+                          HazardPinSerializer,
+                          HazardReportAdminUpdateSerializer)
 
 from .permissions import (
     IsProvincialAdmin, 
@@ -60,7 +61,16 @@ class UserProfileView(APIView):
 
 class HazardReportView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        status_param = request.query_params.get("status")
+        qs = HazardReport.objects.all().order_by("-id")
+        if status_param:
+            qs = qs.filter(status=status_param)
+
+        serializer = HazardReportSerializer(qs, many=True)
+        return Response(serializer.data)
 
     def post(self, request):
         serializer = HazardReportSerializer(data=request.data)
@@ -77,12 +87,58 @@ class HazardReportView(APIView):
             )
             return Response(HazardReportSerializer(report).data, status=201)
 
-        return Response(serializer.errors, status=400)        
+        return Response(serializer.errors, status=400)     
+
+class HazardReportDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_object(self, pk):
+        try:
+            return HazardReport.objects.get(pk=pk)
+        except HazardReport.DoesNotExist:
+            raise NotFound("Hazard report not found.")
+
+    def patch(self, request, pk):
+        report = self.get_object(pk)
+
+        # OPTIONAL: restrict who can patch (adjust to your roles)
+        role = getattr(request.user, "role", None)
+        if role not in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "EVAC_STAFF"]:
+            raise PermissionDenied("You are not allowed to update hazard reports.")
+
+        serializer = HazardReportAdminUpdateSerializer(
+            report, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        updated = serializer.save()
+
+        # If status is being changed, stamp who reviewed it + when
+        if "status" in serializer.validated_data:
+            updated.reviewed_by = request.user
+            updated.reviewed_at = timezone.now()
+
+            new_status = serializer.validated_data["status"]
+            if new_status == "VALIDATED":
+                updated.validated_at = timezone.now()
+                updated.dismissed_at = None
+            elif new_status == "DISMISSED":
+                updated.dismissed_at = timezone.now()
+                updated.validated_at = None
+
+            updated.save(update_fields=[
+                "reviewed_by", "reviewed_at",
+                "validated_at", "dismissed_at"
+            ])
+
+        # return full serializer you already use for UI
+        return Response(HazardReportSerializer(updated).data, status=200)   
     
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')
     serializer_class = MunicipalitySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = None
     
     @action(detail=True, methods=['get'])

@@ -96,24 +96,30 @@
               </div>
 
               <!-- Municipality -->
-<div class="form-group">
-  <label class="form-label">Municipality</label>
-  <div class="input-group">
-    <i class="fas fa-map-marker-alt input-icon"></i>
+              <div class="form-group">
+                <label class="form-label">Municipality</label>
+                <div class="input-group">
+                  <i class="fas fa-map-marker-alt input-icon"></i>
 
-    <select class="form-input" v-model="form.municipality" required>
-      <option value="" disabled>Select Municipality</option>
-
-      <option
-        v-for="m in municipalities"
-        :key="m.id"
-        :value="m.id"
-      >
-        {{ m.name }}
-      </option>
-    </select>
-  </div>
-</div>
+                  <select
+                    class="form-input"
+                    v-model="form.municipality"
+                    required
+                    :disabled="dropdownLoading.municipalities"
+                  >
+                    <option value="" disabled>
+                      {{ dropdownLoading.municipalities ? "Loading..." : "Select Municipality" }}
+                    </option>
+                    <option
+                      v-for="m in municipalities"
+                      :key="m.id"
+                      :value="m.id"
+                    >
+                      {{ m.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
               <div class="form-group">
                 <label class="form-label">Password</label>
                 <div class="input-group">
@@ -157,7 +163,7 @@
 
 <script>
 import { register } from "@/services/authService"
-import axios from "axios";
+import api from "@/services/api"; 
 export default {
   name: "UserRegister",
   data() {
@@ -171,6 +177,9 @@ export default {
          municipality: ""  
       },
       municipalities: [],
+      dropdownLoading: {
+        municipalities: false
+      },
       loading: false,
       showPassword: false,
 
@@ -219,14 +228,30 @@ export default {
       } finally {
         this.loading = false;
       }
-    }
+    },
+
+    async fetchMunicipalities() {
+      this.dropdownLoading.municipalities = true;
+      try {
+        const res = await api.get("municipalities/", { params: { page_size: 9999 } });
+        const data = res.data;
+
+        this.municipalities = Array.isArray(data) ? data : (data.results || []);
+
+        // optional: sort A-Z
+        this.municipalities.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      } catch (err) {
+        console.error("Failed to fetch municipalities:", err);
+        this.municipalities = [];
+      } finally {
+        this.dropdownLoading.municipalities = false;
+      }
+    },
   },
 
     async mounted() {
       try {
-        const API = import.meta.env.VITE_API_BASE_URL; // should be http://127.0.0.1:8000/api
-        const res = await axios.get(`${API}/municipalities/`);
-        this.municipalities = res.data || [];
+        this.fetchMunicipalities();
       } catch (e) {
         console.error("Failed to load municipalities:", e);
       }
@@ -690,5 +715,16 @@ export default {
   .demo-buttons {
     grid-template-columns: 1fr;
   }
+}
+
+.form-input {
+  background-color: #1f2937;
+  color: #f9fafb;
+  border: 1px solid #4b5563;
+}
+
+.form-input option {
+  background-color: #1f2937;
+  color: #f9fafb;
 }
 </style>

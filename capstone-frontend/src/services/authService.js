@@ -21,7 +21,7 @@ export const login = async (credentials) => {
     };
 
     // FIXED URL
-    const response = await axios.post(API_URL + '/auth/login/', payload);
+    const response = await axios.post(API_URL + 'auth/login/', payload);
 
     localStorage.setItem('access_token', response.data.access);
     localStorage.setItem('refresh_token', response.data.refresh);
@@ -47,7 +47,7 @@ export const getAuthHeader = () => {
 
 export const getUserProfile = async () => {
   try {
-    const response = await axios.get(API_URL + '/user/profile/', {
+    const response = await axios.get(API_URL + 'user/profile/', {
       headers: getAuthHeader()
     });
     return response.data;

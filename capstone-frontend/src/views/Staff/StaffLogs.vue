@@ -302,7 +302,17 @@ export default {
       return this.isAdminOrMunicipalOrResponse;
     },
     latestLog() {
-      return (this.logs && this.logs.length) ? this.logs[0] : null;
+      if (!this.logs?.length) return null;
+
+      // pick newest by date_recorded, fallback to id if dates are equal/missing
+      return this.logs.reduce((latest, cur) => {
+        const a = new Date(latest?.date_recorded || 0).getTime();
+        const b = new Date(cur?.date_recorded || 0).getTime();
+
+        if (b > a) return cur;
+        if (b === a) return (cur.id ?? 0) > (latest.id ?? 0) ? cur : latest;
+        return latest;
+      }, this.logs[0]);
     },
     currentEvacuees() {
       return this.latestLog ? (this.latestLog.total_current ?? 0) : 0;

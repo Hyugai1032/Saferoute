@@ -7,7 +7,8 @@ from .api_views import (
     BarangayViewSet,
     UserViewSet,
     GisLayerViewSet,
-    MapOverviewView
+    MapOverviewView,
+    HazardReportDetailView,
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -28,7 +29,7 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('user/profile/', UserProfileView.as_view(), name='user_profile'),
     path('hazards/', HazardReportView.as_view()),
-    path('hazards/<int:pk>/', HazardReportView.as_view()),
+    path('hazards/<int:pk>/', HazardReportDetailView.as_view()),
     path("map/overview/", MapOverviewView.as_view(), name="map_overview"),
     path('', include(router.urls)),
     # path("hazards/pending", HazardPendingList.as_view()),

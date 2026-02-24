@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay, GisLayer
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied, NotFound
 from django.apps import apps
 EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 
@@ -105,6 +107,16 @@ class HazardReportSerializer(serializers.ModelSerializer):
             HazardPhoto.objects.create(hazard=report, image=img)
 
         return report
+
+class HazardReportAdminUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HazardReport
+        fields = [
+            "status",
+            "severity",
+            "title",
+            "description",
+        ]
     
 class MunicipalitySerializer(serializers.ModelSerializer):
     """

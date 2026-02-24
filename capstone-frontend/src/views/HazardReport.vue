@@ -81,7 +81,7 @@ async function loadReports() {
   loading.value = true;
   errorMsg.value = "";
   try {
-    const res = await api.get("/hazards/", {
+    const res = await api.get("hazards/", {
       params: { status: "REPORTED" }
     });
     reports.value = res.data;
