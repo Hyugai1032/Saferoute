@@ -36,8 +36,7 @@
         <div>
           <div class="label">Current Total Evacuees</div>
           <div class="value">{{ currentEvacuees }}</div>
-          <div class="muted">Based on latest log</div>
-        </div>
+          <div class="muted">Computed from all logs</div>        </div>
 
         <div v-if="isAdminOrMunicipalOrResponse" style="min-width: 320px;">
           <div class="label">Filter by center</div>
@@ -246,6 +245,7 @@ export default {
       me: {},
       centers: [],
       logs: [],
+      summary: null,
       loading: false,
       saving: false,
       modalError: "",
@@ -312,7 +312,7 @@ export default {
       }, this.logs[0]);
     },
     currentEvacuees() {
-      return this.latestLog ? (this.latestLog.total_current ?? 0) : 0;
+      return this.summary?.total_current ?? 0;
     },
     lastUpdatedText() {
       if (!this.latestLog?.date_recorded) return "-";
@@ -351,7 +351,7 @@ export default {
     // console.log("ME:", res.data);
   },
 
-  methods: {
+methods: {
     formatDate(dt) {
       if (!dt) return "-";
       const d = new Date(dt);
@@ -363,7 +363,7 @@ export default {
       const res = await api.get("user/profile/");
       this.me = res.data;
 
-      // ✅ prevent stale admin filter affecting staff
+// prevent stale filter affecting staff
 if (this.me.role === "EVAC_CENTER_STAFF") {
   this.filters.center = null;
 }
@@ -378,6 +378,7 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     async fetchLogs(page = 1) {
       this.loading = true;
+      
       try {
         const pageNum = Number(page) || 1;
 
@@ -385,14 +386,12 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
         params.append("page", pageNum);
         params.append("page_size", this.pagination.page_size);
 
-// ✅ only send ONE center param
-if (this.isStaff && this.me.assigned_center_id) {
-  // staff always locked to their assigned center
-  params.append("center", this.me.assigned_center_id);
-} else if (this.filters.center) {
-  // admins can filter
-  params.append("center", this.filters.center);
-}
+      // ✅ Only ONE center param allowed
+      if (this.isStaff && this.me.assigned_center_id) {
+        params.append("center", this.me.assigned_center_id);
+      } else if (this.filters.center) {
+        params.append("center", this.filters.center);
+      }
 
         const res = await api.get(`evac_centers/evacuation-logs/?${params.toString()}`);
         const data = res.data;
@@ -403,10 +402,27 @@ if (this.isStaff && this.me.assigned_center_id) {
         this.pagination.next = data.next || null;
         this.pagination.previous = data.previous || null;
         this.pagination.page = pageNum;
+        await this.fetchSummary();  // ✅ ADD THIS
       } finally {
         this.loading = false;
       }
     },
+
+    async fetchSummary() {
+  try {
+    let url = "evac_centers/evacuation-logs/staff_summary/";
+
+    // If not staff, pass center filter
+    if (!this.isStaff && this.filters.center) {
+      url += `?center=${this.filters.center}`;
+    }
+
+    const res = await api.get(url);
+    this.summary = res.data;
+  } catch (e) {
+    console.error("fetchSummary error:", e);
+  }
+},
 
     openCreate() {
       this.modalError = "";
@@ -507,14 +523,14 @@ if (this.isStaff && this.me.assigned_center_id) {
 
       console.log("[saveLog] payload", payload);
       if (!this.modal?.form) {
-  this.modalError = "Form not initialized. Please reopen the modal.";
-  return;
-}
+      this.modalError = "Form not initialized. Please reopen the modal.";
+      return;
+    }
 
-if (this.modal.mode === "create") {
-  const res = await api.post("evac_centers/evacuation-logs/", payload);
-  this.logs.unshift(res.data);
-}else {
+        if (this.modal.mode === "create") {
+          const res = await api.post("evac_centers/evacuation-logs/", payload);
+          this.logs.unshift(res.data);
+        }else {
           await api.patch(`evac_centers/evacuation-logs/${this.modal.id}/`, payload);
         }
 

@@ -8,6 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from django.db.models import Sum, Max
 from .models import EvacuationCenter, EvacuationLog
 from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
@@ -266,8 +267,18 @@ class EvacUploadAPIView(APIView):
 
         return Response(response_data, status=status.HTTP_200_OK)
 
+from django.core.exceptions import PermissionDenied
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+
+from .models import EvacuationLog
+from .serializers import EvacuationLogSerializer
+
+
 class EvacuationLogViewSet(viewsets.ModelViewSet):
-    queryset = EvacuationLog.objects.select_related("center", "reporting_staff").all()
     serializer_class = EvacuationLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -278,23 +289,19 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = EvacuationLog.objects.select_related("center", "reporting_staff")
+        qs = EvacuationLog.objects.select_related("center", "reporting_staff").all()
 
-        # optional filter by center id (for admins)
-        center_id = self.request.query_params.get("center")
-        if center_id:
-            qs = qs.filter(center_id=center_id)
-
-        # Staff: only their assigned center
+        # Staff: only their assigned center (ignore any ?center param)
         if user.role == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
                 return qs.none()
             return qs.filter(center_id=user.assigned_center_id)
 
-        # Municipal admin scope (if center has municipality FK)
-        if user.role in ["MUNICIPAL_ADMIN"]:
+        # Municipal admin: centers in their municipality
+        if user.role == "MUNICIPAL_ADMIN":
             return qs.filter(center__municipality=user.municipality)
 
+        # Others: allow optional center filter via DjangoFilterBackend (no manual filter needed)
         return qs
 
     def perform_create(self, serializer):
@@ -319,69 +326,74 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         if not center_id:
             return Response({"detail": "center query param is required"}, status=400)
 
-        latest = (
+        agg = (
             EvacuationLog.objects
             .filter(center_id=center_id)
-            .order_by("-date_recorded", "-id")
-            .first()
+            .aggregate(
+                ind_in=Sum("individuals_in"),
+                ind_out=Sum("individuals_out"),
+                last=Max("date_recorded"),
+            )
         )
-        if not latest:
-            return Response({"total_current": 0})
 
-        return Response({
-            "total_current": latest.total_current,
-            "date_recorded": latest.date_recorded
-        })
-    
-    from django.utils import timezone
+        total_current = (agg["ind_in"] or 0) - (agg["ind_out"] or 0)
+        if total_current < 0:
+            total_current = 0
 
-from django.db.models import Sum
-
-@action(detail=False, methods=["get"])
-def staff_summary(self, request):
-    user = request.user
-
-    # Determine which center is being summarized
-    if user.role == "EVAC_CENTER_STAFF":
-        if not user.assigned_center_id:
-            return Response({"detail": "No assigned center."}, status=400)
-        center_id = user.assigned_center_id
-    else:
-        center_id = request.query_params.get("center")
-        if not center_id:
-            return Response({"detail": "center query param is required"}, status=400)
-
-    latest = (
-        EvacuationLog.objects
-        .filter(center_id=center_id)
-        .order_by("-date_recorded", "-id")
-        .first()
-    )
-
-    if not latest:
         return Response({
             "center": int(center_id),
-            "latest": None,
-            "breakdown": {"children": 0, "seniors": 0, "pwd": 0, "pregnant": 0, "lactating": 0},
-            "total_current": 0,
-        })
+            "total_current": total_current,
+            "date_recorded": agg["last"],
+        })    
+    @action(detail=False, methods=["get"])
+    def staff_summary(self, request):
+        user = request.user
 
-    return Response({
-        "center": int(center_id),
-        "latest": {
-            "date_recorded": latest.date_recorded,
-            "total_current": latest.total_current,
-        },
-        "breakdown": {
-            "children_count": latest.children_count,
-            "senior_count": latest.senior_count,
-            "pwd_count": latest.pwd_count,
-            "pregnant_count": latest.pregnant_count,
-            "lactating_count": latest.lactating_count,
-        },
-        "total_current": latest.total_current,
-    })
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return Response({"detail": "No assigned center."}, status=400)
+            center_id = user.assigned_center_id
+        else:
+            center_id = request.query_params.get("center")
+            if not center_id:
+                return Response({"detail": "center query param is required"}, status=400)
 
+        agg = (
+            EvacuationLog.objects
+            .filter(center_id=center_id)
+            .aggregate(
+                ind_in=Sum("individuals_in"),
+                ind_out=Sum("individuals_out"),
+                children=Sum("children_count"),
+                seniors=Sum("senior_count"),
+                pwd=Sum("pwd_count"),
+                pregnant=Sum("pregnant_count"),
+                lactating=Sum("lactating_count"),
+                last=Max("date_recorded"),
+            )
+        )
+
+        total_current = (agg["ind_in"] or 0) - (agg["ind_out"] or 0)
+        if total_current < 0:
+            total_current = 0
+
+        breakdown = {
+            "children_count": agg["children"] or 0,
+            "senior_count": agg["seniors"] or 0,
+            "pwd_count": agg["pwd"] or 0,
+            "pregnant_count": agg["pregnant"] or 0,
+            "lactating_count": agg["lactating"] or 0,
+        }
+
+        return Response({
+            "center": int(center_id),
+            "latest": {
+                "date_recorded": agg["last"],
+                "total_current": total_current,
+            },
+            "breakdown": breakdown,
+            "total_current": total_current,
+        })    
 class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = EvacuationCenter.objects.select_related("municipality").all().order_by("name")
     serializer_class = EvacuationCenterListSerializer

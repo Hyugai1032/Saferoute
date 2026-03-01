@@ -62,8 +62,9 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "total_current",
             "total_current_families",  # ✅ new
             "remarks",
+            "total_current",
         ]
-        read_only_fields = ["reporting_staff", "total_current"]
+        read_only_fields = ["reporting_staff"]
 
     def validate(self, attrs):
         numeric_fields = [

@@ -119,6 +119,7 @@ const router = useRouter();
 
 const me = reactive({});
 const latest = reactive({ total_current: 0, date_recorded: null });
+const summary = ref(null); // ✅ add this
 
 const isStaff = computed(() => me.role === "EVAC_CENTER_STAFF");
 
@@ -137,13 +138,16 @@ const breakdown = ref({
   lactating: 0,
 });
 
-const breakdownCards = computed(() => ([
-  { key: "children", label: "Children", value: breakdown.value.children_count ?? 0 },
-  { key: "seniors", label: "Seniors", value: breakdown.value.seniors_count ?? 0 },
-  { key: "pwd", label: "PWD", value: breakdown.value.pwd_count ?? 0 },
-  { key: "pregnant", label: "Pregnant", value: breakdown.value.pregnant_count ?? 0 },
-  { key: "lactating", label: "Lactating", value: breakdown.value.lactating_count ?? 0 },
-]));
+const breakdownCards = computed(() => {
+  const b = summary.value?.breakdown || {};
+  return [
+    { key: "children", label: "Children", value: b.children_count ?? 0 },
+    { key: "seniors", label: "Seniors", value: b.senior_count ?? 0 },
+    { key: "pwd", label: "PWD", value: b.pwd_count ?? 0 },
+    { key: "pregnant", label: "Pregnant", value: b.pregnant_count ?? 0 },
+    { key: "lactating", label: "Lactating", value: b.lactating_count ?? 0 },
+  ];
+}); 
 
 async function fetchMe() {
   const res = await api.get("user/profile/");
@@ -154,19 +158,16 @@ async function fetchLatest() {
   if (!me.assigned_center_id) {
     latest.total_current = 0;
     latest.date_recorded = null;
-    breakdown.value = { children: 0, seniors: 0, pwd: 0, pregnant: 0, lactating: 0 };
+    summary.value = null;
     return;
   }
 
-  const res = await api.get("evac_centers/evacuation-logs/latest_by_center/", {
-    params: { center: me.assigned_center_id },
-  });
+  const res = await api.get("evac_centers/evacuation-logs/staff_summary/");
+  summary.value = res.data || null;
 
-  latest.total_current = res.data?.total_current ?? 0;
-  latest.date_recorded = res.data?.date_recorded ?? null;
-
-  // breakdown not supported yet by backend, keep zeros
-  breakdown.value = { children: 0, seniors: 0, pwd: 0, pregnant: 0, lactating: 0 };
+  // update latest from summary
+  latest.total_current = summary.value?.total_current ?? 0;
+  latest.date_recorded = summary.value?.latest?.date_recorded ?? null;
 }
 
 function goLogs() {
