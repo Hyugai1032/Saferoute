@@ -39,7 +39,7 @@
             Settings
           </button>
         </div>
-        <transition-expand>
+        <transition name="fade">
           <div v-if="showPreferences" class="preferences-content">
             <div class="preference-item">
               <label>Push Notifications</label>
@@ -70,8 +70,15 @@
               </label>
             </div>
           </div>
-        </transition-expand>
+        </transition>
       </div>
+
+<div v-if="loadingAlerts" class="loading-line">
+  Loading alerts...
+</div>
+<div v-else-if="alertsError" class="error-line">
+  {{ alertsError }}
+</div>
 
       <!-- Alert Filters -->
       <div class="filters-section">
@@ -128,9 +135,6 @@
             <div class="alert-actions">
               <button class="action-btn" @click.stop="toggleRead(alert)">
                 <i :class="alert.read ? 'icon-unread' : 'icon-read'"></i>
-              </button>
-              <button class="action-btn" @click.stop="shareAlert(alert)">
-                <i class="icon-share"></i>
               </button>
             </div>
           </div>
@@ -204,17 +208,9 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button class="action-btn primary" @click="markAsRead(selectedAlert)">
+            <button class="action-btn primary" @click.stop="markAsRead(selectedAlert)">
               <i class="icon-read"></i>
               Mark as Read
-            </button>
-            <button class="action-btn" @click="shareAlert(selectedAlert)">
-              <i class="icon-share"></i>
-              Share Alert
-            </button>
-            <button class="action-btn" @click="saveAlert(selectedAlert)">
-              <i class="icon-save"></i>
-              Save
             </button>
           </div>
         </div>
@@ -227,6 +223,7 @@
         <i class="icon-emergency"></i>
         Emergency Alert
       </button>
+
       <button class="emergency-btn" @click="refreshAlerts" :disabled="refreshing">
         <i class="icon-refresh" :class="{ spinning: refreshing }"></i>
         {{ refreshing ? 'Refreshing...' : 'Refresh' }}
@@ -236,6 +233,23 @@
 </template>
 
 <script>
+import axios from "axios";
+
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = RAW_BASE.replace(/\/api\/?$/, ""); // removes trailing /api if present
+const HAZARDS_URL = `${API_BASE}/api/hazards/`;
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = (v) => (v * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 export default {
   name: 'UserAlerts',
   data() {
@@ -245,9 +259,13 @@ export default {
       showPreferences: false,
       selectedAlert: null,
       refreshing: false,
-      activeAlerts: 8,
-      criticalAlerts: 3,
-      todayAlerts: 5,
+activeAlerts: 0,
+criticalAlerts: 0,
+todayAlerts: 0,
+      radiusKm: 3,
+      userLoc: null, // { lat, lng }
+      loadingAlerts: false,
+      alertsError: "",
       preferences: {
         push: true,
         email: true,
@@ -255,59 +273,79 @@ export default {
         criticalOnly: false
       },
       filterTabs: [
-        { id: 'all', name: 'All Alerts', icon: 'icon-all' },
+        { id: 'all', name: 'All', icon: 'icon-all' },
         { id: 'critical', name: 'Critical', icon: 'icon-critical' },
-        { id: 'weather', name: 'Weather', icon: 'icon-weather' },
-        { id: 'safety', name: 'Safety', icon: 'icon-safety' },
-        { id: 'traffic', name: 'Traffic', icon: 'icon-traffic' }
+        { id: 'my_reports', name: 'My Reports', icon: 'icon-report' },
+        { id: 'nearby', name: 'Nearby', icon: 'icon-location' }
       ],
       alerts: [
         {
           id: 1,
           title: 'Flash Flood Warning',
           message: 'Heavy rainfall expected in your area for the next 3 hours',
-          fullMessage: 'The National Weather Service has issued a Flash Flood Warning for your area. Heavy rainfall with intensities of 2-3 inches per hour is expected. Avoid low-lying areas and do not attempt to cross flooded roads.',
-          priority: 'critical',
+          fullMessage: 'Heavy rainfall with intensities of 2–3 inches per hour is expected. Avoid low-lying areas and do not attempt to cross flooded roads.',
+          category: 'nearby',
+          severity: 'critical',
           icon: 'icon-flood',
-          source: 'National Weather Service',
-          location: 'Downtown Area',
+          source: 'Emergency Management',
+          location: 'Near your pinned location',
           time: '10 min ago',
-          fullTime: 'November 15, 2024 - 14:30 EST',
+          fullTime: 'Today',
+          createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
           read: false,
           instructions: [
-            'Move to higher ground immediately',
+            'Move to higher ground if needed',
             'Avoid walking or driving through flood waters',
-            'Stay tuned to local news for updates',
-            'Prepare evacuation kit'
+            'Prepare an emergency kit',
+            'Monitor updates in the app'
           ],
-          affectedAreas: ['Downtown', 'River District', 'East Park']
+          affectedAreas: ['Nearby roads', 'Low-lying areas']
         },
         {
           id: 2,
-          title: 'Evacuation Order Lifted',
-          message: 'Previous evacuation order for North District has been lifted',
-          fullMessage: 'The evacuation order for North District has been officially lifted. Residents can return to their homes. Emergency services are still monitoring the situation.',
-          priority: 'info',
+          title: 'Your Hazard Report Submitted',
+          message: 'We received your hazard report and it is pending review.',
+          fullMessage: 'Your hazard report has been submitted successfully. Staff will review and verify it as soon as possible.',
+          category: 'my_reports',
+          severity: 'info',
           icon: 'icon-info',
-          source: 'Emergency Management',
-          location: 'North District',
+          source: 'System',
+          location: 'From your recent report',
           time: '1 hour ago',
-          fullTime: 'November 15, 2024 - 13:45 EST',
+          fullTime: 'Today',
+          createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
           read: true
         },
         {
           id: 3,
-          title: 'Road Closure Update',
-          message: 'Main Street closed due to fallen power lines',
-          fullMessage: 'Main Street between 5th and 8th Avenue is closed until further notice due to fallen power lines. Use alternate routes. Utility crews are on site.',
-          priority: 'high',
-          icon: 'icon-traffic',
-          source: 'Traffic Department',
-          location: 'Main Street',
+          title: 'Report Status Updated',
+          message: 'Your report status is now IN PROGRESS.',
+          fullMessage: 'A staff member has acknowledged your report and is currently taking action on it. You may receive follow-up updates.',
+          category: 'my_reports',
+          severity: 'high',
+          icon: 'icon-info',
+          source: 'Evacuation Staff',
+          location: 'From your recent report',
           time: '2 hours ago',
-          fullTime: 'November 15, 2024 - 12:15 EST',
+          fullTime: 'Today',
+          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          read: false
+        },
+        {
+          id: 4,
+          title: 'Road Closure Nearby',
+          message: 'Road blocked due to fallen power lines. Use alternate route.',
+          fullMessage: 'A nearby road is temporarily closed due to fallen power lines. Please avoid the area and use alternative routes.',
+          category: 'nearby',
+          severity: 'high',
+          icon: 'icon-traffic',
+          source: 'Emergency Management',
+          location: 'Main Road (approx. 1.2 km)',
+          time: '3 hours ago',
+          fullTime: 'Today',
+          createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
           read: false,
-          affectedAreas: ['Main Street', 'Central Business District']
+          affectedAreas: ['Main Road', 'Nearby intersections']
         }
         // More alerts would be here...
       ]
@@ -319,10 +357,13 @@ export default {
       
       // Apply active filter
       if (this.activeFilter !== 'all') {
-        filtered = filtered.filter(alert => alert.priority === this.activeFilter)
+        if (this.activeFilter === 'critical') {
+          filtered = filtered.filter(alert => alert.severity === 'critical')
+        } else {
+          filtered = filtered.filter(alert => alert.category === this.activeFilter)
+        }
       }
-      
-      // Apply search query
+// Apply search query
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase()
         filtered = filtered.filter(alert => 
@@ -347,22 +388,74 @@ export default {
     },
     getFilterCount(filterId) {
       if (filterId === 'all') return this.alerts.length
-      return this.alerts.filter(alert => alert.priority === filterId).length
+      if (filterId === 'critical') return this.alerts.filter(a => a.severity === 'critical').length
+      return this.alerts.filter(a => a.category === filterId).length
     },
-    selectAlert(alert) {
-      this.selectedAlert = alert
-      if (!alert.read) {
-        this.markAsRead(alert)
-      }
-    },
-    toggleRead(alert) {
-      alert.read = !alert.read
-      this.updateAlertStats()
-    },
-    markAsRead(alert) {
-      alert.read = true
-      this.updateAlertStats()
-    },
+selectAlert(alert) {
+  this.selectedAlert = alert
+  // don’t auto mark read
+},
+
+toggleRead(alert) {
+  if (!alert) return;
+  alert.read = !alert.read;
+
+  const readSet = this.getReadSet();
+  const key = String(alert.id);
+  if (alert.read) readSet.add(key);
+  else readSet.delete(key);
+  this.setReadSet(readSet);
+
+  this.updateAlertStats();
+},
+markAsRead(alert) {
+  if (!alert) return;
+  alert.read = true;
+
+  const readSet = this.getReadSet();
+  readSet.add(String(alert.id));
+  this.setReadSet(readSet);
+
+  this.updateAlertStats();
+   // ✅ Auto close modal
+  this.selectedAlert = null;
+},
+
+getReadSet() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("alerts_read_keys") || "[]"));
+  } catch {
+    return new Set();
+  }
+},
+setReadSet(readSet) {
+  localStorage.setItem("alerts_read_keys", JSON.stringify([...readSet]));
+},
+
+getSavedSet() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("alerts_saved_keys") || "[]"));
+  } catch {
+    return new Set();
+  }
+},
+setSavedSet(savedSet) {
+  localStorage.setItem("alerts_saved_keys", JSON.stringify([...savedSet]));
+},
+
+applyLocalStatesToAlerts() {
+  const readSet = this.getReadSet();
+  const savedSet = this.getSavedSet();
+
+  this.alerts = this.alerts.map(a => ({
+    ...a,
+    read: readSet.has(String(a.id)),
+    saved: savedSet.has(String(a.id)),
+  }));
+
+  this.updateAlertStats();
+},
+
     shareAlert(alert) {
       // In a real app, this would use the Web Share API or similar
       if (navigator.share) {
@@ -377,28 +470,200 @@ export default {
         alert('Alert copied to clipboard!')
       }
     },
-    saveAlert(alert) {
-      // Implementation for saving alerts
-      console.log('Saving alert:', alert)
-    },
-    async refreshAlerts() {
-      this.refreshing = true
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      this.refreshing = false
-    },
-    sendEmergencyAlert() {
+saveAlert(alert) {
+  if (!alert) return;
+
+  // toggle save
+  alert.saved = !alert.saved;
+
+  const savedSet = this.getSavedSet();
+  const key = String(alert.id);
+  if (alert.saved) savedSet.add(key);
+  else savedSet.delete(key);
+  this.setSavedSet(savedSet);
+},
+    async useMyLocation() {
+  this.alertsError = "";
+  if (!navigator.geolocation) {
+    this.alertsError = "Geolocation not supported in this browser.";
+    return;
+  }
+
+  const pos = await new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+    });
+  });
+
+  this.userLoc = {
+    lat: pos.coords.latitude,
+    lng: pos.coords.longitude,
+  };
+  localStorage.setItem("alerts_userLoc", JSON.stringify(this.userLoc));
+
+  // refresh so Nearby updates
+  await this.refreshAlerts();
+},
+
+mapHazardToAlert(h, category, distanceKm = null) {
+  const hazardType = h.hazard_type || h.type || h.category || "Hazard";
+  const status = String(h.status || "REPORTED").toUpperCase();
+
+  const createdAt = h.created_at || h.createdAt || new Date().toISOString();
+  const updatedAt = h.updated_at || h.updatedAt || createdAt;
+
+  const typeLower = String(hazardType).toLowerCase();
+
+  let severity = "info";
+  if (
+    status === "VERIFIED" || status === "CONFIRMED" ||
+    typeLower.includes("flood") || typeLower.includes("fire") || typeLower.includes("landslide")
+  ) severity = "high";
+
+  if (typeLower.includes("flood") || typeLower.includes("fire") || typeLower.includes("landslide"))
+    severity = "critical";
+
+  const address = h.address || h.location || "Pinned location";
+  const desc = h.description || h.details || "";
+
+  return {
+    id: `${category}:${h.id}`,
+    title: category === "my_reports" ? `My Report: ${hazardType}` : `${hazardType} nearby`,
+    message:
+      category === "my_reports"
+        ? `Status: ${status} • ${address}`
+        : `${address}${distanceKm != null ? ` • ~${distanceKm.toFixed(1)} km` : ""}`,
+    fullMessage:
+      category === "my_reports"
+        ? `Your hazard report is currently: ${status}\n\n${desc || "No description provided."}`
+        : `${desc || "A hazard was reported in your area."}\n\nLocation: ${address}`,
+    category,
+    severity,
+    icon: "icon-info",          // you can improve later
+    source: category === "my_reports" ? "Your Submission" : "Community Reports",
+    location: address,
+    time: "",                   // optional (you can remove if not used)
+    fullTime: "",               // optional
+    createdAt: updatedAt,
+    read: false,
+  };
+},
+async refreshAlerts() {
+  this.refreshing = true;
+  this.loadingAlerts = true;
+  this.alertsError = "";
+
+  try {
+    const token = localStorage.getItem("access_token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const res = await axios.get(HAZARDS_URL, { headers });
+    const hazards = Array.isArray(res.data) ? res.data : (res.data.results || []);
+
+    // Try to get current user from localStorage
+    const meRaw = localStorage.getItem("user") || localStorage.getItem("me");
+    let me = null;
+    try { me = meRaw ? JSON.parse(meRaw) : null; } catch (e) {}
+    const myId = me?.id || me?.user_id || null;
+    const myEmail = me?.email || null;
+
+    const isMine = (h) => {
+      if (myId && (h.reporter_id === myId || h.reporter === myId)) return true;
+      if (myEmail && (h.reporter_email === myEmail)) return true;
+
+      if (h.reporter && typeof h.reporter === "object") {
+        if (myId && h.reporter.id === myId) return true;
+        if (myEmail && h.reporter.email === myEmail) return true;
+      }
+      return false;
+    };
+
+    // My Reports
+    const myReports = hazards
+      .filter(isMine)
+      .map((h) => this.mapHazardToAlert(h, "my_reports"));
+
+    // Nearby (needs userLoc)
+    let nearby = [];
+    if (this.userLoc?.lat && this.userLoc?.lng) {
+      nearby = hazards
+        .filter((h) => !isMine(h))
+        .filter((h) => h.latitude != null && h.longitude != null)
+        // OPTIONAL: show only verified nearby
+        // .filter((h) => String(h.status || "").toUpperCase() === "VERIFIED")
+        .map((h) => {
+          const d = haversineKm(
+            this.userLoc.lat,
+            this.userLoc.lng,
+            Number(h.latitude),
+            Number(h.longitude)
+          );
+          return { h, d };
+        })
+        .filter((x) => x.d <= this.radiusKm)
+        .sort((a, b) => a.d - b.d)
+        .map((x) => this.mapHazardToAlert(x.h, "nearby", x.d));
+    }
+
+    const all = [...nearby, ...myReports].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    this.alerts = all;
+// ✅ apply read/saved states from localStorage
+this.applyLocalStatesToAlerts();
+  } catch (err) {
+    console.error(err);
+    this.alertsError =
+      err?.response?.data?.detail ||
+      err?.message ||
+      "Failed to load alerts. Check API URL and login token.";
+  } finally {
+    this.refreshing = false;
+    this.loadingAlerts = false;
+  }
+},
+sendEmergencyAlert() {
       this.$router.push('/user/report')
     },
+    isToday(isoString) {
+      if (!isoString) return false
+      const d = new Date(isoString)
+      const now = new Date()
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      )
+    },
     updateAlertStats() {
-      this.activeAlerts = this.alerts.filter(alert => !alert.read).length
-      this.criticalAlerts = this.alerts.filter(alert => alert.priority === 'critical' && !alert.read).length
-      this.todayAlerts = this.alerts.filter(alert => alert.time.includes('min') || alert.time.includes('hour')).length
-    }
+      this.activeAlerts = this.alerts.filter(a => !a.read).length
+      this.criticalAlerts = this.alerts.filter(a => a.severity === 'critical' && !a.read).length
+      this.todayAlerts = this.alerts.filter(a => this.isToday(a.createdAt)).length
+
+    // ✅ publish unread count to header badge
+localStorage.setItem("unread_alerts_count", String(this.activeAlerts))
+window.dispatchEvent(new CustomEvent("alerts:unread", { detail: { count: this.activeAlerts } }))    }
   },
-  mounted() {
-    this.updateAlertStats()
+mounted() {
+  // load last saved location for Nearby
+  const saved = localStorage.getItem("alerts_userLoc");
+  if (saved) {
+    try { this.userLoc = JSON.parse(saved); } catch(e) {}
   }
+
+  // fetch alerts from backend
+  this.refreshAlerts();
+
+  // ✅ if a new report is submitted, refresh alerts list
+  this._onNewReport = () => this.refreshAlerts();
+  window.addEventListener("alerts:newReport", this._onNewReport);
+},
+beforeUnmount() {
+  window.removeEventListener("alerts:newReport", this._onNewReport);
+  
+},
 }
 </script>
 
@@ -417,6 +682,9 @@ export default {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
+
+.fade-enter-active, .fade-leave-active { transition: opacity .2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 .header-background {
   position: absolute;
@@ -1210,6 +1478,130 @@ input:checked + .slider:before {
     flex-direction: column;
     gap: 5px;
   }
+}
+
+/* Prevent button labels from overflowing */
+.toggle-btn,
+.filter-tab,
+.emergency-btn,
+.action-btn {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Alert card layout: keep actions fixed, content flexible */
+.alert-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-content {
+  flex: 1;
+  min-width: 0; /* IMPORTANT for ellipsis to work */
+}
+
+.alert-title,
+.alert-message,
+.alert-location,
+.alert-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Make tab row scrollable instead of wrapping ugly */
+.filter-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.filter-tabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+/* Tabs: keep them consistent and compact */
+.filter-tab {
+  flex: 0 0 auto;
+  max-width: 160px;
+}
+
+/* Floating emergency actions: compact vertical stack */
+.emergency-actions {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+}
+
+.emergency-btn {
+  width: 180px; /* prevents weird stretching */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+/* Modal footer actions: stop clipping */
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+}
+
+/* Make modal buttons readable */
+.modal-actions .modal-action,
+.modal-actions button {
+  min-width: 140px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.emergency-actions {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 50;
+}
+
+.emergency-btn {
+  width: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.spinning {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loading-line, .error-line {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  opacity: 0.9;
 }
 
 /* Icon placeholders */

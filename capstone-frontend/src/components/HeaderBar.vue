@@ -30,8 +30,7 @@
       <div class="header-notifications">
         <button class="notification-btn" @click="toggleNotifications">
           <div class="notification-icon">🔔</div>
-          <div class="notification-badge">3</div>
-        </button>
+<div class="notification-badge" v-if="notifCount > 0">{{ notifCount }}</div>        </button>
       </div>
       <div class="user-profile">
         <div class="profile-info">
@@ -47,13 +46,44 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import axios from "axios";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+
+
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = RAW_BASE.replace(/\/api\/?$/, "");
+const HAZARDS_URL = `${API_BASE}/api/hazards/`;
 
 const user = ref(JSON.parse(localStorage.getItem("userData")));
 
 const searchQuery = ref('');
 
 const emit = defineEmits(['search', 'toggleSidebar']);
+
+const notifCount = ref(0);
+const notifLoading = ref(false);
+
+const fetchNotifCount = async () => {
+  notifLoading.value = true;
+  try {
+    const token = localStorage.getItem("access_token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    // Count "new" hazard reports (REPORTED)
+    const res = await axios.get(`${HAZARDS_URL}?status=REPORTED`, { headers });
+    const list = Array.isArray(res.data) ? res.data : (res.data.results || []);
+    notifCount.value = list.length;
+  } catch (e) {
+    console.error("Failed to load notif count:", e);
+    // Don't break UI if API fails
+    notifCount.value = 0;
+  } finally {
+    notifLoading.value = false;
+  }
+};
 
 const handleSearch = () => {
   emit('search', searchQuery.value);
@@ -64,9 +94,7 @@ const openQuickAdd = () => {
 };
 
 const toggleNotifications = () => {
-  alert('Notifications panel would open here');
-};
-
+router.push({ name: "Hazard Reports" });};
 const toggleSidebar = () => {
   emit('toggleSidebar');
 };
@@ -87,6 +115,24 @@ const headerStyle = computed(() => ({
   marginLeft: sidebarCollapsed ? '80px' : '280px',
   transition: 'margin-left 0.3s ease'
 }));
+
+let pollId = null;
+
+onMounted(() => {
+  fetchNotifCount();
+
+  // poll every 20s (MVP "real-time")
+  pollId = setInterval(fetchNotifCount, 20000);
+
+  // if a user submits a report (in same browser), update instantly
+  window.addEventListener("alerts:newReport", fetchNotifCount);
+});
+
+onBeforeUnmount(() => {
+  if (pollId) clearInterval(pollId);
+  window.removeEventListener("alerts:newReport", fetchNotifCount);
+});
+
 </script>
 
 <style scoped>
