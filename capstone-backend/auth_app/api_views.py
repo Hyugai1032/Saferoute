@@ -1,6 +1,9 @@
+import os
+import requests
 from datetime import timedelta
 from django.utils import timezone
 from django.apps import apps
+from django.conf import settings
 from django.db import models 
 from rest_framework import generics, permissions, viewsets, filters, status
 from rest_framework.exceptions import PermissionDenied
@@ -385,4 +388,116 @@ class MapOverviewView(APIView):
         return Response({
             "centers": EvacCenterPinSerializer(centers_qs, many=True).data,
             "hazards": HazardPinSerializer(hazards_qs, many=True).data,
+        })
+    
+def circle_to_polygon(lng, lat, radius_m=150, points=24):
+    """
+    Approximate a circle as a polygon around (lng,lat).
+    GeoJSON expects [lng, lat].
+    """
+    import math
+    # rough conversion
+    lat_r = radius_m / 111_320.0
+    lng_r = radius_m / (111_320.0 * math.cos(math.radians(lat)) + 1e-9)
+
+    coords = []
+    for i in range(points):
+        ang = 2 * math.pi * i / points
+        coords.append([lng + lng_r * math.cos(ang), lat + lat_r * math.sin(ang)])
+    coords.append(coords[0])  # close ring
+    return coords
+
+
+class ORSRouteView(APIView):
+    """
+    POST /api/route/ors/
+
+    Body:
+    {
+      "from": {"lat": 13.12, "lng": 121.12},
+      "to":   {"lat": 13.22, "lng": 121.25},
+      "avoid_hazards": true,
+      "recent_hours": 48,
+      "hazard_radius_m": 150
+    }
+    """
+    permission_classes = [IsAuthenticated, IsStaffOrHigher]
+
+    def post(self, request):
+        ors_key = settings.ORS_API_KEY
+        if not ors_key:
+            return Response({"detail": "ORS_API_KEY is not set on the server."}, status=500)
+
+        body = request.data or {}
+        try:
+            f = body["from"]
+            t = body["to"]
+            from_lat = float(f["lat"])
+            from_lng = float(f["lng"])
+            to_lat = float(t["lat"])
+            to_lng = float(t["lng"])
+        except Exception:
+            return Response({"detail": "Body must include from{lat,lng} and to{lat,lng}."}, status=400)
+
+        avoid_hazards = bool(body.get("avoid_hazards", False))
+        recent_hours = int(body.get("recent_hours", 48))
+        hazard_radius_m = int(body.get("hazard_radius_m", 150))
+
+        ors_url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+        headers = {
+            "Authorization": ors_key,  # ORS uses Authorization header :contentReference[oaicite:1]{index=1}
+            "Content-Type": "application/json",
+            "Accept": "application/geo+json",
+        }
+
+        payload = {
+            # ORS coordinates order is [lng, lat]
+            "coordinates": [[from_lng, from_lat], [to_lng, to_lat]],
+        }
+
+        # Optional hazard avoidance via avoid_polygons (GeoJSON) :contentReference[oaicite:2]{index=2}
+        if avoid_hazards:
+            since = timezone.now() - timedelta(hours=recent_hours)
+            hz = (HazardReport.objects
+                  .filter(created_at__gte=since)
+                  .exclude(latitude__isnull=True)
+                  .exclude(longitude__isnull=True))
+
+            rings = []
+            for h in hz:
+                lat = float(h.latitude)
+                lng = float(h.longitude)
+                rings.append(circle_to_polygon(lng, lat, radius_m=hazard_radius_m, points=28))
+
+            if rings:
+                # MultiPolygon: [ [ [lng,lat] ring ] , ... ]
+                multipoly = {
+                    "type": "MultiPolygon",
+                    "coordinates": [[[ring] for ring in rings]][0]  # each polygon has one ring
+                }
+                payload["options"] = {"avoid_polygons": multipoly}
+
+        try:
+            r = requests.post(ors_url, json=payload, headers=headers, timeout=25)
+        except requests.RequestException:
+            return Response({"detail": "ORS request failed (network/timeout)."}, status=502)
+
+        if r.status_code != 200:
+            return Response({"detail": "ORS error", "status": r.status_code, "body": r.text[:500]}, status=502)
+
+        data = r.json()
+
+        # ORS GeoJSON response contains features[0].properties.summary + geometry
+        try:
+            feat = data["features"][0]
+            summary = feat["properties"]["summary"]
+            geometry = feat["geometry"]  # LineString GeoJSON
+        except Exception:
+            return Response({"detail": "Unexpected ORS response format."}, status=502)
+
+        return Response({
+            "distance_m": summary.get("distance"),
+            "duration_s": summary.get("duration"),
+            "geometry": geometry,
+            "used_hazard_avoidance": avoid_hazards,
         })

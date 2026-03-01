@@ -9,6 +9,7 @@ from .api_views import (
     GisLayerViewSet,
     MapOverviewView,
     HazardReportDetailView,
+    ORSRouteView,
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -31,6 +32,7 @@ urlpatterns = [
     path('hazards/', HazardReportView.as_view()),
     path('hazards/<int:pk>/', HazardReportDetailView.as_view()),
     path("map/overview/", MapOverviewView.as_view(), name="map_overview"),
+    path("route/ors/", ORSRouteView.as_view(), name="route_ors"),
     path('', include(router.urls)),
     # path("hazards/pending", HazardPendingList.as_view()),
 ]

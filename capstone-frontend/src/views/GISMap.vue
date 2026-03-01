@@ -110,14 +110,16 @@
 
             <!-- Quick Actions -->
             <div class="action-buttons">
-              <button class="action-btn primary" @click="sendSupplies(selectedCenter)">
-                🚚 Send Supplies
+              <button class="action-btn primary" @click="routeToCenter(selectedCenter, true)">
+                🧭 Route (Avoid Hazards)
               </button>
-              <button class="action-btn secondary" @click="viewEvacuees(selectedCenter)">
-                👥 View Evacuees
+
+              <button class="action-btn secondary" @click="routeToCenter(selectedCenter, false)">
+                🧭 Route (Fastest)
               </button>
-              <button class="action-btn secondary" @click="contactCenter(selectedCenter)">
-                📞 Contact Center
+
+              <button class="action-btn secondary" @click="clearRoute">
+                ❌ Clear Route
               </button>
             </div>
           </div>
@@ -288,6 +290,59 @@ const renderHazards = () => {
   })
 }
 
+const drawRoute = (geometry) => {
+  if (!map.value || !routeLayer.value) return
+
+  routeLayer.value.clearLayers()
+
+  // Wrap as Feature to make Leaflet 100% happy
+  const feature = {
+    type: "Feature",
+    properties: {},
+    geometry, // {type:"LineString", coordinates:[[lng,lat],...]}
+  }
+
+  const routeGeo = L.geoJSON(feature, {
+    style: { weight: 5 },
+  }).addTo(routeLayer.value)
+
+  map.value.fitBounds(routeGeo.getBounds().pad(0.2))
+}
+
+const routeToCenter = (center, avoidHazards = false) => {
+  if (!center?.latitude || !center?.longitude) {
+    alert("This center has no coordinates.")
+    return
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      try {
+        const payload = {
+          from: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          to: { lat: Number(center.latitude), lng: Number(center.longitude) },
+          avoid_hazards: avoidHazards,
+        }
+
+        const res = await api.post("/route/ors/", payload)
+        drawRoute(res.data.geometry)
+      } catch (e) {
+        console.error("Routing failed:", e)
+        alert("Routing failed. Check console / Network tab.")
+      }
+    },
+    (err) => {
+      console.error(err)
+      alert("Please allow location access to route.")
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  )
+}
+
+const clearRoute = () => {
+  routeLayer.value?.clearLayers()
+}
+
 const fitMapToCenters = () => {
   const coords = centers.value
     .filter(c => c.latitude != null && c.longitude != null)
@@ -318,6 +373,7 @@ const initializeMap = async () => {
 
   centerLayer.value = L.layerGroup().addTo(map.value)
   hazardLayer.value = L.layerGroup().addTo(map.value)
+  routeLayer.value = L.layerGroup().addTo(map.value)
 
   await fetchMapOverview()
   renderCenters()
