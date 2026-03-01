@@ -412,6 +412,9 @@ async submitReport() {
   headers: { "Content-Type": "multipart/form-data" },
 });
 
+ // ✅ add this EXACTLY here (only runs if POST succeeded)
+    window.dispatchEvent(new CustomEvent("alerts:newReport"));
+
     alert("Report submitted!");
     this.$router.push("/user/dashboard");
 

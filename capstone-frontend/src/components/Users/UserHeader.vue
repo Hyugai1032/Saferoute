@@ -36,16 +36,46 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { loadRouteLocation, useRouter } from 'vue-router'
+
+const handleNewReport = () => {
+  // instant badge bump (optimistic)
+  activeAlerts.value = Number(activeAlerts.value || 0) + 1
+  localStorage.setItem("unread_alerts_count", String(activeAlerts.value))
+}
+
+const unreadAlerts = ref(Number(localStorage.getItem("unread_alerts_count") || 0))
+
+const handleUnreadEvent = (e) => {
+  unreadAlerts.value = Number(e?.detail?.count || 0)
+}
+
+const handleStorage = (e) => {
+  if (e.key === "unread_alerts_count") {
+    unreadAlerts.value = Number(e.newValue || 0)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("alerts:unread", handleUnreadEvent)
+  window.addEventListener("storage", handleStorage)
+  window.addEventListener("alerts:newReport", handleNewReport)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("alerts:unread", handleUnreadEvent)
+  window.removeEventListener("storage", handleStorage)
+  window.removeEventListener("alerts:newReport", handleNewReport)
+})
+
 
 const emit = defineEmits(['toggleSidebar']);
 
 const user = ref(JSON.parse(localStorage.getItem("userData")));
 
 const router = useRouter()
-const activeAlerts = ref(2)  // Example value, fetch from API or state as needed
-
+const activeAlerts = ref(Number(localStorage.getItem("unread_alerts_count") || 0))
 const logout = () => {
   localStorage.removeItem('isAuthenticated')
   localStorage.removeItem('userData')
