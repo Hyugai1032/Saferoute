@@ -78,7 +78,8 @@
             </div>
           </div>
         </div>
-      
+
+      </div>
 
       <!-- TABLE -->
       <div class="users-table">
@@ -289,7 +290,6 @@
           </div>
         </div>
       </div>
-      </div>
     </div>
   </div>
 </template>
@@ -443,22 +443,25 @@ roleClass(role) {
       }
     },
 
-    async fetchCenters(municipalityId = null) {
-      this.dropdownLoading.centers = true;
-      try {
-        const params = {};
-        if (municipalityId) params.municipality = municipalityId;
+async fetchCenters(municipalityId = null) {
+  this.dropdownLoading.centers = true;
+  try {
+    const params = { page_size: 9999 };
+    if (municipalityId) params.municipality = municipalityId;
 
-        const res = await api.get("evac_centers/evacuation-centers/", {
-          params: { page_size: 9999, ...params },
-        });
+    const res = await api.get("evac_centers/evacuation-centers/", { params });
 
-        // ✅ store in centers (NOT evacCenters)
-        this.centers = Array.isArray(data) ? data : (data.results || []);
-      } finally {
-        this.dropdownLoading.centers = false;
-      }
-    },
+    const data = res.data; // ✅ DEFINE data
+    this.centers = Array.isArray(data) ? data : (data.results || []);
+
+    console.log("Centers:", this.centers);
+  } catch (err) {
+    console.error("Failed to fetch centers:", err?.response?.data || err);
+    this.centers = [];
+  } finally {
+    this.dropdownLoading.centers = false;
+  }
+},
 
     async onMunicipalityChanged() {
       await this.fetchCenters(this.edit.form.municipality);
@@ -637,15 +640,18 @@ roleClass(role) {
   box-shadow: 0 16px 34px rgba(0,0,0,.42);
   backdrop-filter: blur(10px);
 }
-.filters-left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+.filters-left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; flex:1; min-width:0; }
 .search{
   display:flex; align-items:center; gap:10px;
   padding: 10px 12px;
   border-radius:14px;
   border:1px solid rgba(56,189,248,.18);
   background: rgba(2,6,23,.55);
-  min-width: 340px;
+  flex: 1;
+  min-width: 240px;
+  max-width: 560px;
 }
+
 .search-ico{ opacity:.85; }
 .search input{
   border:none; outline:none; background:transparent; color:var(--text);
@@ -665,6 +671,8 @@ select:focus, .search:focus-within{
   border-color: rgba(56,189,248,.45);
   box-shadow:0 0 0 4px rgba(56,189,248,.12);
 }
+
+.filters-right{ flex:0 0 auto; }
 
 .me-pill{
   display:flex; align-items:center; gap:10px;

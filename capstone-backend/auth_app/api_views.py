@@ -72,9 +72,9 @@ class HazardReportView(APIView):
         if status_param:
             qs = qs.filter(status=status_param)
 
-        serializer = HazardReportSerializer(qs, many=True)
+        serializer = HazardReportSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
-
+    
     def post(self, request):
         serializer = HazardReportSerializer(data=request.data)
         if serializer.is_valid():
@@ -88,8 +88,7 @@ class HazardReportView(APIView):
                 municipality=mun,
                 status="REPORTED"
             )
-            return Response(HazardReportSerializer(report).data, status=201)
-
+            return Response(HazardReportSerializer(report, context={"request": request}).data, status=201)
         return Response(serializer.errors, status=400)     
 
 class HazardReportDetailView(APIView):

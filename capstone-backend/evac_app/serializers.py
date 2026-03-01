@@ -68,7 +68,6 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         numeric_fields = [
         "families_in","individuals_in","families_out","individuals_out",
-        "vulnerable_individuals",
         "children_count","senior_count","pwd_count","pregnant_count","lactating_count"
         ]
         read_only_fields = ["reporting_staff", "total_current", "vulnerable_individuals"]

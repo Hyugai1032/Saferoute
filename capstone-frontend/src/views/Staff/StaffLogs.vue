@@ -185,27 +185,27 @@
             <div class="vgrid">
               <label>
                 Children
-                <input v-model.number="modal.form.children" type="number" min="0" />
+                <input v-model.number="modal.form.children_count" type="number" min="0" />
               </label>
 
               <label>
                 Seniors
-                <input v-model.number="modal.form.seniors" type="number" min="0" />
+              <input v-model.number="modal.form.senior_count" type="number" min="0" />
               </label>
 
               <label>
                 PWD
-                <input v-model.number="modal.form.pwd" type="number" min="0" />
+              <input v-model.number="modal.form.pwd_count" type="number" min="0" /> 
               </label>
 
               <label>
                 Pregnant
-                <input v-model.number="modal.form.pregnant" type="number" min="0" />
+                <input v-model.number="modal.form.pregnant_count" type="number" min="0" />
               </label>
 
               <label>
                 Lactating
-                <input v-model.number="modal.form.lactating" type="number" min="0" />
+                <input v-model.number="modal.form.lactating_count" type="number" min="0" />
               </label>
             </div>
           </div>
@@ -215,20 +215,22 @@
             <textarea v-model="modal.form.remarks" rows="3" placeholder="Optional notes..."></textarea>
           </label>
         </div>
+<form @submit.prevent="saveLog">
+  <div class="error" v-if="modalError">
+    {{ modalError }}
+  </div>
 
-        <div class="error" v-if="modalError">
-          {{ modalError }}
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn" @click="saveLog" :disabled="saving">
-            {{ saving ? "Saving..." : "Save" }}
-          </button>
-          <button class="btn ghost" @click="closeModal" :disabled="saving">
-            Cancel
-          </button>
-        </div>
+  <div class="modal-actions">
+    <button class="btn" type="submit" :disabled="saving">
+      {{ saving ? "Saving..." : "Save" }}
+    </button>
+    <button class="btn ghost" type="button" @click="closeModal" :disabled="saving">
+      Cancel
+    </button>
+  </div>
+</form>
       </div>
+      
     </div>
 
   </div>
@@ -270,22 +272,17 @@ export default {
           individuals_in: 0,
           families_out: 0,
           individuals_out: 0,
-          vulnerable_individuals: 0,
           remarks: "",
-          children: 0,
-          seniors: 0,
-          pwd: 0,
-          pregnant: 0,
-          lactating: 0
+          children_count: 0,
+          senior_count: 0,
+          pwd_count: 0,
+          pregnant_count: 0,
+          lactating_count: 0
         },
       },
     };
   },
 
-  vulnerableTotal() {
-  const f = this.modal.form;
-  return (f.children||0)+(f.seniors||0)+(f.pwd||0)+(f.pregnant||0)+(f.lactating||0);
-},
 
   computed: {
     isStaff() {
@@ -322,6 +319,16 @@ export default {
       const d = new Date(this.latestLog.date_recorded);
       return isNaN(d.getTime()) ? this.latestLog.date_recorded : d.toLocaleString();
     },
+    vulnerableTotal() {
+      const f = this.modal.form || {};
+      return (
+        (f.children_count || 0) +
+        (f.senior_count || 0) +
+        (f.pwd_count || 0) +
+        (f.pregnant_count || 0) +
+        (f.lactating_count || 0)
+      );
+    },
     activeCenterLabel() {
       // For staff, show assigned center name
       if (this.isStaff) return this.me.assigned_center_name || "Unassigned";
@@ -355,6 +362,11 @@ export default {
       // Use your existing profile endpoint because it includes assigned_center_name/id
       const res = await api.get("user/profile/");
       this.me = res.data;
+
+      // ✅ prevent stale admin filter affecting staff
+if (this.me.role === "EVAC_CENTER_STAFF") {
+  this.filters.center = null;
+}
     },
 
     async fetchCenters() {
@@ -373,13 +385,14 @@ export default {
         params.append("page", pageNum);
         params.append("page_size", this.pagination.page_size);
 
-        // admin filter by center
-        if (this.filters.center) params.append("center", this.filters.center);
-
-        // staff: backend should already scope, but we can also pass center for clarity
-        if (this.isStaff && this.me.assigned_center_id) {
-          params.append("center", this.me.assigned_center_id);
-        }
+// ✅ only send ONE center param
+if (this.isStaff && this.me.assigned_center_id) {
+  // staff always locked to their assigned center
+  params.append("center", this.me.assigned_center_id);
+} else if (this.filters.center) {
+  // admins can filter
+  params.append("center", this.filters.center);
+}
 
         const res = await api.get(`evac_centers/evacuation-logs/?${params.toString()}`);
         const data = res.data;
@@ -401,21 +414,21 @@ export default {
       this.modal.mode = "create";
       this.modal.id = null;
 
-      this.modal.form = {
-        center: this.isStaff ? (this.me.assigned_center_id || null) : null,
-        families_in: 0,
-        individuals_in: 0,
-        families_out: 0,
-        individuals_out: 0,
-        children: 0,
-        seniors: 0,
-        pwd: 0,
-        pregnant: 0,
-        lactating: 0,
-        vulnerable_individuals: 0,
-        remarks: "",
-      };
-    },
+    this.modal.form = {
+      center: this.isStaff ? (this.me.assigned_center_id || null) : null,
+      families_in: 0,
+      individuals_in: 0,
+      families_out: 0,
+      individuals_out: 0,
+      children_count: 0,
+      senior_count: 0,
+      pwd_count: 0,
+      pregnant_count: 0,
+      lactating_count: 0,
+      remarks: "",
+    };
+
+  },
 
     openEdit(log) {
       this.modalError = "";
@@ -423,21 +436,20 @@ export default {
       this.modal.mode = "edit";
       this.modal.id = log.id;
 
-      this.modal.form = {
-        center: log.center || null,
-        families_in: log.families_in ?? 0,
-        individuals_in: log.individuals_in ?? 0,
-        families_out: log.families_out ?? 0,
-        individuals_out: log.individuals_out ?? 0,
-        children: log.children ?? 0,
-        seniors: log.seniors ?? 0,
-        pwd: log.pwd ?? 0,
-        pregnant: log.pregnant ?? 0,
-        lactating: log.lactating ?? 0,
-        vulnerable_individuals: log.vulnerable_individuals ?? 0,
-        remarks: log.remarks || "",
-      };
-    },
+    this.modal.form = {
+      center: log.center || null,
+      families_in: log.families_in ?? 0,
+      individuals_in: log.individuals_in ?? 0,
+      families_out: log.families_out ?? 0,
+      individuals_out: log.individuals_out ?? 0,
+      children_count: log.children_count ?? 0,
+      senior_count: log.senior_count ?? 0,
+      pwd_count: log.pwd_count ?? 0,
+      pregnant_count: log.pregnant_count ?? 0,
+      lactating_count: log.lactating_count ?? 0,
+      remarks: log.remarks || "",
+    };
+  },
 
     closeModal() {
       this.modal.open = false;
@@ -446,6 +458,16 @@ export default {
     },
 
     async saveLog() {
+      alert("saveLog triggered");
+
+      console.log("[saveLog] clicked", {
+      role: this.me.role,
+      assigned_center_id: this.me.assigned_center_id,
+      isStaff: this.isStaff,
+      mode: this.modal.mode,
+      form_center: this.modal.form.center,
+    });
+
       this.saving = true;
       this.modalError = "";
       try {
@@ -455,6 +477,10 @@ export default {
             this.modalError = "You have no assigned evacuation center.";
             return;
           }
+          if (!this.modal?.form) {
+  this.modalError = "Form not initialized. Please reopen the modal.";
+  return;
+}
           this.modal.form.center = this.me.assigned_center_id;
         } else {
           if (!this.modal.form.center) {
@@ -463,25 +489,32 @@ export default {
           }
         }
 
-        const payload = {
-          center: this.modal.form.center,
-          families_in: this.modal.form.families_in ?? 0,
-          individuals_in: this.modal.form.individuals_in ?? 0,
-          families_out: this.modal.form.families_out ?? 0,
-          individuals_out: this.modal.form.individuals_out ?? 0,
+    const payload = {
+      center: this.modal.form.center,
+      families_in: this.modal.form.families_in ?? 0,
+      individuals_in: this.modal.form.individuals_in ?? 0,
+      families_out: this.modal.form.families_out ?? 0,
+      individuals_out: this.modal.form.individuals_out ?? 0,
 
-          children: this.modal.form.children ?? 0,
-          seniors: this.modal.form.seniors ?? 0,
-          pwd: this.modal.form.pwd ?? 0,
-          pregnant: this.modal.form.pregnant ?? 0,
-          lactating: this.modal.form.lactating ?? 0,
+      children_count: this.modal.form.children_count ?? 0,
+      senior_count: this.modal.form.senior_count ?? 0,
+      pwd_count: this.modal.form.pwd_count ?? 0,
+      pregnant_count: this.modal.form.pregnant_count ?? 0,
+      lactating_count: this.modal.form.lactating_count ?? 0,
 
-          remarks: this.modal.form.remarks || "",
-        };
+      remarks: this.modal.form.remarks || "",
+    };
 
-        if (this.modal.mode === "create") {
-          await api.post("evac_centers/evacuation-logs/", payload);
-        } else {
+      console.log("[saveLog] payload", payload);
+      if (!this.modal?.form) {
+  this.modalError = "Form not initialized. Please reopen the modal.";
+  return;
+}
+
+if (this.modal.mode === "create") {
+  const res = await api.post("evac_centers/evacuation-logs/", payload);
+  this.logs.unshift(res.data);
+}else {
           await api.patch(`evac_centers/evacuation-logs/${this.modal.id}/`, payload);
         }
 
@@ -520,37 +553,160 @@ export default {
 }
 
 
-.page { padding: 20px; }
-.page-header { display:flex; align-items:flex-end; justify-content:space-between; gap: 12px; }
-.actions { display:flex; gap: 10px; }
-.card { margin-top: 14px; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; }
-.card.warn { border-color: #0b2ef555; }
-.row { display:flex; gap: 24px; flex-wrap: wrap; }
-.label { font-size: 12px; opacity: 0.7; }
-.value { font-size: 22px; font-weight: 800; margin-top: 4px; }
-.muted { opacity: 0.75; margin-top: 6px; }
+.page{
+  --bg:#060912;
+  --panel:rgba(10,14,28,.65);
+  --panel2:rgba(8,12,24,.82);
+  --border:rgba(56,189,248,.16);
+  --border2:rgba(255,255,255,.08);
+  --text:#e5e7eb;
+  --muted:rgba(229,231,235,.62);
+  --blue:#38bdf8;
+  --blue2:#2563eb;
+  --green:#22c55e;
+  --red:#ef4444;
 
-.table-card { margin-top: 14px; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
-.pad { padding: 12px; }
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align:left; }
-.remarks { max-width: 460px; }
-.empty { text-align:center; opacity:0.7; padding: 16px; }
+  padding: 20px;
+  color: var(--text);
+}
 
-.pager { display:flex; justify-content:flex-end; gap: 8px; padding: 12px; }
+.page-header{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom: 12px;
+}
+.page-header h1{ margin:0; font-size:1.6rem; color:#f8fafc; }
+.page-header p{ margin:6px 0 0; color:var(--muted); font-size:13px; }
 
-.btn { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; background: #111827; color: white; cursor:pointer; }
-.btn:disabled { opacity: 0.6; cursor:not-allowed; }
-.btn.ghost { background: white; color: #111827; }
+.actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
-.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding: 16px; z-index: 2000; }
-.modal { background: white; width: min(720px, 100%); border-radius: 16px; padding: 16px; }
-.grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
-label { display:flex; flex-direction:column; gap: 6px; font-size: 13px; }
-input, textarea { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
-.wide { grid-column: 1 / -1; }
-.error { margin-top: 10px; color: #b91c1c; font-size: 13px; }
-.modal-actions { display:flex; justify-content:flex-end; gap: 10px; margin-top: 14px; }
-.btn.danger { background: #b91c1c; border-color: #b91c1c; }
-label {color: black;}
-</style>
+/* cards */
+.card{
+  margin-top: 14px;
+  border-radius:16px;
+  padding:14px;
+  border:1px solid var(--border2);
+  background: linear-gradient(180deg, rgba(10,14,28,.72), rgba(8,12,24,.78));
+  box-shadow: 0 16px 34px rgba(0,0,0,.42);
+  backdrop-filter: blur(10px);
+}
+.card.warn{
+  border-color: rgba(245,158,11,.35);
+  background: linear-gradient(180deg, rgba(245,158,11,.10), rgba(8,12,24,.78));
+}
+
+.row{ display:flex; gap:24px; flex-wrap:wrap; align-items:center; }
+.label{ font-size:12px; color:var(--muted); font-weight:800; letter-spacing:.2px; }
+.value{ font-size:26px; font-weight:1000; margin-top:4px; color:#dbeafe; }
+.muted{ color:var(--muted); margin-top:6px; }
+
+/* table */
+.table-card{
+  margin-top: 14px;
+  border-radius:18px;
+  overflow:hidden;
+  border:1px solid var(--border2);
+  background: var(--panel2);
+  box-shadow: 0 20px 48px rgba(0,0,0,.48);
+}
+.pad{ padding: 12px 14px; }
+.table{ width:100%; border-collapse:collapse; }
+.table th, .table td{
+  padding: 12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  text-align:left;
+}
+.table th{
+  background: rgba(5,8,18,.85);
+  color: rgba(56,189,248,.95);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing:.7px;
+  font-weight: 1000;
+}
+.table td{ color: rgba(229,231,235,.88); font-size:13.5px; }
+.remarks{ max-width: 460px; }
+.empty{ text-align:center; color:var(--muted); padding: 16px; }
+
+/* buttons */
+.btn{
+  border-radius:14px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 1000;
+  border:1px solid rgba(56,189,248,.22);
+  cursor:pointer;
+  background: rgba(56,189,248,.10);
+  color:#cdefff;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.btn:hover:not(:disabled){ transform: translateY(-1px); background: rgba(56,189,248,.16); }
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+.btn.ghost{
+  background: rgba(2,6,23,.45);
+  color: var(--text);
+  border-color: rgba(255,255,255,.10);
+}
+.btn.ghost:hover:not(:disabled){ background: rgba(56,189,248,.10); }
+
+.pager{ display:flex; justify-content:flex-end; gap: 8px; padding: 12px; }
+
+/* modal */
+.backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.60);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 16px;
+  z-index: 2000;
+}
+.modal{
+  width: min(760px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(56,189,248,.16);
+  background:
+    radial-gradient(1200px 520px at 20% -20%, rgba(56,189,248,.22), transparent 55%),
+    linear-gradient(180deg, rgba(10,14,28,.92), rgba(6,9,18,.92));
+  box-shadow: 0 30px 80px rgba(0,0,0,.62);
+  padding: 16px;
+  color: var(--text);
+}
+.grid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+label{ display:flex; flex-direction:column; gap: 6px; font-size: 13px; color: rgba(229,231,235,.72); font-weight:800; }
+input, textarea, select{
+  border:1px solid rgba(56,189,248,.18);
+  background: rgba(2,6,23,.55);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  outline:none;
+}
+input:focus, textarea:focus, select:focus{
+  border-color: rgba(56,189,248,.45);
+  box-shadow:0 0 0 4px rgba(56,189,248,.12);
+}
+.wide{ grid-column: 1 / -1; }
+
+.vgrid{
+  display:grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px){
+  .grid{ grid-template-columns: 1fr; }
+  .vgrid{ grid-template-columns: 1fr 1fr; }
+}
+
+.error{ margin-top: 10px; color: #fecaca; font-size: 13px; }
+.modal-actions{ display:flex; justify-content:flex-end; gap: 10px; margin-top: 14px; }</style>

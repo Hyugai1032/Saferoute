@@ -46,11 +46,39 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 
+# serializers.py
 class HazardPhotoSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
     class Meta:
         model = HazardPhoto
-        fields = ['id', 'image']
+        fields = ["id", "url"]
 
+    def get_url(self, obj):
+        request = self.context.get("request")
+        if not obj.image:
+            return None
+        # obj.image.url should be "/media/hazard_photos/xxx.png"
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+    
+class HazardReportSerializer(serializers.ModelSerializer):
+    photos = HazardPhotoSerializer(many=True, read_only=True)  # related_name="photos"
+
+    class Meta:
+        model = HazardReport
+        fields = [
+            "id",
+            "title",
+            "hazard_type",
+            "severity",
+            "description",
+            "address",
+            "municipality",
+            "municipality_name",
+            "reporter",
+            "reporter_email",
+            "photos",  # ✅ include this
+        ]
 
 # auth_app/serializers.py
 from rest_framework import serializers
