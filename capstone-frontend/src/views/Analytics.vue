@@ -20,28 +20,113 @@
         </div>
       </div>
 
-      <!-- Chart Toggle Buttons -->
-      <div class="chart-controls">
-        <button
-          v-for="type in ['Evacuees', 'Supplies', 'Risk']"
-          :key="type"
-          @click="updateChart(type)"
-          :class="{ active: currentChart === type }"
-        >
-          {{ type }}
-        </button>
-      </div>
+      <!-- Congestion Prediction Section -->
+      <div class="card-section">
+        <h3 class="section-title">🏟️ Evacuation Center Congestion Forecast</h3>
 
-      <!-- Chart Grid -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <canvas id="barChart"></canvas>
+        <div class="controls-row">
+          <div class="control">
+            <label class="control-label">Select Center</label>
+            <select class="control-input" v-model="selectedCenterId" @change="loadSelectedCenterRisk">
+              <option value="" disabled>Select evacuation center</option>
+              <option v-for="c in centers" :key="c.id" :value="c.id">
+                {{ c.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="control">
+            <label class="control-label">Window (mins)</label>
+            <input class="control-input" type="number" min="5" max="1440" v-model.number="windowMinutes" @change="loadSelectedCenterRisk" />
+          </div>
+
+          <div class="control">
+            <label class="control-label">Horizon (mins)</label>
+            <input class="control-input" type="number" min="5" max="360" v-model.number="horizonMinutes" @change="loadSelectedCenterRisk" />
+          </div>
+
+          <button class="btn-refresh" @click="refreshCongestion">Refresh</button>
         </div>
-        <div class="chart-card">
-          <canvas id="pieChart"></canvas>
+
+        <!-- Selected Center Summary -->
+        <div v-if="selectedRisk" class="risk-grid">
+          <div class="risk-card">
+            <div class="risk-card-title">Risk Level</div>
+            <div class="risk-badge" :class="riskClass(selectedRisk.risk_level)">
+              {{ selectedRisk.risk_level }}
+            </div>
+            <div class="muted-sm">{{ selectedRisk.recommendation }}</div>
+          </div>
+
+          <div class="risk-card">
+            <div class="risk-card-title">Occupancy Now</div>
+            <div class="big-metric">
+              {{ Math.round(selectedRisk.occupancy * 100) }}%
+            </div>
+            <div class="progress">
+              <div class="progress-bar" :style="{ width: clampPct(selectedRisk.occupancy) }"></div>
+            </div>
+            <div class="muted-sm">
+              {{ selectedRisk.current_total }} / {{ selectedRisk.capacity }}
+            </div>
+          </div>
+
+          <div class="risk-card">
+            <div class="risk-card-title">Predicted Occupancy ({{ horizonMinutes }}m)</div>
+            <div class="big-metric">
+              {{ Math.round(selectedRisk.predicted_occupancy * 100) }}%
+            </div>
+            <div class="progress">
+              <div class="progress-bar warn" :style="{ width: clampPct(selectedRisk.predicted_occupancy) }"></div>
+            </div>
+            <div class="muted-sm">
+              {{ selectedRisk.predicted_total }} / {{ selectedRisk.capacity }}
+            </div>
+          </div>
+
+          <div class="risk-card">
+            <div class="risk-card-title">Net Inflow Rate</div>
+            <div class="big-metric">
+              {{ selectedRisk.net_rate_per_min }} / min
+            </div>
+            <div class="muted-sm">
+              Last {{ windowMinutes }} mins: +{{ selectedRisk.total_in_window }} IN, -{{ selectedRisk.total_out_window }} OUT
+            </div>
+          </div>
         </div>
-        <div class="chart-card full-width">
-          <canvas id="lineChart"></canvas>
+
+        <!-- Centers Overview Table -->
+        <div class="table-wrap styled-scroll">
+          <table class="dark-table compact">
+            <thead>
+              <tr>
+                <th>Center</th>
+                <th>Current</th>
+                <th>Predicted</th>
+                <th>Risk</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in centerRisks" :key="row.center_id">
+                <td>{{ centerName(row.center_id) }}</td>
+                <td>{{ row.current_total }}</td>
+                <td>{{ row.predicted_total }}</td>
+                <td>
+                  <span class="risk-pill" :class="riskClass(row.risk_level)">
+                    {{ row.risk_level }}
+                  </span>
+                </td>
+                <td>
+                  <button class="btn-mini" @click="selectCenter(row.center_id)">View</button>
+                </td>
+              </tr>
+
+              <tr v-if="centers.length && !centerRisks.length">
+                <td colspan="5" class="muted-sm">Loading congestion data…</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -110,7 +195,102 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
+
+// --- Congestion Risk (Hybrid Real-time Model) ---
+const centers = ref([])                 // list of centers for dropdown/table
+const centerRisks = ref([])             // computed risk results for each center
+const selectedCenterId = ref('')        // selected center
+const selectedRisk = ref(null)          // risk payload for selected center
+const windowMinutes = ref(60)
+const horizonMinutes = ref(60)
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 Chart.register(...registerables)
+
+// Helpers
+function riskClass(level) {
+  return {
+    LOW: 'low',
+    MODERATE: 'moderate',
+    HIGH: 'high',
+    CRITICAL: 'critical'
+  }[level] || 'low'
+}
+
+function clampPct(x) {
+  const pct = Math.round((x || 0) * 100)
+  return `${Math.max(0, Math.min(100, pct))}%`
+}
+
+function centerName(centerId) {
+  const c = centers.value.find(x => x.id === centerId)
+  return c ? c.name : `Center #${centerId}`
+}
+
+function selectCenter(id) {
+  selectedCenterId.value = id
+  loadSelectedCenterRisk()
+}
+
+async function fetchCenters() {
+  // CHANGE this endpoint if yours differs:
+  const res = await fetch(`${API_BASE}evac_centers/evacuation-centers/`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  })
+  if (!res.ok) throw new Error(`Failed to load centers: ${res.status}`)
+  const data = await res.json()
+
+  // Handle both paginated and non-paginated responses
+  centers.value = Array.isArray(data) ? data : (data.results || [])
+  if (!selectedCenterId.value && centers.value.length) {
+    selectedCenterId.value = centers.value[0].id
+  }
+}
+
+async function fetchCenterRisk(centerId) {
+  const url = `${API_BASE}analytics/centers/${centerId}/congestion-risk/?window=${windowMinutes.value}&horizon=${horizonMinutes.value}`
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    }
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Risk fetch failed (${res.status}): ${txt}`)
+  }
+  return await res.json()
+}
+
+async function loadSelectedCenterRisk() {
+  if (!selectedCenterId.value) return
+  try {
+    selectedRisk.value = await fetchCenterRisk(selectedCenterId.value)
+  } catch (e) {
+    console.error(e)
+    selectedRisk.value = null
+  }
+}
+
+async function refreshCongestion() {
+  try {
+    // 1) ensure centers loaded
+    if (!centers.value.length) await fetchCenters()
+
+    // 2) fetch risks for all centers (parallel)
+    const results = await Promise.all(
+      centers.value.map(c => fetchCenterRisk(c.id).catch(() => null))
+    )
+    centerRisks.value = results.filter(Boolean)
+
+    // 3) refresh selected center too
+    await loadSelectedCenterRisk()
+  } catch (e) {
+    console.error('Failed to refresh congestion:', e)
+  }
+}
 
 // --- Reactive Data ---
 const stats = ref({
@@ -164,6 +344,13 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to fetch predictions:', error)
     stats.value.predictedRisk = 78  // Fallback
+  }
+
+  try {
+    await fetchCenters()
+    await refreshCongestion()
+  } catch (e) {
+    console.error("Congestion load failed:", e)
   }
 
   // BAR CHART
@@ -561,5 +748,152 @@ thead {
   position: static;
   top: 0;
   z-index: 10;
+}
+
+.card-section{
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 204, 255, 0.15);
+  background: linear-gradient(145deg, #0f1a25, #0b121a);
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.08);
+}
+
+.section-title{
+  margin: 0 0 0.8rem;
+  color: #4dc3ff;
+  font-weight: 600;
+}
+
+.controls-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.control{
+  min-width: 180px;
+  flex: 1;
+}
+
+.control-label{
+  display: block;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-bottom: 0.35rem;
+}
+
+.control-input{
+  width: 100%;
+  background: #0f1a25;
+  border: 1px solid rgba(0, 204, 255, 0.25);
+  color: #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.btn-refresh{
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 204, 255, 0.35);
+  background: #0f1a25;
+  color: #4dc3ff;
+  cursor: pointer;
+}
+
+.risk-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 1100px){
+  .risk-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 650px){
+  .risk-grid{ grid-template-columns: 1fr; }
+}
+
+.risk-card{
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.risk-card-title{
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-bottom: 0.4rem;
+}
+
+.big-metric{
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 0.5rem;
+}
+
+.muted-sm{
+  font-size: 0.82rem;
+  color: #9ca3af;
+  margin-top: 0.4rem;
+}
+
+.progress{
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.progress-bar{
+  height: 100%;
+  border-radius: 999px;
+  background: #00b4ff;
+}
+.progress-bar.warn{
+  background: #ffb020;
+}
+
+.risk-badge{
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.risk-pill{
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.low{ background: rgba(0,255,127,0.12); color: #00ff7f; border: 1px solid rgba(0,255,127,0.25); }
+.moderate{ background: rgba(255,193,7,0.12); color: #ffc107; border: 1px solid rgba(255,193,7,0.25); }
+.high{ background: rgba(255,77,77,0.12); color: #ff4d4d; border: 1px solid rgba(255,77,77,0.25); }
+.critical{ background: rgba(255,0,80,0.12); color: #ff0050; border: 1px solid rgba(255,0,80,0.25); }
+
+.table-wrap{
+  margin-top: 0.75rem;
+}
+
+.dark-table.compact th, .dark-table.compact td{
+  padding: 10px 10px;
+}
+
+.btn-mini{
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 204, 255, 0.25);
+  background: transparent;
+  color: #4dc3ff;
+  cursor: pointer;
 }
 </style>

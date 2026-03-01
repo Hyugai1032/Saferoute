@@ -7,6 +7,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+from evac_app.models import EvacuationCenter, EvacuationLog
+from .services.congestion import compute_congestion_risk, CongestionParams
 
 # Global variables to load model and scalers once
 model = None
@@ -159,3 +165,33 @@ def predict_weather_view(request):
         return JsonResponse({'predictions': predictions})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+
+    
+class CenterCongestionRiskView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, center_id: int):
+        # Optional query params:
+        # ?window=60&horizon=60
+        try:
+            window = int(request.query_params.get("window", 60))
+            horizon = int(request.query_params.get("horizon", 60))
+        except ValueError:
+            return Response({"detail": "window and horizon must be integers."}, status=400)
+
+        window = max(5, min(window, 24 * 60))     # clamp 5 min .. 24 hours
+        horizon = max(5, min(horizon, 6 * 60))    # clamp 5 min .. 6 hours
+
+        center = EvacuationCenter.objects.filter(id=center_id).first()
+        if not center:
+            return Response({"detail": "Center not found."}, status=404)
+
+        result = compute_congestion_risk(
+            center=center,
+            EvacuationLogModel=EvacuationLog,
+            params=CongestionParams(window_minutes=window, horizon_minutes=horizon),
+        )
+
+        status_code = 200 if "error" not in result else 400
+        return Response(result, status=status_code)

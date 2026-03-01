@@ -49,7 +49,7 @@ const routes = [
       { path: "", redirect: "/user/dashboard" },
       { path: 'dashboard', name: 'UserDashboard', component: UserDashboard },
       { path: 'report', name: 'UserHazardReport', component: UserHazardReport },
-      { path: 'map', name: 'UserMap', component: UserMap },
+      { path: 'map', name: 'UserMap', component: GISMap },
       { path: 'alerts', name: 'UserAlerts', component: UserAlerts },
       { path: 'profile', name: 'UserProfile', component: UserProfile }
     ]

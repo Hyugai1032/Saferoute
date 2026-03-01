@@ -319,7 +319,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class GisLayerViewSet(viewsets.ModelViewSet):
     serializer_class = GisLayerSerializer
-    permission_classes = [GisLayerRolePermission]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = GisLayer.objects.select_related("municipality").order_by("-updated_at")
@@ -361,7 +361,7 @@ class MapOverviewView(APIView):
     GET /api/map/overview/?recent_hours=48&municipality_id=3
     Returns center pins + recent hazard pins.
     """
-    permission_classes = [IsAuthenticated, IsStaffOrHigher]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         recent_hours = int(request.query_params.get("recent_hours", 48))
@@ -420,7 +420,7 @@ class ORSRouteView(APIView):
       "hazard_radius_m": 150
     }
     """
-    permission_classes = [IsAuthenticated, IsStaffOrHigher]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         ors_key = settings.ORS_API_KEY
