@@ -24,6 +24,9 @@ import StaffLayout from "../views/Staff/StaffLayout.vue";
 import StaffDashboard from "../views/Staff/StaffDashboard.vue";
 import StaffLogs from "../views/Staff/StaffLogs.vue";
 
+//Profile
+// import UserProfile from "@/views/Profile/UserProfile.vue";
+
 const routes = [
   {
     path: '/',
@@ -84,7 +87,22 @@ const routes = [
       { path: "logs", name: "StaffLogs", component: StaffLogs },
       { path: "map", name: "StaffMap", component: GISMap },
     ],
-  }
+  },
+
+
+{
+  path: "/admin/profile",
+  name: "AdminProfile",
+  component: UserProfile,
+  meta: { requiresAuth: true },
+},
+{
+  path: "/staff/profile",
+  name: "StaffProfile",
+  component: UserProfile,
+  meta: { requiresAuth: true },
+},
+
 ]
 
 const router = createRouter({

@@ -115,10 +115,14 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Remarks</label>
-          <textarea v-model="form.remarks" placeholder="Additional notes" rows="3"></textarea>
-        </div>
+<div class="form-group full-width">
+  <label>Remarks</label>
+  <textarea
+    v-model="form.remarks"
+    placeholder="Additional notes"
+    rows="4"
+  ></textarea>
+</div>
 
         <button type="submit" class="btn-primary">Create Center</button>
       </form>
@@ -186,46 +190,78 @@
       </section>
       <div v-if="loading" class="loading">Loading centers...</div>
       <div v-else-if="centers.length === 0" class="empty">No centers found</div>
-      <table v-else>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Municipality</th>
-            <th>Barangay</th>
-            <th>Fund Source</th>
-            <th>Fam Cap</th>
-            <th>Ind Cap</th>
-            <th>Status</th>
-            <th>Coordinates</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="c in centers" :key="c.id">
-            <td>{{ c.name }}</td>
-            <td>{{ c.municipality_name || '-' }}</td>
-            <td>{{ c.barangay_name || '-' }}</td>
-            <td>{{ c.fund_source || '-' }}</td>
-            <td>{{ c.family_capacity_max || 0 }}</td>
-            <td>{{ c.individual_capacity_max || 0 }}</td>
-            <td>
-              <span :class="'badge badge-' + c.status.toLowerCase()">
-                {{ c.status }}
-              </span>
-            </td>
-            <td>
-              <span v-if="c.latitude != null && c.longitude != null" class="coords">
-                {{ formatCoord(c.latitude) }}, {{ formatCoord(c.longitude) }}
-              </span>
-              <span v-else class="text-muted">-</span>
-            </td>
-            <td>
-              <button @click="startEdit(c)" class="btn-sm">Edit</button>
+<div v-else class="table-shell">
+  <div class="table-toolbar">
+    <div class="table-title">
+      <span class="dot"></span>
+      <div>
+        <div class="title">Centers</div>
+        <div class="subtitle">Manage evacuation centers (edit, delete, view info)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="centers-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Municipality</th>
+          <th>Barangay</th>
+          <th>Fund Source</th>
+          <th class="num">Fam Cap</th>
+          <th class="num">Ind Cap</th>
+          <th>Status</th>
+          <th>Coordinates</th>
+          <th class="actions">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr v-for="c in centers" :key="c.id">
+          <td class="name-cell">
+            <div class="name-main">{{ c.name }}</div>
+            <div class="name-sub muted">
+              {{ c.remarks ? c.remarks : 'No remarks' }}
+            </div>
+          </td>
+
+          <td>{{ c.municipality_name || '-' }}</td>
+          <td>{{ c.barangay_name || '-' }}</td>
+          <td>{{ c.fund_source || '-' }}</td>
+
+          <td class="num">
+            <span class="pill">{{ c.family_capacity_max || 0 }}</span>
+          </td>
+
+          <td class="num">
+            <span class="pill">{{ c.individual_capacity_max || 0 }}</span>
+          </td>
+
+          <td>
+            <span :class="['badge', 'badge-' + (c.status || '').toLowerCase()]">
+              {{ c.status }}
+            </span>
+          </td>
+
+          <td>
+            <span v-if="c.latitude != null && c.longitude != null" class="coords">
+              {{ formatCoord(c.latitude) }}, {{ formatCoord(c.longitude) }}
+            </span>
+            <span v-else class="text-muted">-</span>
+          </td>
+
+          <td class="actions">
+            <div class="btn-group">
+              <button @click="startEdit(c)" class="btn-sm btn-ghost">Edit</button>
               <button @click="deleteCenter(c.id)" class="btn-sm btn-danger">Delete</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
       <div class="pager" v-if="pagination.count > 0">
         <button :disabled="!pagination.previous" @click="fetchCenters(Number(pagination.page) - 1)">
           Prev
@@ -892,5 +928,301 @@ div[v-if="uploading"], div[v-if="loading"] {
   .list th, .list td {
     padding: 0.75rem;
   }
+}
+
+
+
+/* ====== TABLE UI (Cleaner Dashboard Look) ====== */
+.table-shell {
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+.table-toolbar {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-title .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+}
+
+.table-title .title {
+  font-weight: 700;
+  color: #e5e7eb;
+  line-height: 1.1;
+}
+
+.table-title .subtitle {
+  font-size: 12px;
+  color: rgba(203,213,225,0.75);
+}
+
+.table-wrap {
+  width: 100%;
+  overflow: auto;
+}
+
+.centers-table {
+  width: 100%;
+  min-width: 980px; /* keeps columns readable; scrolls on small screens */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.centers-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(148,163,184,0.95);
+  background: rgba(10,10,20,0.85);
+  backdrop-filter: blur(8px);
+  padding: 14px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.centers-table tbody td {
+  padding: 14px 14px;
+  color: rgba(226,232,240,0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  vertical-align: top;
+}
+
+.centers-table tbody tr:nth-child(odd) {
+  background: rgba(255,255,255,0.02);
+}
+
+.centers-table tbody tr:hover {
+  background: rgba(59,130,246,0.08);
+}
+
+.num {
+  text-align: right;
+}
+
+.actions {
+  width: 180px;
+}
+
+.name-cell .name-main {
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.name-cell .name-sub {
+  font-size: 12px;
+  max-width: 420px;
+  color: rgba(148,163,184,0.9);
+}
+
+.muted, .text-muted {
+  color: rgba(148,163,184,0.9);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  font-weight: 700;
+}
+
+.coords {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0,150,255,0.10);
+  border: 1px solid rgba(0,150,255,0.22);
+  color: rgba(191,219,254,0.95);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.badge-permanent {
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.25);
+  color: #34d399;
+}
+
+.badge-temporary {
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #fbbf24;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(226,232,240,0.95);
+}
+
+.btn-ghost:hover {
+  background: rgba(59,130,246,0.15);
+  border-color: rgba(59,130,246,0.35);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #fecaca;
+}
+
+.btn-danger:hover {
+  background: rgba(239,68,68,0.18);
+  transform: translateY(-1px);
+}
+
+
+
+.filters .filter-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.filters .filter-row input,
+.filters .filter-row select {
+  margin-bottom: 0;
+}
+
+.filters .filter-row button {
+  height: 44px;
+}
+
+@media (max-width: 1100px) {
+  .filters .filter-row {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+  .create form {
+  grid-template-columns: 1fr;
+}
+.form-group.full-width {
+  grid-column: auto;
+}
+}
+
+textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.4;
+}
+
+textarea::placeholder {
+  color: rgba(203, 213, 225, 0.6);
+}
+
+
+
+/* --- form layout --- */
+.create form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-row {
+  display: contents; /* keeps your existing markup working but flows in grid */
+}
+
+.form-group {
+  margin: 0; /* remove extra spacing, grid handles spacing */
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+/* make remarks span both columns */
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+/* --- inputs look consistent --- */
+.evac-manager input,
+.evac-manager select,
+.evac-manager textarea {
+  width: 100%;
+  display: block;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: #e5e7eb;
+  font-size: 1rem;
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
+
+.evac-manager textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.evac-manager input:focus,
+.evac-manager select:focus,
+.evac-manager textarea:focus {
+  outline: none;
+  border-color: rgba(79, 172, 254, 0.6);
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.12);
+}
+
+.evac-manager textarea::placeholder,
+.evac-manager input::placeholder {
+  color: rgba(203, 213, 225, 0.55);
 }
 </style>

@@ -32,7 +32,8 @@
           <div class="notification-icon">🔔</div>
 <div class="notification-badge" v-if="notifCount > 0">{{ notifCount }}</div>        </button>
       </div>
-      <div class="user-profile">
+<div class="user-profile" @click.stop="goProfile" style="cursor:pointer" title="Open profile">
+        
         <div class="profile-info">
           <div class="profile-name">{{ user?.first_name }} {{ user?.last_name }}</div>
           <div class="profile-role">{{ user?.role }}</div>
@@ -51,6 +52,19 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
+
+function goProfile() {
+  const role = String(user?.role || "").toUpperCase();
+
+  // IMPORTANT: match your actual backend role values
+  if (role === "ADMIN") {
+    router.push({ name: "AdminProfile" });
+    return;
+  }
+
+  // everything else treated as staff (EVAC_CENTER_STAFF, STAFF, etc.)
+  router.push({ name: "StaffProfile" });
+}
 
 
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -136,6 +150,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.user-profile:hover {
+  opacity: 0.85;
+}
 .header-bar {
   display: flex;
   justify-content: space-between;

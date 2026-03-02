@@ -10,6 +10,8 @@ from .api_views import (
     MapOverviewView,
     HazardReportDetailView,
     ORSRouteView,
+    MeView,
+    UpdateMeView,
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -34,5 +36,6 @@ urlpatterns = [
     path("map/overview/", MapOverviewView.as_view(), name="map_overview"),
     path("route/ors/", ORSRouteView.as_view(), name="route_ors"),
     path('', include(router.urls)),
-    # path("hazards/pending", HazardPendingList.as_view()),
+    path("api/me/", MeView.as_view(), name="me"),
+    path("api/me/update/", UpdateMeView.as_view(), name="me-update"),
 ]

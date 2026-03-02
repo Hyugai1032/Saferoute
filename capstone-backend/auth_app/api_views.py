@@ -520,3 +520,39 @@ class ORSRouteView(APIView):
             "geometry": geometry,
             "used_hazard_avoidance": avoid_hazards,
         })
+
+
+# users/api_views.py (example)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        u = request.user
+        data = {
+            "id": u.id,
+            "email": u.email,
+            "first_name": getattr(u, "first_name", ""),
+            "last_name": getattr(u, "last_name", ""),
+            "role": getattr(u, "role", ""),
+            "municipality": getattr(getattr(u, "municipality", None), "name", None),
+            "assigned_center_id": getattr(u, "assigned_center_id", None),
+            "assigned_center_name": getattr(getattr(u, "assigned_center", None), "name", None),
+        }
+        return Response(data)
+
+class UpdateMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        u = request.user
+        # whitelist fields you allow editing
+        for field in ["first_name", "last_name"]:
+            if field in request.data:
+                setattr(u, field, request.data.get(field))
+        u.save()
+        return Response({"detail": "Profile updated."}, status=status.HTTP_200_OK)        
