@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-container">
-    <div class="main-content" :style="mainContentStyle">
+    <div class="main-content">
 
       <!-- Dashboard Header with Logout -->
       <div class="dashboard-header">
@@ -130,13 +130,6 @@ import 'leaflet/dist/leaflet.css'
 import { centers, getStatusLevel } from '@/data/centers'
 
 const router = useRouter()
-const sidebarCollapsed = ref(false)
-
-// Update your main content style to be responsive to sidebar state
-const mainContentStyle = computed(() => ({
-  marginLeft: sidebarCollapsed.value ? '0px' : '280px',
-  transition: 'margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-}))
 
 // Computed properties
 const totalEvacuees = computed(() => 
@@ -225,12 +218,6 @@ const initializeQuickMap = () => {
 }
 
 onMounted(() => {
-  // Load sidebar state from localStorage
-  const savedState = localStorage.getItem('sidebarCollapsed');
-  if (savedState) {
-    sidebarCollapsed.value = savedState === 'true';
-  }
-
   initializeQuickMap()
 })
 </script>
@@ -243,17 +230,17 @@ onMounted(() => {
 }
 
 .dashboard-container {
-  display: flex;
   min-height: 100vh;
+  color: white;
 }
+
 
 .main-content {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
   min-height: 100vh;
-  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-left: 280px; /* Default sidebar width */
+  min-width: 0;
 }
 
 .dashboard-header {

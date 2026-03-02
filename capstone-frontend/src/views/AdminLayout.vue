@@ -96,9 +96,31 @@ const mainContentStyle = computed(() => ({
   marginLeft: isMobile.value ? '0px' : (sidebarCollapsed.value ? '80px' : '280px'),
   transition: 'margin-left 0.3s ease'
 }))
+
+const layoutStyle = computed(() => ({
+  '--sidebar-offset': `${sidebarOffsetPx.value}px`
+}))
 </script>
 
 <style scoped>
+.app {
+  min-height: 100vh;
+}
+
+.admin-layout {
+  margin-left: var(--sidebar-offset, 0px);
+  width: calc(100% - var(--sidebar-offset, 0px));
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0; /* prevents weird spacing/overflow in grids */
+}
+
 .backdrop {
   position: fixed;
   top: 0;
