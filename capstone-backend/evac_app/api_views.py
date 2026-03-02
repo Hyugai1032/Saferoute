@@ -394,6 +394,8 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             "breakdown": breakdown,
             "total_current": total_current,
         })    
+    
+    
 class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = EvacuationCenter.objects.select_related("municipality").all().order_by("name")
     serializer_class = EvacuationCenterListSerializer

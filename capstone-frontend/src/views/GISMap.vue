@@ -86,6 +86,20 @@
               </div>
             </div>
 
+            <div class="metrics-section" v-if="routeInfo">
+              <h4>Route Info</h4>
+              <div class="center-info">
+                <div class="info-item">
+                  <span class="info-label">📏 Distance:</span>
+                  <span class="info-value">{{ routeInfo.distance_km }} km</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">⏱ Estimated Time of Arrival:</span>
+                  <span class="info-value">{{ routeInfo.duration_min }} mins</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Supplies Section -->
             <!-- <div class="metrics-section">
               <h4>Supplies Status</h4>
@@ -147,11 +161,13 @@ const centers = ref([])
 const hazards = ref([])
 
 const centerLayer = ref(null)
+const centerMarkers = ref(new Map())
 const hazardLayer = ref(null)
 const gisLayer = ref(null)
 const routeLayer = ref(null)
 
 const osmLayer = ref(null)
+const routeInfo = ref(null) // { distance_km, duration_min }
 const satelliteLayer = ref(null)
 
 // Fix for default markers in Leaflet
@@ -222,7 +238,8 @@ const getTotalCapacity = (c) =>
   Number(c.family_capacity_max || 0) + Number(c.individual_capacity_max || 0)
 
 // until you compute occupancy, show 0
-const getTotalOccupancy = (c) => 0
+const getTotalOccupancy = (c) => 
+  Number(c.current_total || 0)
 
 const getOccupancyPercentage = (c) => {
   const cap = getTotalCapacity(c)
@@ -247,6 +264,7 @@ const fetchCenterDetail = async (id) => {
 const renderCenters = () => {
   if (!centerLayer.value) return
   centerLayer.value.clearLayers()
+  centerMarkers.value.clear()
 
   centers.value.forEach((center) => {
     if (center.latitude == null || center.longitude == null) return
@@ -255,12 +273,24 @@ const renderCenters = () => {
       icon: createCenterIcon(center),
     }).addTo(centerLayer.value)
 
+    centerMarkers.value.set(center.id, marker)
+
     marker.on('click', async () => {
       selectedCenter.value = center
 
       try {
         const full = await fetchCenterDetail(center.id)
-        selectedCenter.value = full // now has full serializer data
+
+        // ✅ update sidebar
+        selectedCenter.value = full
+
+        // ✅ update the marker icon using the NEW occupancy/congestion
+        const m = centerMarkers.value.get(center.id)
+        if (m) m.setIcon(createCenterIcon(full))
+
+        // ✅ (optional) also update the centers array so future refresh uses new data
+        const idx = centers.value.findIndex(c => c.id === center.id)
+        if (idx !== -1) centers.value[idx] = { ...centers.value[idx], ...full }
       } catch (e) {
         console.error("Failed to fetch center detail:", e)
       }
@@ -290,7 +320,7 @@ const renderHazards = () => {
   })
 }
 
-const drawRoute = (geometry) => {
+const drawRoute = (geometry, distanceM = 0, durationS = 0) => {
   if (!map.value || !routeLayer.value) return
 
   routeLayer.value.clearLayers()
@@ -307,6 +337,12 @@ const drawRoute = (geometry) => {
   }).addTo(routeLayer.value)
 
   map.value.fitBounds(routeGeo.getBounds().pad(0.2))
+
+  routeInfo.value = {
+    distance_km: (Number(distanceM || 0) / 1000).toFixed(2),
+    duration_min: Math.round(Number(durationS || 0) / 60),
+  }
+
 }
 
 const routeToCenter = (center, avoidHazards = false) => {
@@ -325,7 +361,7 @@ const routeToCenter = (center, avoidHazards = false) => {
         }
 
         const res = await api.post("/route/ors/", payload)
-        drawRoute(res.data.geometry)
+        drawRoute(res.data.geometry, res.data.distance_m, res.data.duration_s)
       } catch (e) {
         console.error("Routing failed:", e)
         alert("Routing failed. Check console / Network tab.")
@@ -341,6 +377,7 @@ const routeToCenter = (center, avoidHazards = false) => {
 
 const clearRoute = () => {
   routeLayer.value?.clearLayers()
+  routeInfo.value = null
 }
 
 const fitMapToCenters = () => {

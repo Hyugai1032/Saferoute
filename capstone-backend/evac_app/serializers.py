@@ -12,6 +12,10 @@ class EvacuationCenterSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    current_total = serializers.SerializerMethodField()
+    current_families = serializers.SerializerMethodField()
+    congestion_percent = serializers.SerializerMethodField()
+
     class Meta:
         model = EvacuationCenter
         fields = [
@@ -34,8 +38,35 @@ class EvacuationCenterSerializer(serializers.ModelSerializer):
             'remarks',
             'created_at',
             'updated_at',
+            'current_total',
+            'current_families',
+            'congestion_percent',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def _latest_log(self, center):
+        return (
+            EvacuationLog.objects
+            .filter(center_id=center.id)
+            .order_by('-date_recorded', '-id')
+            .first()
+        )
+
+    def get_current_total(self, center):
+        log = self._latest_log(center)
+        return int(log.total_current) if log else 0
+
+    def get_current_families(self, center):
+        log = self._latest_log(center)
+        return int(log.total_current_families) if log else 0
+
+    def get_congestion_percent(self, center):
+        cap = int(center.family_capacity_max or 0) + int(center.individual_capacity_max or 0)
+        if cap <= 0:
+            return 0.0
+
+        occ = self.get_current_total(center)
+        return round((occ / cap) * 100, 1)
 
 class EvacuationLogSerializer(serializers.ModelSerializer):
     center_name = serializers.CharField(source="center.name", read_only=True)
@@ -62,7 +93,6 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "total_current",
             "total_current_families",  # ✅ new
             "remarks",
-            "total_current",
         ]
         read_only_fields = ["reporting_staff"]
 

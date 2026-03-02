@@ -28,7 +28,7 @@ from .serializers import (UserProfileSerializer,
                           EvacCenterPinSerializer,
                           HazardPinSerializer,
                           HazardReportAdminUpdateSerializer)
-
+from evac_app.serializers import EvacuationCenterSerializer
 from .permissions import (
     IsProvincialAdmin, 
     IsMunicipalAdminOrHigher, 
@@ -385,7 +385,7 @@ class MapOverviewView(APIView):
             hazards_qs = hazards_qs.filter(municipality_id=municipality_id)
 
         return Response({
-            "centers": EvacCenterPinSerializer(centers_qs, many=True).data,
+            "centers": EvacuationCenterSerializer(centers_qs, many=True).data,
             "hazards": HazardPinSerializer(hazards_qs, many=True).data,
         })
     
