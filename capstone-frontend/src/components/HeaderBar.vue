@@ -22,10 +22,10 @@
     
     <div class="header-right">
       <div class="header-actions">
-        <button class="quick-add-btn" @click="openQuickAdd">
+        <!-- <button class="quick-add-btn" @click="openQuickAdd">
           <span class="add-icon">+</span>
           Quick Add
-        </button>
+        </button> -->
       </div>
       <div class="header-notifications">
         <button class="notification-btn" @click="toggleNotifications">
@@ -89,9 +89,9 @@ const handleSearch = () => {
   emit('search', searchQuery.value);
 };
 
-const openQuickAdd = () => {
-  alert('Quick add functionality - Add new evacuee, center, or alert');
-};
+// const openQuickAdd = () => {
+//   alert('Quick add functionality - Add new evacuee, center, or alert');
+// };
 
 const toggleNotifications = () => {
 router.push({ name: "Hazard Reports" });};

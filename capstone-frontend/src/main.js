@@ -5,6 +5,7 @@ import './assets/styles.css'
 import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import { logout } from '@/services/authService'
+import './style.css'
 
 const API_URL = 'http://127.0.0.1:8000/api/'
 

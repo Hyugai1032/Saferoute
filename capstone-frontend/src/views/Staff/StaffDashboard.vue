@@ -10,7 +10,7 @@
       <div class="top-actions">
         <button class="btn ghost" @click="goLogs">Evacuation Logs</button>
         <button class="btn ghost" @click="goMap">GIS Map</button>
-        <button class="btn danger" @click="logout">Logout</button>
+<button class="btn-logout" @click="logout">Logout</button>
       </div>
     </div>
 

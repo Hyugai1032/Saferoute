@@ -26,10 +26,9 @@
               </router-link>
             
         </div>
-        <button class="logout-btn" @click="logout">
-          <i class="icon-logout"></i>
-          Logout
-        </button>
+<button class="btn-logout" @click="logout">
+  Logout
+</button>
       </div>
     </div>
   </header>

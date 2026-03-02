@@ -174,22 +174,25 @@
           <div class="contact-fields">
             <div class="input-group">
               <label for="contactName">Name</label>
-              <input 
-                type="text" 
-                id="contactName" 
+              <input
+                type="text"
+                id="contactName"
                 v-model="formData.contactName"
                 placeholder="Your full name"
                 required
+                disabled
               >
+
             </div>
             <div class="input-group">
               <label for="contactPhone">Phone Number</label>
-              <input 
-                type="tel" 
-                id="contactPhone" 
+              <input
+                type="tel"
+                id="contactPhone"
                 v-model="formData.contactPhone"
                 placeholder="Your phone number"
                 required
+                disabled
               >
             </div>
           </div>
@@ -295,12 +298,31 @@ export default {
     // Auto-detect location on component mount
     this.getCurrentLocation()
 
+  // ✅ ADD THIS
+  this.loadMyProfile();
+
     const user = JSON.parse(localStorage.getItem("userData") || "{}");
     if (user.municipality) {
       this.formData.municipality = user.municipality;
     }
   },
   methods: {
+
+async loadMyProfile() {
+  try {
+    // ✅ backend endpoint mo sa screenshot: user/profile/
+    const res = await api.get("user/profile/");
+    const u = res.data;
+
+    // auto-fill
+    this.formData.contactName = `${u.first_name} ${u.last_name}`.trim();
+    this.formData.contactPhone = u.contact_number || "";
+  } catch (err) {
+    console.error("Failed to load user profile:", err?.response?.data || err);
+  }
+},
+
+
     async getCurrentLocation() {
       this.gettingLocation = true
       

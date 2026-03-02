@@ -28,7 +28,7 @@ urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('user/profile/', UserProfileView.as_view(), name='user_profile'),
+    path("user/profile/", UserProfileView.as_view(), name="user-profile"),
     path('hazards/', HazardReportView.as_view()),
     path('hazards/<int:pk>/', HazardReportDetailView.as_view()),
     path("map/overview/", MapOverviewView.as_view(), name="map_overview"),

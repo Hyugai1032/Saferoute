@@ -23,27 +23,29 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         return CustomUser.objects.create_user(**validated_data)
     
-class UserProfileSerializer(serializers.ModelSerializer):
-    municipality_id = serializers.IntegerField(source="municipality.id", read_only=True)
-    municipality_name = serializers.CharField(source="municipality.name", read_only=True)
+# auth_app/serializers.py
+from rest_framework import serializers
+from .models import CustomUser
 
-    assigned_center_id = serializers.IntegerField(source="assigned_center.id", read_only=True)
-    assigned_center_name = serializers.CharField(source="assigned_center.name", read_only=True)
+class UserProfileSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
         fields = [
+            "email",
             "first_name",
             "last_name",
-            "email",
-            "role",
             "contact_number",
-            "municipality_id",
+            "role",
+            "created_at",
+            "municipality",
             "municipality_name",
-            "assigned_center_id",
-            "assigned_center_name",
         ]
+        read_only_fields = ["email", "role", "created_at"]
 
+    def get_municipality_name(self, obj):
+        return obj.municipality.name if obj.municipality else ""
 
 
 # serializers.py
@@ -128,6 +130,17 @@ class HazardReportSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+
+        request = self.context.get("request")
+        user = request.user if request else None
+
+        # set reporter + contact snapshot from logged-in user
+        if user and user.is_authenticated:
+            validated_data["reporter"] = user
+            validated_data["contact_name"] = f"{user.first_name} {user.last_name}".strip()
+            validated_data["contact_phone"] = user.contact_number or ""
+
+
         photo_files = validated_data.pop("uploaded_photos", [])
         report = HazardReport.objects.create(**validated_data)
 

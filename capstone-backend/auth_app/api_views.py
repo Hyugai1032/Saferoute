@@ -56,18 +56,38 @@ class RegisterView(generics.CreateAPIView):
         })
 
     
+# auth_app/api_views.py (or views.py)
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import UserProfileSerializer
+
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(UserProfileSerializer(request.user).data)    
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
 
+    def patch(self, request):
+        serializer = UserProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 class HazardReportView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         status_param = request.query_params.get("status")
+        mine = request.query_params.get("mine") 
         qs = HazardReport.objects.all().order_by("-id")
         if status_param:
             qs = qs.filter(status=status_param)

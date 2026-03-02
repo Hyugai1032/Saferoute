@@ -11,15 +11,14 @@
 
 
         <div class="header-actions">
-          <button class="logout-btn" @click="logout">
-            <i class="icon-logout"></i>
-            Logout
-          </button>
+<button class="btn-logout" @click="logout">
+  Logout
+</button>
         </div>
       </div>
 
       <!-- Emergency Alert Banner -->
-      <div class="alert-banner warning" v-if="criticalCenters.length > 0">
+      <!-- <div class="alert-banner warning" v-if="criticalCenters.length > 0">
         <div class="alert-content">
           <span class="alert-icon">⚠️</span>
           <div class="alert-text">
@@ -27,7 +26,7 @@
           </div>
           <button class="alert-action" @click="showCriticalCenters">View Details</button>
         </div>
-      </div>
+      </div> -->
 
       <!-- Key Metrics -->
       <div class="metrics-grid">
