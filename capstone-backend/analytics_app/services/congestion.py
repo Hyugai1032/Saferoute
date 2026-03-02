@@ -1,3 +1,4 @@
+#analytics_app/services/congestion.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -38,11 +39,40 @@ def compute_congestion_risk(
         children_count, lactating_count, pregnant_count, pwd_count, senior_count
     """
 
-    capacity = getattr(center, "individual_capacity_max", None)
-    if not capacity or capacity <= 0:
+    # capacity
+    capacity_raw = getattr(center, "individual_capacity_max", None)
+
+    try:
+        capacity = int(capacity_raw or 0)
+    except (TypeError, ValueError):
+        capacity = 0
+
+    # If capacity is missing, DON'T return 400.
+    # Return a valid LOW-risk payload so the frontend table won't spam 400s.
+    if capacity <= 0:
         return {
             "center_id": center.id,
-            "error": "Center capacity is missing or invalid.",
+            "capacity": capacity,
+            "latest_log_time": None,
+
+            "current_total": 0,
+            "occupancy": 0.0,
+
+            "window_minutes": params.window_minutes,
+            "horizon_minutes": params.horizon_minutes,
+            "total_in_window": 0,
+            "total_out_window": 0,
+            "net_rate_per_min": 0.0,
+
+            "predicted_total": 0,
+            "predicted_occupancy": 0.0,
+
+            "vulnerable_total": 0,
+            "vulnerability_ratio": 0.0,
+
+            "risk_score": 0.0,
+            "risk_level": "LOW",
+            "recommendation": "No capacity configured for this center.",
         }
 
     # 1) latest snapshot

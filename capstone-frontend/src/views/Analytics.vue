@@ -4,19 +4,43 @@
     <div class="analytics-container">
       <h2 class="page-title">📊 Analytics Dashboard</h2>
 
-      <!-- Quick Stats -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <h3>{{ stats.totalEvacuees }}</h3>
-          <p>Total Evacuees</p>
+        <!-- Quick Stats -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <h3>{{ stats.totalEvacuees }}</h3>
+            <p>Total Evacuees</p>
+          </div>
         </div>
-        <div class="stat-card">
-          <h3>{{ stats.activeCenters }}</h3>
-          <p>Active Centers</p>
+
+      <!-- Congestion Charts Grid -->
+      <div class="congestion-charts">
+        <!-- Row 1 -->
+        <div class="chart-card chart-sm">
+          <div class="chart-header">
+            <h4>Risk Distribution</h4>
+          </div>
+          <div class="chart-body">
+            <canvas id="riskDistributionChart"></canvas>
+          </div>
         </div>
-        <div class="stat-card">
-          <h3>{{ stats.predictedRisk }}%</h3>
-          <p>Predicted Risk (48h)</p>
+
+        <div class="chart-card chart-sm">
+          <div class="chart-header">
+            <h4>Selected Center: Current vs Predicted</h4>
+          </div>
+          <div class="chart-body">
+            <canvas id="selectedCenterComparison"></canvas>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="chart-card chart-lg">
+          <div class="chart-header">
+            <h4>Top 5 Predicted Occupancy</h4>
+          </div>
+          <div class="chart-body">
+            <canvas id="topRiskChart"></canvas>
+          </div>
         </div>
       </div>
 
@@ -97,6 +121,29 @@
 
         <!-- Centers Overview Table -->
         <div class="table-wrap styled-scroll">
+          <div class="control">
+            <label class="control-label">Search Center</label>
+            <input
+              class="control-input"
+              v-model="searchQuery"
+              placeholder="Search by center name..."
+            />
+          </div>
+
+          <div class="control">
+            <label class="control-label">Municipality</label>
+            <select class="control-input" v-model="selectedMunicipality">
+              <option value="">All</option>
+              <option v-for="m in municipalities" :key="m" :value="m">
+                {{ m }}
+              </option>
+            </select>
+          </div>
+
+          <button class="btn-refresh" @click="exportToCSV">
+            Export CSV
+          </button>
+
           <table class="dark-table compact">
             <thead>
               <tr>
@@ -108,7 +155,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in centerRisks" :key="row.center_id">
+              <tr v-for="row in paginatedCenterRisks" :key="row.center_id">
                 <td>{{ centerName(row.center_id) }}</td>
                 <td>{{ row.current_total }}</td>
                 <td>{{ row.predicted_total }}</td>
@@ -127,6 +174,51 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <!-- Pagination Controls -->
+        <div class="pagination-bar">
+          <div class="pagination-info">
+            Showing
+            {{
+              centerRisks.length
+                ? (currentPage - 1) * rowsPerPage + 1
+                : 0
+            }}
+            –
+            {{
+              Math.min(currentPage * rowsPerPage, centerRisks.length)
+            }}
+            of {{ centerRisks.length }} centers
+          </div>
+
+          <div class="pagination-controls">
+            <button
+              class="page-btn"
+              :disabled="currentPage === 1"
+              @click="goToPage(currentPage - 1)"
+            >
+              ◀ Prev
+            </button>
+
+            <span class="page-number">
+              Page {{ currentPage }} of {{ totalPages }}
+            </span>
+
+            <button
+              class="page-btn"
+              :disabled="currentPage === totalPages"
+              @click="goToPage(currentPage + 1)"
+            >
+              Next ▶
+            </button>
+
+            <select v-model.number="rowsPerPage" class="rows-select">
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -193,7 +285,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 
 // --- Congestion Risk (Hybrid Real-time Model) ---
@@ -203,10 +295,94 @@ const selectedCenterId = ref('')        // selected center
 const selectedRisk = ref(null)          // risk payload for selected center
 const windowMinutes = ref(60)
 const horizonMinutes = ref(60)
+let refreshTimer
+let riskChart
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 Chart.register(...registerables)
+
+const currentPage = ref(1)
+const rowsPerPage = ref(10)
+
+// --- Risk Order Map ---
+const riskPriority = {
+  CRITICAL: 4,
+  HIGH: 3,
+  MODERATE: 2,
+  LOW: 1
+}
+
+// Search + Municipality filters
+const searchQuery = ref('')
+const selectedMunicipality = ref('')
+
+// Filtered + Sorted Centers
+const filteredAndSortedCenters = computed(() => {
+  let filtered = centerRisks.value
+
+  // Filter by search
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(row =>
+      centerName(row.center_id).toLowerCase().includes(q)
+    )
+  }
+
+  // Filter by municipality (if your center object has municipality)
+  if (selectedMunicipality.value) {
+    filtered = filtered.filter(row => {
+      const center = centers.value.find(c => c.id === row.center_id)
+      return center?.municipality_name === selectedMunicipality.value
+    })
+  }
+
+  // Sort by risk priority (highest first)
+  return [...filtered].sort((a,b)=> 
+    (riskPriority[b.risk_level] || 0) - (riskPriority[a.risk_level] || 0)
+  )
+})
+
+const totalPages = computed(() =>
+  Math.ceil(filteredAndSortedCenters.value.length / rowsPerPage.value) || 1
+)
+
+const paginatedCenterRisks = computed(() => {
+  const start = (currentPage.value - 1) * rowsPerPage.value
+  const end = start + rowsPerPage.value
+  return filteredAndSortedCenters.value.slice(start, end)
+})
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
+
+const riskDistribution = computed(() => {
+  const counts = {
+    LOW: 0,
+    MODERATE: 0,
+    HIGH: 0,
+    CRITICAL: 0
+  }
+
+  filteredAndSortedCenters.value.forEach(row => {
+    if (counts[row.risk_level] !== undefined) {
+      counts[row.risk_level]++
+    }
+  })
+
+  return counts
+})
+
+const municipalities = computed(() => {
+  const set = new Set(
+    centers.value
+      .map(c => c.municipality_name)
+      .filter(Boolean)
+  )
+  return Array.from(set).sort()
+})
 
 // Helpers
 function riskClass(level) {
@@ -276,27 +452,83 @@ async function loadSelectedCenterRisk() {
 
 async function refreshCongestion() {
   try {
-    // 1) ensure centers loaded
     if (!centers.value.length) await fetchCenters()
 
-    // 2) fetch risks for all centers (parallel)
     const results = await Promise.all(
       centers.value.map(c => fetchCenterRisk(c.id).catch(() => null))
     )
-    centerRisks.value = results.filter(Boolean)
 
-    // 3) refresh selected center too
+    centerRisks.value = results.filter(Boolean)   // ✅ MISSING LINE
+    currentPage.value = 1
+
     await loadSelectedCenterRisk()
   } catch (e) {
     console.error('Failed to refresh congestion:', e)
   }
 }
 
-// --- Reactive Data ---
+function initRiskDistributionChart() {
+  const ctx = document.getElementById('riskDistributionChart')
+  if (!ctx) return
+
+  if (riskChart) riskChart.destroy()
+
+  riskChart = new Chart(ctx, {
+    type: 'doughnut',
+    cutout: '60%',
+    plugins: {
+      legend: { position: 'top' }
+    },
+    data: {
+      labels: ['LOW', 'MODERATE', 'HIGH', 'CRITICAL'],
+      datasets: [{
+        data: [
+          riskDistribution.value.LOW,
+          riskDistribution.value.MODERATE,
+          riskDistribution.value.HIGH,
+          riskDistribution.value.CRITICAL
+        ],
+        backgroundColor: [
+          '#00ff7f',
+          '#ffc107',
+          '#ff4d4d',
+          '#ff0050'
+        ]
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: '#e5e7eb' }
+        }
+      }
+    }
+  })
+}
+
+watch(filteredAndSortedCenters, () => {
+  initRiskDistributionChart()
+})
+
+async function fetchAnalyticsStats() {
+  const res = await fetch(`${API_BASE}analytics/stats/`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('access_token')}`
+    }
+  })
+  if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`)
+  const data = await res.json()
+
+  stats.value.totalEvacuees = data.total_evacuees ?? 0
+  stats.value.activeCenters = data.active_centers ?? 0
+}
+
 const stats = ref({
-  totalEvacuees: 315,
-  activeCenters: 6,
-  predictedRisk: 0  // Initial, will update from API
+  totalEvacuees: 0,
+  activeCenters: 0,
+  predictedRisk: 0
 })
 
 const weatherPredictions = ref([])  // Store fetched predictions
@@ -349,122 +581,135 @@ onMounted(async () => {
   try {
     await fetchCenters()
     await refreshCongestion()
+    await fetchAnalyticsStats()
   } catch (e) {
     console.error("Congestion load failed:", e)
   }
 
-  // BAR CHART
-  const barCtx = document.getElementById('barChart')
-  barChart = new Chart(barCtx, {
-    type: 'bar',
-    data: {
-      labels: ['Calapan', 'Naujan', 'Baco'],
-      datasets: [
-        {
-          label: 'Evacuees',
-          data: [50, 95, 80],
-          backgroundColor: '#00b4ff',
-          borderRadius: 8
-        }
-      ]
-    },
-    options: chartOptions()
-  })
+  refreshTimer = setInterval(async () => {
+    await fetchAnalyticsStats()
+    await refreshCongestion()
+  }, 60000)
 
-  // PIE CHART
-  const pieCtx = document.getElementById('pieChart')
-  pieChart = new Chart(pieCtx, {
-    type: 'pie',
-    data: {
-      labels: ['Vacant', 'Nearly Full', 'Full'],
-      datasets: [
-        {
-          data: [60, 25, 15],
-          backgroundColor: ['#00ff7f', '#ffc107', '#ff4d4d'],
-          borderWidth: 0
-        }
-      ]
-    },
-    options: chartOptions()
-  })
-
-  // LINE CHART
-  const lineCtx = document.getElementById('lineChart')
-  lineChart = new Chart(lineCtx, {
-    type: 'line',
-    data: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [
-        {
-          label: 'New Evacuees',
-          data: [5, 15, 12, 20, 18, 30, 25],
-          borderColor: '#4dc3ff',
-          tension: 0.4,
-          fill: true,
-          backgroundColor: 'rgba(77,195,255,0.1)'
-        }
-      ]
-    },
-    options: chartOptions()
-  })
-
-  // Simulate live updates (existing)
-  setInterval(() => {
-    const randomChange = () => Math.floor(Math.random() * 10 - 5)
-    barChart.data.datasets[0].data = barChart.data.datasets[0].data.map(v => v + randomChange())
-    barChart.update()
-
-    lineChart.data.datasets[0].data.push(Math.floor(Math.random() * 40))
-    if (lineChart.data.datasets[0].data.length > 7) lineChart.data.datasets[0].data.shift()
-    lineChart.update()
-  }, 4000)
 })
 
-// Function to initialize weather line chart
-function initWeatherChart() {
-  const weatherCtx = document.getElementById('weatherChart')
-  weatherChart = new Chart(weatherCtx, {
-    type: 'line',
+onUnmounted(() => {
+  clearInterval(refreshTimer)
+})
+
+function exportToCSV() {
+  const rows = filteredAndSortedCenters.value
+
+  const headers = [
+    'Center',
+    'Current',
+    'Predicted',
+    'Risk'
+  ]
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => [
+      `"${centerName(row.center_id)}"`,
+      row.current_total,
+      row.predicted_total,
+      row.risk_level
+    ].join(','))
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'evacuation_center_analytics.csv')
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+let topRiskChart
+
+function initTopRiskChart() {
+  const ctx = document.getElementById('topRiskChart')
+  if (!ctx) return
+
+  if (topRiskChart) topRiskChart.destroy()
+
+  const top5 = [...filteredAndSortedCenters.value]
+    .sort((a, b) => b.predicted_occupancy - a.predicted_occupancy)
+    .slice(0, 5)
+
+  topRiskChart = new Chart(ctx, {
+    type: 'bar',
     data: {
-      labels: weatherPredictions.value.map(pred => formatDate(pred.datetime)),
-      datasets: [
-        {
-          label: 'Temperature (°C)',
-          data: weatherPredictions.value.map(pred => pred.TAVG),
-          borderColor: '#ff6384',
-          tension: 0.1,
-          yAxisID: 'y-temp'
-        },
-        {
-          label: 'Precipitation (mm)',
-          data: weatherPredictions.value.map(pred => pred.PRCP),
-          borderColor: '#36a2eb',
-          tension: 0.1,
-          yAxisID: 'y-precip'
-        }
-      ]
+      labels: top5.map(r => centerName(r.center_id)),
+      datasets: [{
+        label: 'Predicted Occupancy (%)',
+        data: top5.map(r => Math.round(r.predicted_occupancy * 100)),
+        backgroundColor: '#ff4d4d'
+      }]
     },
     options: {
-      ...chartOptions(),
+      indexAxis: 'y',
+      maintainAspectRatio: false,
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#e5e7eb' } }
+      },
       scales: {
-        'y-temp': {
-          type: 'linear',
-          position: 'left',
-          title: { display: true, text: 'Temperature (°C)' }
-        },
-        'y-precip': {
-          type: 'linear',
-          position: 'right',
-          title: { display: true, text: 'Precipitation (mm)' },
-          grid: { drawOnChartArea: false }  // Avoid overlapping grids
-        },
         x: {
-          ticks: { autoSkip: true, maxTicksLimit: 12 }  // Limit labels for readability
+          ticks: { color: '#9ca3af' }
+        },
+        y: {
+          ticks: { color: '#9ca3af' }
         }
       }
     }
   })
 }
+
+watch(filteredAndSortedCenters, () => {
+  initRiskDistributionChart()
+  initTopRiskChart()
+})
+
+let selectedCenterChart
+
+function initSelectedCenterChart() {
+  if (!selectedRisk.value) return
+
+  const ctx = document.getElementById('selectedCenterComparison')
+  if (!ctx) return
+
+  if (selectedCenterChart) selectedCenterChart.destroy()
+
+  selectedCenterChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Current', 'Predicted'],
+      datasets: [{
+        label: 'Occupancy (%)',
+        data: [
+          Math.round(selectedRisk.value.occupancy * 100),
+          Math.round(selectedRisk.value.predicted_occupancy * 100)
+        ],
+        backgroundColor: ['#00b4ff', '#ffb020']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#e5e7eb' } }
+      }
+    }
+  })
+}
+
+watch(selectedRisk, () => {
+  initSelectedCenterChart()
+})
 
 // Format datetime for display
 function formatDate(isoString) {
@@ -895,5 +1140,115 @@ thead {
   background: transparent;
   color: #4dc3ff;
   cursor: pointer;
+}
+
+.pagination-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:1rem;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.pagination-info{
+  font-size:0.85rem;
+  color:#9ca3af;
+}
+
+.pagination-controls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.page-btn{
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid rgba(0,204,255,0.25);
+  background:transparent;
+  color:#4dc3ff;
+  cursor:pointer;
+}
+
+.page-btn:disabled{
+  opacity:0.4;
+  cursor:not-allowed;
+}
+
+.page-number{
+  font-size:0.85rem;
+  color:#e5e7eb;
+}
+
+.rows-select{
+  background:#0f1a25;
+  border:1px solid rgba(0,204,255,0.25);
+  color:#e5e7eb;
+  border-radius:8px;
+  padding:4px 6px;
+}
+
+.congestion-charts{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 14px 0 18px;
+}
+
+/* Make the "Top 5" chart span full width */
+.chart-lg{
+  grid-column: 1 / -1;
+}
+
+/* Small charts have same height */
+.chart-sm{
+  height: 300px;
+}
+
+/* Large chart has more height */
+.chart-lg{
+  height: 340px;
+}
+
+.chart-card{
+  border-radius: 14px;
+  border: 1px solid rgba(0, 204, 255, 0.12);
+  background: linear-gradient(145deg, #0f1a25, #0b121a);
+  padding: 12px 12px 10px;
+}
+
+.chart-header{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.chart-header h4{
+  margin: 0;
+  font-size: 0.95rem;
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.chart-body{
+  height: calc(100% - 28px);
+}
+
+/* Ensures canvas fills the container */
+.chart-body canvas{
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 900px){
+  .congestion-charts{
+    grid-template-columns: 1fr;
+  }
+  .chart-lg{
+    grid-column: auto;
+  }
 }
 </style>

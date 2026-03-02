@@ -10,6 +10,7 @@ from pathlib import Path
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum, Max
 
 from evac_app.models import EvacuationCenter, EvacuationLog
 from .services.congestion import compute_congestion_risk, CongestionParams
@@ -195,3 +196,38 @@ class CenterCongestionRiskView(APIView):
 
         status_code = 200 if "error" not in result else 400
         return Response(result, status=status_code)
+    
+class AnalyticsStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Total current evacuees = sum of latest total_current per center
+        # Simplest reliable approach: take latest log per center, then sum in Python.
+
+        latest_logs = (
+            EvacuationLog.objects
+            .values("center_id")
+            .annotate(latest_time=Max("date_recorded"))
+        )
+
+        # Build a map center_id -> latest_time
+        latest_map = {x["center_id"]: x["latest_time"] for x in latest_logs}
+
+        total_evacuees = 0
+        active_centers = 0
+
+        for center_id, latest_time in latest_map.items():
+            latest = (
+                EvacuationLog.objects
+                .filter(center_id=center_id, date_recorded=latest_time)
+                .values("total_current")
+                .first()
+            )
+            if latest:
+                total_evacuees += int(latest["total_current"] or 0)
+                active_centers += 1
+
+        return Response({
+            "total_evacuees": total_evacuees,
+            "active_centers": active_centers,
+        })
