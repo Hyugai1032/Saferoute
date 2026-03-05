@@ -23,12 +23,14 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         return CustomUser.objects.create_user(**validated_data)
     
-# auth_app/serializers.py
-from rest_framework import serializers
-from .models import CustomUser
 
 class UserProfileSerializer(serializers.ModelSerializer):
     municipality_name = serializers.SerializerMethodField()
+    assigned_center_name = serializers.CharField(
+        source="assigned_center.name",
+        read_only=True,
+        allow_null=True
+    )
 
     class Meta:
         model = CustomUser
@@ -41,6 +43,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "municipality",
             "municipality_name",
+            "assigned_center_id",
+            "assigned_center_name",
         ]
         read_only_fields = ["email", "role", "created_at"]
 
