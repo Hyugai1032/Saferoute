@@ -50,7 +50,7 @@
           <div class="metric-trend neutral">±0</div>
         </div>
 
-        <div class="metric-card">
+        <!-- <div class="metric-card">
           <div class="metric-icon warning">📦</div>
           <div class="metric-content">
             <h3>Supplies Alert</h3>
@@ -58,7 +58,7 @@
             <p class="metric-label">Centers need supplies</p>
           </div>
           <div class="metric-trend negative">-3</div>
-        </div>
+        </div> -->
 
         <div class="metric-card">
           <div class="metric-icon critical">📊</div>
@@ -76,15 +76,15 @@
         <!-- Center Status (replaced Evacuees Overview in large panel) -->
         <div class="content-panel large">
           <div class="panel-header">
-            <h3>📍 Center Status</h3>
+            <h3>📍 Most Congested Centers</h3>
             <div class="view-toggle">
               <button class="toggle-btn active">List</button>
-              <button class="toggle-btn" @click="navigateToFullMap">Full Map</button>
+              <button class="toggle-btn" @click="router.push('/admin/analytics')">Full List</button>
             </div>
           </div>
           
           <div class="centers-list">
-            <div v-for="center in sortedCenters" :key="center.id" class="center-item" @click="selectCenter(center)">
+            <div v-for="center in top5StatusCenters" :key="center.id" class="center-item" @click="selectCenter(center)">
               <div class="center-header">
                 <h4>{{ center.name }}</h4>
                 <span class="status-indicator" :class="getStatusLevel(center)"></span>
@@ -92,16 +92,17 @@
               <p class="center-location">{{ center.municipality }}</p>
               
               <div class="occupancy-info">
-                <div class="progress-bar">
-                  <div 
-                    class="progress-fill" 
-                    :class="getStatusLevel(center)"
-                    :style="{ width: getOccupancyPercentage(center) + '%' }"
-                  ></div>
-                </div>
+                <div
+                  class="progress-fill"
+                  :class="center.riskLevel?.toLowerCase()"
+                  :style="{ width: center.predictedPct + '%' }"
+                ></div>
+
                 <span class="occupancy-text">
-                  {{ center.occupants }} / {{ center.capacity }} ({{ getOccupancyPercentage(center) }}%)
+                  {{ center.predictedTotal }} / {{ center.capacity }} ({{ center.predictedPct }}%)
                 </span>
+
+                <small class="muted">Current: {{ center.occupants }}</small>
               </div>
             </div>
           </div>
@@ -122,102 +123,438 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { centers, getStatusLevel } from '@/data/centers'
 
 const router = useRouter()
+const API_BASE = import.meta.env.VITE_API_BASE_URL
 
-// Computed properties
-const totalEvacuees = computed(() => 
-  centers.reduce((sum, center) => sum + center.occupants, 0)
+const centers = ref([])
+const centerRisks = ref([])
+const loading = ref(false)
+const error = ref('')
+const mapCenters = ref([])
+let quickMap = null
+let mapLayerGroup = null
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token')
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  }
+}
+
+const normalizeCenter = (center) => ({
+  id: center.id,
+  name: center.name || 'Unnamed Center',
+  municipality:
+    center.municipality_name ||
+    center.municipality?.name ||
+    center.municipality ||
+    'Unknown Municipality',
+
+  capacity: Number(
+    center.capacity ??
+    center.family_capacity_max ??
+    center.individual_capacity_max ??
+    0
+  ),
+
+  occupants: Number(
+    center.current_evacuees ??
+    center.current_total_evacuees ??
+    center.current_total ??
+    center.occupants ??
+    0
+  ),
+
+  lat: Number(
+    center.latitude ??
+    center.lat ??
+    center.location_lat ??
+    center.location_lng_lat ??
+    center.coordinates?.lat ??
+    center.geometry?.coordinates?.[1] ??
+    0
+  ),
+
+  lon: Number(
+    center.longitude ??
+    center.lon ??
+    center.lng ??
+    center.location_lon ??
+    center.location_lng ??
+    center.coordinates?.lng ??
+    center.coordinates?.lon ??
+    center.geometry?.coordinates?.[0] ??
+    0
+  ),
+})
+
+const fetchCenters = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await fetch(`${API_BASE}evac_centers/evacuation-centers/`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to load centers: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const rawCenters = Array.isArray(data) ? data : (data.results || [])
+    console.log('raw center sample:', rawCenters[0])
+    centers.value = rawCenters.map(normalizeCenter)
+
+    console.log('Centers loaded:', centers.value)
+  } catch (err) {
+    console.error('Dashboard fetch error:', err)
+    error.value = err.message || 'Failed to load dashboard data.'
+  } finally {
+    loading.value = false
+  }
+}
+
+const normalizeMapCenter = (center) => ({
+  id: center.id,
+  name: center.name || 'Unnamed Center',
+  municipality:
+    center.municipality_name ||
+    center.municipality?.name ||
+    center.municipality ||
+    'Unknown Municipality',
+
+  latitude: Number(center.latitude ?? 0),
+  longitude: Number(center.longitude ?? 0),
+
+  capacity: Number(
+    center.capacity ??
+    (Number(center.family_capacity_max || 0) + Number(center.individual_capacity_max || 0))
+  ),
+
+  occupants: Number(
+    center.current_total ??
+    center.current_evacuees ??
+    center.current_total_evacuees ??
+    0
+  )
+})
+
+const fetchMapOverview = async () => {
+  try {
+    const response = await fetch(`${API_BASE}map/overview/`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to load map overview: ${response.status}`)
+    }
+
+    const data = await response.json()
+    mapCenters.value = (data.centers || []).map(normalizeMapCenter)
+  } catch (err) {
+    console.error('Map overview fetch error:', err)
+  }
+}
+
+// IMPORTANT:
+// Change this URL if your Analytics.vue uses a different analytics endpoint.
+
+const fetchCenterRisk = async (centerId) => {
+  const response = await fetch(
+    `${API_BASE}analytics/centers/${centerId}/congestion-risk/?window=60&horizon=60`,
+    {
+      method: 'GET',
+      headers: getAuthHeaders()
+    }
+  )
+
+  if (!response.ok) {
+    const txt = await response.text()
+    throw new Error(`Risk fetch failed (${response.status}): ${txt}`)
+  }
+
+  return await response.json()
+}
+
+const refreshDashboardRisks = async () => {
+  if (!centers.value.length) return
+
+  const results = await Promise.all(
+    centers.value.map(center => fetchCenterRisk(center.id).catch(() => null))
+  )
+
+  centerRisks.value = results.filter(Boolean)
+  console.log(
+  'center ids sample:',
+  centers.value.slice(0, 5).map(c => ({ id: c.id, type: typeof c.id, lat: c.lat, lon: c.lon }))
 )
 
-const criticalCenters = computed(() =>
-  centers.filter(center => getStatusLevel(center) === 'critical')
+console.log(
+  'risk ids sample:',
+  centerRisks.value.slice(0, 5).map(r => ({ center_id: r.center_id, type: typeof r.center_id }))
+)
+}
+
+const getOccupancyPercentage = (center) => {
+  if (!center.capacity) return 0
+  return Math.round((center.occupants / center.capacity) * 100)
+}
+
+const chartLabels = computed(() =>
+  top5PredictedOccupancy.value.map(c => c.center_name || `Center ${c.center_id}`)
 )
 
-const lowSupplyCenters = computed(() =>
-  centers.filter(center => 
-    Object.values(center.supplies).some(supply => supply < 50)
+const chartValues = computed(() =>
+  top5PredictedOccupancy.value.map(c =>
+    Number(c.predicted_occupancy ?? 0) <= 1
+      ? Math.round(Number(c.predicted_occupancy ?? 0) * 100)
+      : Math.round(Number(c.predicted_occupancy ?? 0))
   )
 )
 
-const overallRisk = computed(() => 
-  Math.round(60 + Math.random() * 20)
+const getPredictedPercentage = (center) => {
+  if (typeof center.predictedPct === 'number') return center.predictedPct
+  return getOccupancyPercentage(center)
+}
+
+const getStatusLevel = (center) => {
+  const percentage = getPredictedPercentage(center)
+  if (percentage >= 90) return 'critical'
+  if (percentage >= 70) return 'warning'
+  return 'safe'
+}
+
+// Merge center metadata + analytics risk rows
+const statusCenters = computed(() => {
+  const centerMap = new Map(
+    centers.value.map(c => [String(c.id), c])
+  )
+
+  if (!centerRisks.value.length) {
+    return centers.value.map(center => ({
+      ...center,
+      predictedTotal: center.occupants ?? 0,
+      predictedPct: getOccupancyPercentage(center),
+      riskLevel: getStatusLevel(center),
+    }))
+  }
+
+  return centerRisks.value.map(risk => {
+    const rawCenterId =
+      risk.center_id ??
+      risk.center ??
+      risk.evacuation_center_id ??
+      risk.id
+
+    const center = centerMap.get(String(rawCenterId)) || {}
+
+    const capacity = Number(
+      risk.capacity ??
+      center.capacity ??
+      center.family_capacity_max ??
+      center.individual_capacity_max ??
+      0
+    )
+
+    const occupants = Number(
+      risk.current_total ??
+      center.occupants ??
+      center.current_total ??
+      center.current_evacuees ??
+      center.current_total_evacuees ??
+      0
+    )
+
+    const predictedPct =
+      risk.predicted_occupancy != null
+        ? Math.round(
+            Number(risk.predicted_occupancy) <= 1
+              ? Number(risk.predicted_occupancy) * 100
+              : Number(risk.predicted_occupancy)
+          )
+        : capacity > 0
+          ? Math.round((occupants / capacity) * 100)
+          : 0
+
+    return {
+      id: rawCenterId,
+      name: center.name || risk.center_name || `Center #${rawCenterId}`,
+      municipality:
+        center.municipality_name ||
+        center.municipality?.name ||
+        center.municipality ||
+        risk.municipality_name ||
+        'Unknown Municipality',
+
+      occupants,
+      capacity,
+      predictedTotal: Number(risk.predicted_total ?? occupants),
+      predictedPct,
+      riskLevel: (risk.risk_level || '').toLowerCase() || getStatusLevel({ predictedPct }),
+
+      lat: Number(center.lat ?? center.latitude ?? risk.lat ?? risk.latitude ?? 0),
+      lon: Number(center.lon ?? center.longitude ?? risk.lon ?? risk.longitude ?? 0),
+    }
+  })
+})
+
+const top5StatusCenters = computed(() =>
+  [...statusCenters.value]
+    .sort((a, b) => getPredictedPercentage(b) - getPredictedPercentage(a))
+    .slice(0, 5)
 )
 
-const riskLevel = computed(() => 
+const totalEvacuees = computed(() =>
+  statusCenters.value.reduce((sum, center) => sum + Number(center.occupants || 0), 0)
+)
+
+const criticalCenters = computed(() =>
+  statusCenters.value.filter(center => getStatusLevel(center) === 'critical')
+)
+
+const lowSupplyCenters = computed(() =>
+  statusCenters.value.filter(center =>
+    center.supplies &&
+    Object.values(center.supplies).some(supply => Number(supply) < 50)
+  )
+)
+
+const overallRisk = computed(() => {
+  if (!statusCenters.value.length) return 0
+
+  const avgOccupancy =
+    statusCenters.value.reduce((sum, center) => sum + getPredictedPercentage(center), 0) /
+    statusCenters.value.length
+
+  return Math.round(avgOccupancy)
+})
+
+const riskLevel = computed(() =>
   overallRisk.value >= 70 ? 'high' : overallRisk.value >= 50 ? 'medium' : 'low'
 )
 
-const sortedCenters = computed(() =>
-  [...centers].sort((a, b) => (b.occupants / b.capacity) - (a.occupants / a.capacity))
-)
+const sortedCenters = computed(() => statusCenters.value)
 
-// Methods
 const logout = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('isAuthenticated');
-  localStorage.removeItem('userData');
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('isAuthenticated')
+  localStorage.removeItem('userData')
   router.push('/auth/login')
 }
 
-const getOccupancyPercentage = (center) => 
-  Math.round((center.occupants / center.capacity) * 100)
-
-
 const selectCenter = (center) => {
-  // Navigate to GIS map with center selected
   console.log('Selected center:', center)
 }
 
 const showCriticalCenters = () => {
-  alert(`Critical centers:\n${criticalCenters.value.map(c => `• ${c.name} (${getOccupancyPercentage(c)}%)`).join('\n')}`)
+  alert(
+    `Critical centers:\n${criticalCenters.value
+      .map(c => `• ${c.name} (${getPredictedPercentage(c)}%)`)
+      .join('\n')}`
+  )
 }
 
 const navigateToFullMap = () => {
   router.push('/admin/map')
 }
 
-let quickMap
+const initializeQuickMap = async () => {
+  await nextTick()
 
-const initializeQuickMap = () => {
-  quickMap = L.map('quick-map').setView([13.0, 121.1], 9)  // Oriental Mindoro coordinates
+  if (quickMap) {
+    quickMap.remove()
+    quickMap = null
+  }
+
+  quickMap = L.map('quick-map').setView([13.0, 121.1], 9)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(quickMap)
 
-  centers.forEach(center => {
-    const percentage = getOccupancyPercentage(center)
-    const color = percentage >= 90 ? '#ef4444' : percentage >= 70 ? '#f59e0b' : '#10b981'
+  mapLayerGroup = L.layerGroup().addTo(quickMap)
+  updateMapMarkers()
+}
 
-    const marker = L.circleMarker([center.lat, center.lon], {
+const updateMapMarkers = () => {
+  if (!quickMap || !mapLayerGroup) return
+
+  mapLayerGroup.clearLayers()
+
+  const riskById = new Map(
+    statusCenters.value.map(center => [center.id, center])
+  )
+
+  const validCenters = mapCenters.value.filter(center =>
+    Number.isFinite(center.latitude) &&
+    Number.isFinite(center.longitude) &&
+    !(center.latitude === 0 && center.longitude === 0)
+  )
+
+  validCenters.forEach(center => {
+    const riskCenter = riskById.get(center.id)
+
+    const percentage = riskCenter
+      ? getPredictedPercentage(riskCenter)
+      : (center.capacity > 0
+          ? Math.round((center.occupants / center.capacity) * 100)
+          : 0)
+
+    const color =
+      percentage >= 90 ? '#ef4444' :
+      percentage >= 70 ? '#f59e0b' :
+      '#10b981'
+
+    const marker = L.circleMarker([center.latitude, center.longitude], {
       radius: 8,
       color: '#fff',
       weight: 1,
       fillColor: color,
       fillOpacity: 0.8
-    }).addTo(quickMap)
+    })
 
     marker.bindPopup(`
       <strong>${center.name}</strong><br>
-      Occupancy: ${percentage}%<br>
-      ${center.municipality}
+      Municipality: ${center.municipality}<br>
+      Current: ${riskCenter?.occupants ?? center.occupants} / ${riskCenter?.capacity ?? center.capacity}<br>
+      Predicted: ${riskCenter?.predictedTotal ?? center.occupants} (${percentage}%)
     `)
+
+    mapLayerGroup.addLayer(marker)
   })
 
-  // Fit bounds
-  const group = L.featureGroup(centers.map(c => L.marker([c.lat, c.lon])))
-  quickMap.fitBounds(group.getBounds().pad(0.1))
+  if (validCenters.length > 0) {
+    const bounds = L.latLngBounds(validCenters.map(c => [c.latitude, c.longitude]))
+    quickMap.fitBounds(bounds.pad(0.1))
+  }
 }
 
-onMounted(() => {
-  initializeQuickMap()
+watch(statusCenters, () => {
+  updateMapMarkers()
+}, { deep: true })
+
+onMounted(async () => {
+  await fetchCenters()
+  await refreshDashboardRisks()
+  await fetchMapOverview()
+  await initializeQuickMap()
+})
+
+onBeforeUnmount(() => {
+  if (quickMap) {
+    quickMap.remove()
+    quickMap = null
+  }
 })
 </script>
 
@@ -424,19 +761,15 @@ onMounted(() => {
 /* Content Grid */
 .content-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
+  align-items: stretch;
 }
 
-.content-panel {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 1.5rem;
-}
-
+.content-panel,
 .content-panel.large {
-  grid-column: 1;
+  min-width: 0;
+  grid-column: span 1;
 }
 
 .panel-header {
