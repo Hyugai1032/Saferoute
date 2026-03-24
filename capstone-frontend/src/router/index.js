@@ -1,5 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+//landing page
+import LandingPage from '@/views/LandingPage.vue'
+
 // Admin Components
 import AdminLayout from '../views/AdminLayout.vue'
 import Dashboard from '../views/Dashboard.vue'
@@ -28,6 +31,11 @@ import StaffLogs from "../views/Staff/StaffLogs.vue";
 // import UserProfile from "@/views/Profile/UserProfile.vue";
 
 const routes = [
+  {
+    path: '/',
+    name: 'LandingPage',
+    component: LandingPage
+  },
   {
     path: '/',
     redirect: '/auth/login'
