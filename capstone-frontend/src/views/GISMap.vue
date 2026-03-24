@@ -21,6 +21,18 @@
             <span>Critical (≥ 90%)</span>
           </div>
         </div>
+
+        <div class="building-filter">
+          <label v-for="type in buildingTypes" :key="type.value" class="filter-item">
+            <input
+              type="checkbox"
+              :value="type.value"
+              v-model="selectedTypes"
+              @change="renderCenters"
+            />
+            <span>{{ type.label }}</span>
+          </label>
+        </div>
         
         <div class="control-buttons">
           <button class="control-btn" @click="refreshData" title="Refresh Data">
@@ -182,7 +194,28 @@ const map = ref(null)
 const selectedCenter = ref(null)
 const isSatelliteView = ref(false)
 
+const selectedTypes = ref([
+  'SCHOOL',
+  'MULTIPURPOSE_HALL',
+  'CHURCH',
+  'PRIVATE_BUILDING',
+  'GYM',
+  'BARANGAY_HALL',
+  'OTHER',
+])
+
+const buildingTypes = [
+  { value: 'SCHOOL', label: '🏫 School' },
+  { value: 'MULTIPURPOSE_HALL', label: '🏛 Hall' },
+  { value: 'CHURCH', label: '⛪ Church' },
+  { value: 'PRIVATE_BUILDING', label: '🏠 Private' },
+  { value: 'GYM', label: '🏟 Gym' },
+  { value: 'BARANGAY_HALL', label: '🏢 Barangay' },
+  { value: 'OTHER', label: '📍 Other' },
+]
+
 // Methods
+
 const getStatusColor = (center) => {
   const pct = getOccupancyPercentage(center)
   if (pct >= 90) return '#ef4444'
@@ -208,19 +241,20 @@ const createCenterIcon = (center) => {
   const percentage = getOccupancyPercentage(center)
   const color = getStatusColor(center)
   const pulseClass = percentage >= 90 ? 'pulse-marker' : ''
+  const shapeClass = getBuildingShapeClass(center)
 
   return L.divIcon({
     className: `custom-marker ${pulseClass}`,
     html: `
-      <div class="marker-pin" style="background: ${color}">
+      <div class="marker-pin ${shapeClass}" style="background: ${color}">
         <div class="marker-pulse"></div>
         <div class="marker-content">
           <span class="occupancy-percent">${percentage}%</span>
         </div>
       </div>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
+    iconSize: [42, 42],
+    iconAnchor: [21, 42],
   })
 }
 
@@ -260,13 +294,61 @@ const fetchCenterDetail = async (id) => {
   return res.data
 }
 
+const getBuildingType = (center) => {
+  const name = (center.name || '').toUpperCase()
+
+  if (name.includes('SCHOOL') || name.includes('ELEMENTARY') || name.includes('HIGHSCHOOL') || name.includes('MINSCAT') || name.includes('MINSU') || name.includes('NHS')) {
+    return 'SCHOOL'
+  }
+  if (name.includes('CHURCH') || name.includes('CHAPEL') || name.includes('ADVENTIST') || name.includes('CHAPLAIN') || name.includes('IGLESIA')) {
+    return 'CHURCH'
+  }
+  if (name.includes('GYM') || name.includes('GYMNASIUM')) {
+    return 'GYM'
+  }
+  if (name.includes('MULTIPURPOSE') || name.includes('HALL')) {
+    return 'MULTIPURPOSE_HALL'
+  }
+  if (name.includes('BARANGAY HALL')) {
+    return 'BARANGAY_HALL'
+  }
+  if (name.includes('PRIVATE') || name.includes('RESIDENCE') || name.includes('HOUSE')) {
+    return 'PRIVATE_BUILDING'
+  }
+
+  return 'OTHER'
+}
+
+const getBuildingShapeClass = (center) => {
+  const type = getBuildingType(center)
+
+  switch (type) {
+    case 'SCHOOL':
+      return 'shape-school'
+    case 'MULTIPURPOSE_HALL':
+      return 'shape-hall'
+    case 'CHURCH':
+      return 'shape-church'
+    case 'PRIVATE_BUILDING':
+      return 'shape-private'
+    case 'GYM':
+      return 'shape-gym'
+    case 'BARANGAY_HALL':
+      return 'shape-barangay'
+    default:
+      return 'shape-default'
+  }
+}
+
 // ---- Rendering ----
 const renderCenters = () => {
   if (!centerLayer.value) return
   centerLayer.value.clearLayers()
   centerMarkers.value.clear()
 
-  centers.value.forEach((center) => {
+  centers.value
+  .filter(center => selectedTypes.value.includes(getBuildingType(center)))
+  .forEach((center) => {
     if (center.latitude == null || center.longitude == null) return
 
     const marker = L.marker([center.latitude, center.longitude], {
@@ -456,30 +538,21 @@ const fitToBounds = () => {
   map.value.fitBounds(group.getBounds().pad(0.1))
 }
 
-const sendSupplies = (center) => {
-  alert(`Initiating supply delivery to ${center.name}`)
-  // Implement supply delivery logic
-}
-
-const viewEvacuees = (center) => {
-  alert(`Showing evacuees at ${center.name}`)
-  // Navigate to evacuees page filtered by center
-}
-
-const contactCenter = (center) => {
-  alert(`Contacting ${center.name}`)
-  // Implement contact logic
-}
-
 const handleResize = () => {
   if (map.value) {
     map.value.invalidateSize()
   }
 }
 
+watch(selectedTypes, (val) => {
+  localStorage.setItem('buildingFilter', JSON.stringify(val))
+}, { deep: true })
+
 onMounted(() => {
   initializeMap()
   window.addEventListener('resize', handleResize)
+  const saved = localStorage.getItem('buildingFilter')
+  if (saved) selectedTypes.value = JSON.parse(saved)
 })
 
 onActivated(() => {
@@ -902,6 +975,50 @@ watch(selectedCenter, () => {
   border: 3px solid white;
 }
 
+:deep(.marker-pin.shape-school) {
+  border-radius: 8px;
+  transform: none;
+}
+
+:deep(.marker-pin.shape-hall) {
+  width: 48px;
+  border-radius: 12px;
+  transform: none;
+}
+
+:deep(.marker-pin.shape-church) {
+  border-radius: 8px;
+  transform: rotate(45deg);
+}
+:deep(.marker-pin.shape-church .marker-content) {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+:deep(.marker-pin.shape-private) {
+  clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+  border-radius: 0;
+  transform: none;
+}
+
+:deep(.marker-pin.shape-gym) {
+  border-radius: 50%;
+  transform: none;
+}
+
+:deep(.marker-pin.shape-barangay) {
+  width: 50px;
+  border-radius: 999px;
+  transform: none;
+}
+
+:deep(.marker-pin.shape-default) {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+:deep(.marker-pin.shape-default .marker-content) {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
 :deep(.marker-pulse) {
   position: absolute;
   top: -3px;
@@ -1006,5 +1123,30 @@ watch(selectedCenter, () => {
   .map-sidebar.sidebar-collapsed {
     width: 0;
   }
+}
+
+.building-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.05);
+  padding: 0.75rem;
+  border-radius: 12px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  background: rgba(255,255,255,0.05);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.filter-item input {
+  cursor: pointer;
 }
 </style>

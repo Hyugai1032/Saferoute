@@ -11,9 +11,9 @@
 
 
         <div class="header-actions">
-<button class="btn-logout" @click="logout">
-  Logout
-</button>
+          <button class="btn-logout" @click="logout">
+            Logout
+          </button>
         </div>
       </div>
 

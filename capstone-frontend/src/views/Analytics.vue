@@ -307,7 +307,7 @@ const rowsPerPage = ref(10)
 
 // --- Risk Order Map ---
 const riskPriority = {
-  CRITICAL: 4,
+  FULL: 4,
   HIGH: 3,
   MODERATE: 2,
   LOW: 1
@@ -363,7 +363,7 @@ const riskDistribution = computed(() => {
     LOW: 0,
     MODERATE: 0,
     HIGH: 0,
-    CRITICAL: 0
+    FULL: 0
   }
 
   filteredAndSortedCenters.value.forEach(row => {
@@ -390,7 +390,7 @@ function riskClass(level) {
     LOW: 'low',
     MODERATE: 'moderate',
     HIGH: 'high',
-    CRITICAL: 'critical'
+    FULL: 'full'
   }[level] || 'low'
 }
 
@@ -480,13 +480,13 @@ function initRiskDistributionChart() {
       legend: { position: 'top' }
     },
     data: {
-      labels: ['LOW', 'MODERATE', 'HIGH', 'CRITICAL'],
+      labels: ['LOW', 'MODERATE', 'HIGH', 'FULL'],
       datasets: [{
         data: [
           riskDistribution.value.LOW,
           riskDistribution.value.MODERATE,
           riskDistribution.value.HIGH,
-          riskDistribution.value.CRITICAL
+          riskDistribution.value.FULL
         ],
         backgroundColor: [
           '#00ff7f',
@@ -1123,7 +1123,7 @@ thead {
 .low{ background: rgba(0,255,127,0.12); color: #00ff7f; border: 1px solid rgba(0,255,127,0.25); }
 .moderate{ background: rgba(255,193,7,0.12); color: #ffc107; border: 1px solid rgba(255,193,7,0.25); }
 .high{ background: rgba(255,77,77,0.12); color: #ff4d4d; border: 1px solid rgba(255,77,77,0.25); }
-.critical{ background: rgba(255,0,80,0.12); color: #ff0050; border: 1px solid rgba(255,0,80,0.25); }
+.full{ background: rgba(255,0,80,0.12); color: #ff0050; border: 1px solid rgba(255,0,80,0.25); }
 
 .table-wrap{
   margin-top: 0.75rem;
