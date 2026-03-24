@@ -297,7 +297,7 @@ const fetchCenterDetail = async (id) => {
 const getBuildingType = (center) => {
   const name = (center.name || '').toUpperCase()
 
-  if (name.includes('SCHOOL') || name.includes('ELEMENTARY') || name.includes('HIGHSCHOOL') || name.includes('MINSCAT') || name.includes('MINSU') || name.includes('NHS')) {
+  if (name.includes('SCHOOL') || name.includes('ELEMENTARY') || name.includes('HIGHSCHOOL') || name.includes('MINSCAT') || name.includes('MINSU') || name.includes('NHS') || name.includes('COLLEGE') || name.includes('UNIVERSITY')) {
     return 'SCHOOL'
   }
   if (name.includes('CHURCH') || name.includes('CHAPEL') || name.includes('ADVENTIST') || name.includes('CHAPLAIN') || name.includes('IGLESIA')) {
