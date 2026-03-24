@@ -17,40 +17,87 @@ from auth_app.models import Municipality, Barangay
 
 
 class EvacuationCenterViewSet(viewsets.ModelViewSet):
-    queryset = EvacuationCenter.objects.all().order_by('-created_at')
     serializer_class = EvacuationCenterSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    # Enable filtering
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
 
-    # Exact-match filters
     filterset_fields = {
-        'municipality': ['exact'],
-        'barangay': ['exact'],
-        'status': ['exact'],
-        'flood_susceptibility': ['exact'],
-        'landslide_susceptibility': ['exact'],
-        'used_for_covid': ['exact'],
+        "municipality": ["exact"],
+        "barangay": ["exact"],
+        "status": ["exact"],
+        "flood_susceptibility": ["exact"],
+        "landslide_susceptibility": ["exact"],
+        "used_for_covid": ["exact"],
     }
 
-    # Optional search (text)
     search_fields = [
-        'name',
-        'remarks',
-        'fund_source',
+        "name",
+        "remarks",
+        "fund_source",
     ]
 
-    # Optional ordering
     ordering_fields = [
-        'name',
-        'family_capacity_max',
-        'individual_capacity_max',
-        'created_at',
+        "name",
+        "family_capacity_max",
+        "individual_capacity_max",
+        "created_at",
     ]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = EvacuationCenter.objects.select_related(
+            "municipality", "barangay"
+        ).all().order_by("-created_at")
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(municipality_id=user.municipality_id)
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(id=user.assigned_center_id)
+
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        municipality = serializer.validated_data.get("municipality")
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                raise PermissionDenied("Your account has no municipality assigned.")
+            if municipality.id != user.municipality_id:
+                raise PermissionDenied("You can only create centers in your municipality.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = self.get_object()
+        municipality = serializer.validated_data.get("municipality", instance.municipality)
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if instance.municipality_id != user.municipality_id:
+                raise PermissionDenied("You cannot edit centers outside your municipality.")
+            if municipality.id != user.municipality_id:
+                raise PermissionDenied("You cannot move a center to another municipality.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+
+        if user.role == "MUNICIPAL_ADMIN" and instance.municipality_id != user.municipality_id:
+            raise PermissionDenied("You cannot delete centers outside your municipality.")
+
+        instance.delete()
 
 
 
@@ -267,12 +314,6 @@ class EvacUploadAPIView(APIView):
 
         return Response(response_data, status=status.HTTP_200_OK)
 
-from django.core.exceptions import PermissionDenied
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import action
-from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import EvacuationLog
 from .serializers import EvacuationLogSerializer
@@ -291,17 +332,16 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = EvacuationLog.objects.select_related("center", "reporting_staff").all()
 
-        # Staff: only their assigned center (ignore any ?center param)
         if user.role == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
                 return qs.none()
             return qs.filter(center_id=user.assigned_center_id)
 
-        # Municipal admin: centers in their municipality
         if user.role == "MUNICIPAL_ADMIN":
-            return qs.filter(center__municipality=user.municipality)
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(center__municipality_id=user.municipality_id)
 
-        # Others: allow optional center filter via DjangoFilterBackend (no manual filter needed)
         return qs
 
     def perform_create(self, serializer):
@@ -326,14 +366,14 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         if not center_id:
             return Response({"detail": "center query param is required"}, status=400)
 
-        agg = (
-            EvacuationLog.objects
-            .filter(center_id=center_id)
-            .aggregate(
-                ind_in=Sum("individuals_in"),
-                ind_out=Sum("individuals_out"),
-                last=Max("date_recorded"),
-            )
+        allowed_logs = self.get_queryset().filter(center_id=center_id)
+        if not allowed_logs.exists():
+            return Response({"detail": "Not found."}, status=404)
+
+        agg = allowed_logs.aggregate(
+            ind_in=Sum("individuals_in"),
+            ind_out=Sum("individuals_out"),
+            last=Max("date_recorded"),
         )
 
         total_current = (agg["ind_in"] or 0) - (agg["ind_out"] or 0)
@@ -344,7 +384,8 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             "center": int(center_id),
             "total_current": total_current,
             "date_recorded": agg["last"],
-        })    
+        })
+
     @action(detail=False, methods=["get"])
     def staff_summary(self, request):
         user = request.user
@@ -358,32 +399,24 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             if not center_id:
                 return Response({"detail": "center query param is required"}, status=400)
 
-        agg = (
-            EvacuationLog.objects
-            .filter(center_id=center_id)
-            .aggregate(
-                ind_in=Sum("individuals_in"),
-                ind_out=Sum("individuals_out"),
-                children=Sum("children_count"),
-                seniors=Sum("senior_count"),
-                pwd=Sum("pwd_count"),
-                pregnant=Sum("pregnant_count"),
-                lactating=Sum("lactating_count"),
-                last=Max("date_recorded"),
-            )
+        allowed_logs = self.get_queryset().filter(center_id=center_id)
+        if not allowed_logs.exists():
+            return Response({"detail": "Not found."}, status=404)
+
+        agg = allowed_logs.aggregate(
+            ind_in=Sum("individuals_in"),
+            ind_out=Sum("individuals_out"),
+            children=Sum("children_count"),
+            seniors=Sum("senior_count"),
+            pwd=Sum("pwd_count"),
+            pregnant=Sum("pregnant_count"),
+            lactating=Sum("lactating_count"),
+            last=Max("date_recorded"),
         )
 
         total_current = (agg["ind_in"] or 0) - (agg["ind_out"] or 0)
         if total_current < 0:
             total_current = 0
-
-        breakdown = {
-            "children_count": agg["children"] or 0,
-            "senior_count": agg["seniors"] or 0,
-            "pwd_count": agg["pwd"] or 0,
-            "pregnant_count": agg["pregnant"] or 0,
-            "lactating_count": agg["lactating"] or 0,
-        }
 
         return Response({
             "center": int(center_id),
@@ -391,16 +424,37 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
                 "date_recorded": agg["last"],
                 "total_current": total_current,
             },
-            "breakdown": breakdown,
+            "breakdown": {
+                "children_count": agg["children"] or 0,
+                "senior_count": agg["seniors"] or 0,
+                "pwd_count": agg["pwd"] or 0,
+                "pregnant_count": agg["pregnant"] or 0,
+                "lactating_count": agg["lactating"] or 0,
+            },
             "total_current": total_current,
         })    
     
     
 class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = EvacuationCenter.objects.select_related("municipality").all().order_by("name")
     serializer_class = EvacuationCenterListSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["municipality"]  # ✅ so frontend can filter by municipality
+    filterset_fields = ["municipality"]
     pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = EvacuationCenter.objects.select_related("municipality").all().order_by("name")
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(municipality_id=user.municipality_id)
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(id=user.assigned_center_id)
+
+        return qs
 

@@ -6,7 +6,7 @@ from django.apps import apps
 from django.conf import settings
 from django.db import models 
 from rest_framework import generics, permissions, viewsets, filters, status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -85,58 +85,111 @@ class HazardReportView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    def get_queryset(self, request):
+        user = request.user
+        qs = HazardReport.objects.all().order_by("-id")
+
+        # Municipal admin: only their municipality
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(municipality_id=user.municipality_id)
+
+        # Evacuation center staff / response team: usually same municipality scope
+        if user.role in ["EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(municipality_id=user.municipality_id)
+
+        # Provincial admin can see all
+        return qs
+
     def get(self, request):
         status_param = request.query_params.get("status")
-        mine = request.query_params.get("mine") 
-        qs = HazardReport.objects.all().order_by("-id")
+        mine = request.query_params.get("mine")
+
+        qs = self.get_queryset(request)
+
         if status_param:
             qs = qs.filter(status=status_param)
 
+        if mine in ["1", "true", "True"]:
+            qs = qs.filter(reporter=request.user)
+
         serializer = HazardReportSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
-    
+
     def post(self, request):
         serializer = HazardReportSerializer(data=request.data)
-        if serializer.is_valid():
-            user = request.user
-            mun = getattr(user, "municipality", None) or serializer.validated_data.get("municipality")
-            if not mun:
-                return Response({"municipality": "Municipality is required."}, status=400)
+        serializer.is_valid(raise_exception=True)
 
-            report = serializer.save(
-                reporter=user,
-                municipality=mun,
-                status="REPORTED"
-            )
-            return Response(HazardReportSerializer(report, context={"request": request}).data, status=201)
-        return Response(serializer.errors, status=400)     
+        user = request.user
+
+        # Lock municipality for municipal admin / staff
+        if user.role in ["MUNICIPAL_ADMIN", "EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
+            if not user.municipality:
+                return Response(
+                    {"municipality": "Your account has no municipality assigned."},
+                    status=400
+                )
+            mun = user.municipality
+        else:
+            mun = getattr(user, "municipality", None) or serializer.validated_data.get("municipality")
+
+        if not mun:
+            return Response({"municipality": "Municipality is required."}, status=400)
+
+        report = serializer.save(
+            reporter=user,
+            municipality=mun,
+            status="REPORTED"
+        )
+        return Response(
+            HazardReportSerializer(report, context={"request": request}).data,
+            status=201
+        )     
 
 class HazardReportDetailView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def get_object(self, pk):
+    def get_queryset(self, request):
+        user = request.user
+        qs = HazardReport.objects.all()
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(municipality_id=user.municipality_id)
+
+        if user.role in ["EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(municipality_id=user.municipality_id)
+
+        return qs
+
+    def get_object(self, request, pk):
         try:
-            return HazardReport.objects.get(pk=pk)
+            return self.get_queryset(request).get(pk=pk)
         except HazardReport.DoesNotExist:
             raise NotFound("Hazard report not found.")
 
-    def patch(self, request, pk):
-        report = self.get_object(pk)
+    def get(self, request, pk):
+        report = self.get_object(request, pk)
+        return Response(HazardReportSerializer(report, context={"request": request}).data)
 
-        # OPTIONAL: restrict who can patch (adjust to your roles)
+    def patch(self, request, pk):
+        report = self.get_object(request, pk)
+
         role = getattr(request.user, "role", None)
-        if role not in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "EVAC_STAFF"]:
+        if role not in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
             raise PermissionDenied("You are not allowed to update hazard reports.")
 
-        serializer = HazardReportAdminUpdateSerializer(
-            report, data=request.data, partial=True
-        )
+        serializer = HazardReportAdminUpdateSerializer(report, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-
         updated = serializer.save()
 
-        # If status is being changed, stamp who reviewed it + when
         if "status" in serializer.validated_data:
             updated.reviewed_by = request.user
             updated.reviewed_at = timezone.now()
@@ -154,8 +207,10 @@ class HazardReportDetailView(APIView):
                 "validated_at", "dismissed_at"
             ])
 
-        # return full serializer you already use for UI
-        return Response(HazardReportSerializer(updated).data, status=200)   
+        return Response(
+            HazardReportSerializer(updated, context={"request": request}).data,
+            status=200
+        )   
     
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')
@@ -385,24 +440,33 @@ class MapOverviewView(APIView):
 
     def get(self, request):
         recent_hours = int(request.query_params.get("recent_hours", 48))
-        municipality_id = request.query_params.get("municipality_id")
+        user = request.user
+        requested_municipality_id = request.query_params.get("municipality_id")
 
-        # --- centers ---
         centers_qs = EvacuationCenter.objects.all()
-        if municipality_id:
-            centers_qs = centers_qs.filter(municipality_id=municipality_id)
-
-        # --- hazards ---
         since = timezone.now() - timedelta(hours=recent_hours)
         hazards_qs = HazardReport.objects.filter(created_at__gte=since)
 
-        # Only show approved/active hazards (adjust to your workflow)
-        # If you use "REPORTED" then you probably want to filter by "APPROVED"
-        # Example:
-        # hazards_qs = hazards_qs.filter(status="APPROVED")
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                centers_qs = centers_qs.none()
+                hazards_qs = hazards_qs.none()
+            else:
+                centers_qs = centers_qs.filter(municipality_id=user.municipality_id)
+                hazards_qs = hazards_qs.filter(municipality_id=user.municipality_id)
 
-        if municipality_id:
-            hazards_qs = hazards_qs.filter(municipality_id=municipality_id)
+        elif user.role in ["EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
+            if not user.municipality_id:
+                centers_qs = centers_qs.none()
+                hazards_qs = hazards_qs.none()
+            else:
+                centers_qs = centers_qs.filter(municipality_id=user.municipality_id)
+                hazards_qs = hazards_qs.filter(municipality_id=user.municipality_id)
+
+        elif requested_municipality_id:
+            # only broader roles should be allowed to use arbitrary municipality filter
+            centers_qs = centers_qs.filter(municipality_id=requested_municipality_id)
+            hazards_qs = hazards_qs.filter(municipality_id=requested_municipality_id)
 
         return Response({
             "centers": EvacuationCenterSerializer(centers_qs, many=True).data,
