@@ -11,6 +11,7 @@ import EvacuationCenters from '../views/EvacuationCenters.vue'
 import GISMap from '../views/GISMap.vue'
 import UserMgnt from '../views/Users/UserMgnt.vue'
 import HazardReport from '../views/HazardReport.vue'
+import AffectedPopulationReport from '../views/AffectedPopulationReport.vue'
 
 // User Components
 import UserLayout from '../views/Users/UserLayout.vue'
@@ -79,7 +80,8 @@ const routes = [
       { path: 'centers', name: 'EvacuationCenters', component: EvacuationCenters },
       { path: 'map', name: 'GISMap', component: GISMap },
       { path: 'users', name: 'UserMgmt', component: UserMgnt },
-      { path: 'logs', name: 'Evacuation Logs', component: StaffLogs }
+      { path: 'logs', name: 'Evacuation Logs', component: StaffLogs },
+      { path: '/admin/reports/affected-population', name: 'AffectedPopulationReport', component: AffectedPopulationReport }
     ]
   },
 

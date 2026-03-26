@@ -85,6 +85,7 @@ const navItems = [
   { to: '/admin/hazard_report', name: 'Hazard Reports', icon: '📝' },
   { to: '/admin/map', name: 'GIS Map', icon: '🗺️' },
   { to: '/admin/analytics', name: 'Analytics', icon: '📈' },
+  { to: '/admin/reports/affected-population', name: 'Affected Population Report', icon: '📄'},
   { to: '/admin/users', name: 'User Management', icon: '👤' },
 ];
 </script>

@@ -6,11 +6,14 @@ import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from pathlib import Path
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Max
+from .services.affected_population_report import build_affected_population_report
 
 from evac_app.models import EvacuationCenter, EvacuationLog
 from .services.congestion import compute_congestion_risk, CongestionParams
@@ -231,3 +234,23 @@ class AnalyticsStatsView(APIView):
             "total_evacuees": total_evacuees,
             "active_centers": active_centers,
         })
+    
+class AffectedPopulationReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        as_of_raw = request.query_params.get("as_of")
+        as_of = parse_datetime(as_of_raw) if as_of_raw else timezone.now()
+
+        if as_of_raw and as_of is None:
+            return Response({"detail": "Invalid as_of datetime format."}, status=400)
+
+        if timezone.is_naive(as_of):
+            as_of = timezone.make_aware(as_of, timezone.get_current_timezone())
+
+        data = build_affected_population_report(
+            EvacuationCenterModel=EvacuationCenter,
+            EvacuationLogModel=EvacuationLog,
+            as_of=as_of,
+        )
+        return Response(data)
