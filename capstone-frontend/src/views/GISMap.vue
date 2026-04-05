@@ -238,23 +238,28 @@ const getStatusText = (center) => {
 }
 
 const createCenterIcon = (center) => {
-  const percentage = getOccupancyPercentage(center)
   const color = getStatusColor(center)
-  const pulseClass = percentage >= 90 ? 'pulse-marker' : ''
-  const shapeClass = getBuildingShapeClass(center)
+  const pulseClass = getOccupancyPercentage(center) >= 90 ? 'pulse-marker' : ''
+  const buildingIcon = getBuildingIcon(center)
+  const percentage = getOccupancyPercentage(center)
+  const typeLabel = getBuildingType(center).replaceAll('_', ' ')
 
   return L.divIcon({
     className: `custom-marker ${pulseClass}`,
     html: `
-      <div class="marker-pin ${shapeClass}" style="background: ${color}">
+      <div class="marker-pin" style="background: ${color}">
         <div class="marker-pulse"></div>
         <div class="marker-content">
-          <span class="occupancy-percent">${percentage}%</span>
+          <span class="building-icon">${buildingIcon}</span>
+        </div>
+        <div class="marker-hover-badge">
+          <span class="hover-badge-text">${typeLabel} • ${percentage}%</span>
         </div>
       </div>
     `,
-    iconSize: [42, 42],
-    iconAnchor: [21, 42],
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40],
   })
 }
 
@@ -319,26 +324,25 @@ const getBuildingType = (center) => {
   return 'OTHER'
 }
 
-const getBuildingShapeClass = (center) => {
-  const type = getBuildingType(center)
-
-  switch (type) {
+const getBuildingIcon = (center) => {
+  switch (getBuildingType(center)) {
     case 'SCHOOL':
-      return 'shape-school'
-    case 'MULTIPURPOSE_HALL':
-      return 'shape-hall'
+      return '🏫'
     case 'CHURCH':
-      return 'shape-church'
-    case 'PRIVATE_BUILDING':
-      return 'shape-private'
+      return '⛪'
     case 'GYM':
-      return 'shape-gym'
+      return '🏟️'
+    case 'MULTIPURPOSE_HALL':
+      return '🏛️'
     case 'BARANGAY_HALL':
-      return 'shape-barangay'
+      return '🏢'
+    case 'PRIVATE_BUILDING':
+      return '🏠'
     default:
-      return 'shape-default'
+      return '📍'
   }
 }
+
 
 // ---- Rendering ----
 const renderCenters = () => {
@@ -973,48 +977,13 @@ watch(selectedCenter, () => {
   position: relative;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
   border: 3px solid white;
+  transition: transform 0.2s ease;
 }
 
-:deep(.marker-pin.shape-school) {
-  border-radius: 8px;
-  transform: none;
+:deep(.marker-pin:hover) {
+  z-index: 1000;
 }
 
-:deep(.marker-pin.shape-hall) {
-  width: 48px;
-  border-radius: 12px;
-  transform: none;
-}
-
-:deep(.marker-pin.shape-church) {
-  border-radius: 8px;
-  transform: rotate(45deg);
-}
-:deep(.marker-pin.shape-church .marker-content) {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-:deep(.marker-pin.shape-private) {
-  clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-  border-radius: 0;
-  transform: none;
-}
-
-:deep(.marker-pin.shape-gym) {
-  border-radius: 50%;
-  transform: none;
-}
-
-:deep(.marker-pin.shape-barangay) {
-  width: 50px;
-  border-radius: 999px;
-  transform: none;
-}
-
-:deep(.marker-pin.shape-default) {
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-}
 :deep(.marker-pin.shape-default .marker-content) {
   transform: translate(-50%, -50%) rotate(45deg);
 }
@@ -1042,8 +1011,38 @@ watch(selectedCenter, () => {
   transform: translate(-50%, -50%) rotate(45deg);
   color: white;
   font-weight: 700;
-  font-size: 0.75rem;
   text-align: center;
+  z-index: 2;
+}
+
+:deep(.building-icon) {
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-block;
+}
+
+:deep(.marker-hover-badge) {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(15, 23, 42, 0.95);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 20;
+}
+
+:deep(.marker-pin:hover .marker-hover-badge) {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px) rotate(45deg);
 }
 
 :deep(.occupancy-percent) {
