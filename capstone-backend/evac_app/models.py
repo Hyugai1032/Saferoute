@@ -35,6 +35,17 @@ class EvacuationCenter(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    SHELTER_CATEGORY_CHOICES = [
+        ('INSIDE_EC', 'Inside Evacuation Center'),
+        ('OUTSIDE_EC', 'Outside Evacuation Center'),
+    ]
+
+    shelter_category = models.CharField(
+        max_length=20,
+        choices=SHELTER_CATEGORY_CHOICES,
+        default='INSIDE_EC'
+    )
+
     def __str__(self):
         return self.name
 

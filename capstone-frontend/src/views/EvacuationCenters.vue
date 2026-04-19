@@ -107,6 +107,14 @@
           </div>
 
           <div class="form-group">
+            <label>Shelter Category</label>
+            <select v-model="form.shelter_category">
+              <option value="INSIDE_EC">Inside Evacuation Center</option>
+              <option value="OUTSIDE_EC">Outside Evacuation Center</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label>Used for COVID?</label>
             <select v-model="form.used_for_covid">
               <option :value="false">No</option>
@@ -190,6 +198,8 @@
       </section>
       <div v-if="loading" class="loading">Loading centers...</div>
       <div v-else-if="centers.length === 0" class="empty">No centers found</div>
+
+
 <div v-else class="table-shell">
   <div class="table-toolbar">
     <div class="table-title">
@@ -212,6 +222,7 @@
           <th class="num">Fam Cap</th>
           <th class="num">Ind Cap</th>
           <th>Status</th>
+          <th>Shelter Category</th>
           <th>Coordinates</th>
           <th class="actions">Actions</th>
         </tr>
@@ -241,6 +252,12 @@
           <td>
             <span :class="['badge', 'badge-' + (c.status || '').toLowerCase()]">
               {{ c.status }}
+            </span>
+          </td>
+
+          <td>
+            <span class="badge" :class="c.shelter_category === 'OUTSIDE_EC' ? 'badge-outside' : 'badge-inside'">
+              {{ c.shelter_category === 'OUTSIDE_EC' ? 'Outside EC' : 'Inside EC' }}
             </span>
           </td>
 
@@ -346,6 +363,14 @@
             </div>
 
             <div class="form-group">
+              <label>Shelter Category</label>
+              <select v-model="form.shelter_category">
+                <option value="INSIDE_EC">Inside Evacuation Center</option>
+                <option value="OUTSIDE_EC">Outside Evacuation Center</option>
+              </select>
+            </div>
+
+            <div class="form-group">
               <label>Used for COVID?</label>
               <select v-model="editForm.used_for_covid">
                 <option :value="false">No</option>
@@ -398,6 +423,7 @@ export default {
         flood_susceptibility: 'LOW',
         landslide_susceptibility: 'LOW',
         status: 'TEMPORARY',
+        shelter_category: 'INSIDE_EC',
         used_for_covid: false,
         remarks: '',
       },
@@ -607,6 +633,7 @@ export default {
         flood_susceptibility: this.form.flood_susceptibility,
         landslide_susceptibility: this.form.landslide_susceptibility,
         status: this.form.status,
+        shelter_category: this.form.shelter_category,
         used_for_covid: this.form.used_for_covid,
         remarks: this.form.remarks || '',
       };
@@ -654,7 +681,8 @@ export default {
 
     startEdit(center) {
       this.editing = true;
-      this.editForm = { ...center };
+      this.editForm = { ...center,
+      shelter_category: center.shelter_category || 'INSIDE_EC', };
     },
 
     cancelEdit() {
@@ -668,6 +696,7 @@ export default {
           ...this.editForm,
           municipality: parseInt(this.editForm.municipality),
           barangay: this.editForm.barangay ? parseInt(this.editForm.barangay) : null,
+          shelter_category: this.editForm.shelter_category || 'INSIDE_EC',
         };
 
         const res = await fetch(`http://127.0.0.1:8000/api/evac_centers/evac-centers/${this.editForm.id}/`, {

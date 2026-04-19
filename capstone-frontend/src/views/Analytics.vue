@@ -17,7 +17,7 @@
         <!-- Row 1 -->
         <div class="chart-card chart-sm">
           <div class="chart-header">
-            <h4>Risk Distribution</h4>
+            <h4>Evacuation Center Status</h4>
           </div>
           <div class="chart-body">
             <canvas id="riskDistributionChart"></canvas>
@@ -389,7 +389,7 @@ function riskClass(level) {
   return {
     LOW: 'low',
     MODERATE: 'moderate',
-    HIGH: 'high',
+    CRITICAL: 'high',
     FULL: 'full'
   }[level] || 'low'
 }

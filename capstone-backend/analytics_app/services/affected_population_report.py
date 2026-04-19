@@ -78,6 +78,7 @@ def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogMode
             "province",
             "municipality__name",
             "barangay__name",
+            "shelter_category",
         )
     )
 
@@ -86,6 +87,7 @@ def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogMode
             "province": c.get("province") or "Oriental Mindoro",
             "municipality": c.get("municipality__name") or "Unknown Municipality",
             "barangay": c.get("barangay__name") or c.get("name") or "Unknown Barangay",
+            "shelter_category": c.get("shelter_category") or "INSIDE_EC",
         }
         for c in centers
     }
@@ -139,6 +141,7 @@ def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogMode
         province = location["province"]
         municipality = location["municipality"]
         barangay = location["barangay"]
+        shelter_category = location["shelter_category"]
 
         key = (province, municipality, barangay)
 
@@ -155,27 +158,28 @@ def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogMode
         cum = cumulative_map.get(center_id, {"families_in_sum": 0, "persons_in_sum": 0})
         snap = latest_snapshot_map.get(center_id, {"families_now": 0, "persons_now": 0})
 
-        # Temporary approximation until separate affected-population source exists
+        # temporary approximation until a separate affected-population source exists
         row["affected_brgys"] = 1
         row["affected_families"] += cum["families_in_sum"]
         row["affected_persons"] += cum["persons_in_sum"]
 
-        if cum["families_in_sum"] > 0 or cum["persons_in_sum"] > 0:
-            row["ecs_cum"] += 1
+        if shelter_category == "INSIDE_EC":
+            if cum["families_in_sum"] > 0 or cum["persons_in_sum"] > 0:
+                row["ecs_cum"] += 1
 
-        if snap["families_now"] > 0 or snap["persons_now"] > 0:
-            row["ecs_now"] += 1
+            if snap["families_now"] > 0 or snap["persons_now"] > 0:
+                row["ecs_now"] += 1
 
-        row["inside_families_cum"] += cum["families_in_sum"]
-        row["inside_families_now"] += snap["families_now"]
-        row["inside_persons_cum"] += cum["persons_in_sum"]
-        row["inside_persons_now"] += snap["persons_now"]
+            row["inside_families_cum"] += cum["families_in_sum"]
+            row["inside_families_now"] += snap["families_now"]
+            row["inside_persons_cum"] += cum["persons_in_sum"]
+            row["inside_persons_now"] += snap["persons_now"]
 
-        # Outside EC data unavailable for now
-        row["outside_families_cum"] += 0
-        row["outside_families_now"] += 0
-        row["outside_persons_cum"] += 0
-        row["outside_persons_now"] += 0
+        elif shelter_category == "OUTSIDE_EC":
+            row["outside_families_cum"] += cum["families_in_sum"]
+            row["outside_families_now"] += snap["families_now"]
+            row["outside_persons_cum"] += cum["persons_in_sum"]
+            row["outside_persons_now"] += snap["persons_now"]
 
         row["total_families_cum"] = row["inside_families_cum"] + row["outside_families_cum"]
         row["total_families_now"] = row["inside_families_now"] + row["outside_families_now"]

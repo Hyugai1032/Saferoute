@@ -262,6 +262,9 @@ class EvacUploadAPIView(APIView):
                         "flood_susceptibility": flood_susc,
                         "landslide_susceptibility": landslide_susc,
                         "status": status_val,
+                        "shelter_category": "OUTSIDE_EC" if any(
+                            k in facility_name.upper() for k in ["RESIDENCE", "HOUSE", "HOME", "PRIVATE"]
+                        ) else "INSIDE_EC",
                         "remarks": remarks,
                     }
 

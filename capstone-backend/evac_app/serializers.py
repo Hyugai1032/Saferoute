@@ -35,6 +35,7 @@ class EvacuationCenterSerializer(serializers.ModelSerializer):
             'flood_susceptibility',
             'landslide_susceptibility',
             'status',
+            'shelter_category',
             'remarks',
             'created_at',
             'updated_at',
@@ -115,7 +116,7 @@ class EvacuationCenterListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EvacuationCenter
-        fields = ["id", "name", "municipality", "municipality_name"]
+        fields = ["id", "name", "municipality", "municipality_name", "shelter_category"]
 
 class EvacCenterDropdownSerializer(serializers.ModelSerializer):
     municipality_name = serializers.CharField(source="municipality.name", read_only=True)
