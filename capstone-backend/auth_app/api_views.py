@@ -106,12 +106,16 @@ class HazardReportView(APIView):
 
     def get(self, request):
         status_param = request.query_params.get("status")
+        severity_param = request.query_params.get("severity")
         mine = request.query_params.get("mine")
 
         qs = self.get_queryset(request)
 
-        if status_param:
+        if status_param and status_param.lower() != "all":
             qs = qs.filter(status=status_param)
+
+        if severity_param and severity_param.lower() != "all":
+            qs = qs.filter(severity__iexact=severity_param)
 
         if mine in ["1", "true", "True"]:
             qs = qs.filter(reporter=request.user)
@@ -195,7 +199,7 @@ class HazardReportDetailView(APIView):
             updated.reviewed_at = timezone.now()
 
             new_status = serializer.validated_data["status"]
-            if new_status == "VALIDATED":
+            if new_status == "APPROVED":
                 updated.validated_at = timezone.now()
                 updated.dismissed_at = None
             elif new_status == "DISMISSED":
@@ -206,7 +210,7 @@ class HazardReportDetailView(APIView):
                 "reviewed_by", "reviewed_at",
                 "validated_at", "dismissed_at"
             ])
-
+            
         return Response(
             HazardReportSerializer(updated, context={"request": request}).data,
             status=200

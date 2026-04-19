@@ -3,10 +3,34 @@
     <!-- Header -->
     <div class="page-header">
       <div>
-        <h1>Pending Hazard Reports</h1>
-        <p>Reports awaiting verification and action</p>
+        <h1>{{ headerTitle }}</h1>
+        <p>{{ headerSubtitle }}</p>
       </div>
-      <span class="badge">{{ reports.length }} Pending</span>
+      <span class="badge">{{ reports.length }} Result{{ reports.length !== 1 ? 's' : '' }}</span>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter" v-model="selectedStatus" @change="loadReports">
+          <option value="all">All</option>
+          <option value="REPORTED">Pending</option>
+          <option value="APPROVED">Approved</option>
+          <option value="DISMISSED">Dismissed</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="severityFilter">Severity</label>
+        <select id="severityFilter" v-model="selectedSeverity" @change="loadReports">
+          <option value="all">All</option>
+          <option value="LOW">Low</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="HIGH">High</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+      </div>
     </div>
 
     <!-- States -->
@@ -202,12 +226,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed } from "vue";
 import api from "@/services/api";
 
 const reports = ref([]);
 const loading = ref(false);
 const errorMsg = ref(""); 
+
+// Filters
+const selectedStatus = ref("REPORTED");
+const selectedSeverity = ref("all");
 
 // Preview modal
 const previewOpen = ref(false);
@@ -215,6 +243,22 @@ const selected = ref(null);
 
 // Lightbox
 const lightboxUrl = ref("");
+
+const headerTitle = computed(() => {
+  const map = {
+    all: "Hazard Reports",
+    REPORTED: "Pending Hazard Reports",
+    APPROVED: "Approved Hazard Reports",
+    DISMISSED: "Dismissed Hazard Reports",
+  };
+  return map[selectedStatus.value] || "Hazard Reports";
+});
+
+const headerSubtitle = computed(() => {
+  return selectedSeverity.value === "all"
+    ? "Reports awaiting verification and action"
+    : `Showing ${selectedSeverity.value.toLowerCase()} severity reports`;
+});
 
 // MUST exist because template calls it
 function openPreview(report) {
@@ -246,15 +290,24 @@ function onKey(e) {
 async function loadReports() {
   loading.value = true;
   errorMsg.value = "";
+
   try {
-    const res = await api.get("hazards/", {
-      params: { status: "REPORTED" }
-    });
+    const params = {};
+
+    if (selectedStatus.value !== "all") {
+      params.status = selectedStatus.value;
+    }
+
+    if (selectedSeverity.value !== "all") {
+      params.severity = selectedSeverity.value;
+    }
+
+    const res = await api.get("/hazards/", { params });
     reports.value = res.data;
-     // ✅ TEMP DEBUG
     console.log("First report:", reports.value?.[0]);
   } catch (err) {
     errorMsg.value = "Failed to load reports.";
+    console.error(err);
   } finally {
     loading.value = false;
   }
@@ -270,7 +323,14 @@ async function dismiss(id) {
   await loadReports();
 }
 
-onMounted(loadReports);
+onMounted(() => {
+  loadReports();
+  window.addEventListener("keydown", onKey);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKey);
+});
 </script>
 
 <style scoped>
@@ -700,5 +760,42 @@ onMounted(loadReports);
   position: fixed;
   top: 18px;
   right: 18px;
+}
+
+.filters {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #97a6cc;
+}
+
+.filter-group select {
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: #eaf1ff;
+  outline: none;
+  backdrop-filter: blur(10px);
+}
+
+.filter-group select:focus {
+  border-color: rgba(120,190,255,0.35);
+  box-shadow: 0 0 0 3px rgba(0,140,255,0.15);
 }
 </style>

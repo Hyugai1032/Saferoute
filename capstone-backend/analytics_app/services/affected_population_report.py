@@ -82,6 +82,18 @@ def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogMode
         )
     )
 
+    def has_activity(row):
+        return any([
+            row["affected_families"] > 0,
+            row["affected_persons"] > 0,
+            row["inside_families_now"] > 0,
+            row["inside_persons_now"] > 0,
+            row["outside_families_now"] > 0,
+            row["outside_persons_now"] > 0,
+            row["inside_families_cum"] > 0,
+            row["outside_families_cum"] > 0,
+        ])
+
     center_map = {
         c["id"]: {
             "province": c.get("province") or "Oriental Mindoro",
@@ -186,7 +198,23 @@ def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogMode
         row["total_persons_cum"] = row["inside_persons_cum"] + row["outside_persons_cum"]
         row["total_persons_now"] = row["inside_persons_now"] + row["outside_persons_now"]
 
-    data_rows = sorted(grouped.values(), key=lambda r: (r["municipality"], r["barangay"]))
+    filtered_rows = [
+        row for row in grouped.values()
+        if has_activity(row)
+    ]
+
+    data_rows = sorted(
+        filtered_rows,
+        key=lambda r: (r["municipality"], r["barangay"])
+    )
+
+    if not data_rows:
+        return {
+            "title": "Affected Population Report",
+            "as_of": as_of.isoformat(),
+            "rows": [],
+            "note": "No affected areas found for this time period."
+        }
 
     final_rows = []
     grand_total = _blank_row(row_type="grand_total", barangay="Total")
