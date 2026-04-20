@@ -81,7 +81,12 @@ const routes = [
       { path: 'map', name: 'GISMap', component: GISMap },
       { path: 'users', name: 'UserMgmt', component: UserMgnt },
       { path: 'logs', name: 'Evacuation Logs', component: StaffLogs },
-      { path: '/admin/reports/affected-population', name: 'AffectedPopulationReport', component: AffectedPopulationReport }
+      {
+        path: 'reports/affected-population',
+        name: 'AffectedPopulationReport',
+        component: AffectedPopulationReport,
+        meta: { requiresAuth: true, role: ['admin'], provincialOnly: true }
+      }
     ]
   },
 
@@ -123,8 +128,16 @@ const router = createRouter({
 // AUTH + ROLE GUARD
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
-  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
-  const userType = userData.userType || "citizen"; // default
+const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+const userType = userData.userType || "citizen"; // default
+
+const isProvincialAdmin =
+  userType === "admin" &&
+  (
+    userData.role === "PROVINCIAL_ADMIN" ||
+    userData.isProvincialAdmin === true ||
+    userData.municipality_id == null
+  );
 
   const isAuthRoute = to.path.startsWith("/auth/");
   const needsAuth = to.matched.some(r => r.meta?.requiresAuth); // handles children properly
@@ -157,6 +170,11 @@ router.beforeEach((to, from, next) => {
       if (to.path !== fallback) return next(fallback);
       return next(); // ✅ add this
     }
+  }
+
+  const provincialOnly = to.matched.some(r => r.meta?.provincialOnly);
+  if (isAuthenticated && provincialOnly && !isProvincialAdmin) {
+    return next("/admin/dashboard");
   }
 
   return next();

@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Max
 from .services.affected_population_report import build_affected_population_report
+from .permissions import IsProvincialAdmin
 
 from evac_app.models import EvacuationCenter, EvacuationLog
 from .services.congestion import compute_congestion_risk, CongestionParams
@@ -236,7 +237,7 @@ class AnalyticsStatsView(APIView):
         })
     
 class AffectedPopulationReportView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsProvincialAdmin]
 
     def get(self, request):
         as_of_raw = request.query_params.get("as_of")

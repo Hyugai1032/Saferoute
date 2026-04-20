@@ -77,6 +77,15 @@ defineEmits(['toggle'])
 
 const user = ref(JSON.parse(localStorage.getItem("userData")));
 
+const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+const isProvincialAdmin =
+  userData.userType === "admin" &&
+  (
+    userData.role === "PROVINCIAL_ADMIN" ||
+    userData.isProvincialAdmin === true ||
+    userData.municipality_id == null
+  );
+
 const route = useRoute();
 
 const navItems = [
@@ -85,7 +94,9 @@ const navItems = [
   { to: '/admin/hazard_report', name: 'Hazard Reports', icon: '📝' },
   { to: '/admin/map', name: 'GIS Map', icon: '🗺️' },
   { to: '/admin/analytics', name: 'Analytics', icon: '📈' },
-  { to: '/admin/reports/affected-population', name: 'Affected Population Report', icon: '📄'},
+  ...(isProvincialAdmin ? [
+    { to: '/admin/reports/affected-population', name: 'Affected Population Report', icon: '📄' }
+  ] : []),
   { to: '/admin/users', name: 'User Management', icon: '👤' },
 ];
 </script>
