@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.apps import apps
 from django.conf import settings
 from django.db import models 
+from django.db.models import F
 from rest_framework import generics, permissions, viewsets, filters, status
 from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.decorators import action
@@ -23,6 +24,7 @@ from .serializers import (UserProfileSerializer,
                           UserDetailSerializer, 
                           UserCreateSerializer, 
                           UserUpdateSerializer,
+                          UserProfileSerializer,
                           MeUpdateSerializer,
                           GisLayerSerializer,
                           EvacCenterPinSerializer,
@@ -38,6 +40,7 @@ from .permissions import (
 )
 
 EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
+EvacuationLog = apps.get_model("evac_app", "EvacuationLog")
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -55,13 +58,6 @@ class RegisterView(generics.CreateAPIView):
             "role": user.role
         })
 
-    
-# auth_app/api_views.py (or views.py)
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from .serializers import UserProfileSerializer
 
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -494,6 +490,49 @@ def circle_to_polygon(lng, lat, radius_m=150, points=24):
     coords.append(coords[0])  # close ring
     return coords
 
+import math
+
+def haversine_km(lat1, lng1, lat2, lng2):
+    r = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+
+    a = (
+        math.sin(dlat / 2) ** 2 +
+        math.cos(math.radians(lat1)) *
+        math.cos(math.radians(lat2)) *
+        math.sin(dlng / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return r * c
+
+
+def get_latest_center_occupancy(center):
+    log = (
+        EvacuationLog.objects
+        .filter(center_id=center.id)
+        .order_by("-date_recorded", "-id")
+        .first()
+    )
+
+    if not log:
+        return {
+            "current_total": 0,
+            "current_families": 0,
+            "congestion_percent": 0.0,
+        }
+
+    capacity = int(center.family_capacity_max or 0) + int(center.individual_capacity_max or 0)
+    current_total = int(log.total_current or 0)
+    current_families = int(log.total_current_families or 0)
+
+    congestion_percent = round((current_total / capacity) * 100, 1) if capacity > 0 else 0.0
+
+    return {
+        "current_total": current_total,
+        "current_families": current_families,
+        "congestion_percent": congestion_percent,
+    }
 
 class ORSRouteView(APIView):
     """
@@ -589,12 +628,120 @@ class ORSRouteView(APIView):
             "used_hazard_avoidance": avoid_hazards,
         })
 
+class SuggestNearestAvailableCenterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ors_key = settings.ORS_API_KEY
+        if not ors_key:
+            return Response({"detail": "ORS_API_KEY is not set."}, status=500)
+
+        body = request.data or {}
+
+        try:
+            origin = body["from"]
+            from_lat = float(origin["lat"])
+            from_lng = float(origin["lng"])
+        except Exception:
+            return Response({"detail": "Missing from.lat/lng"}, status=400)
+
+        max_congestion = float(body.get("max_congestion_percent", 90))
+        candidate_limit = int(body.get("candidate_limit", 6))
+        avoid_hazards = bool(body.get("avoid_hazards", True))
+
+        # --- FILTER CENTERS ---
+        centers = (
+            EvacuationCenter.objects
+            .exclude(latitude__isnull=True)
+            .exclude(longitude__isnull=True)
+            .annotate(total_capacity=F('family_capacity_max') + F('individual_capacity_max'))
+            .filter(total_capacity__gt=0)  # 🔥 EXCLUDE 0/0
+        )
+
+        candidates = []
+        for c in centers:
+            occ = get_latest_center_occupancy(c)
+
+            if occ["congestion_percent"] >= max_congestion:
+                continue
+
+            candidates.append({
+                "center": c,
+                "lat": float(c.latitude),
+                "lng": float(c.longitude),
+                "congestion": occ["congestion_percent"],
+                "distance": haversine_km(from_lat, from_lng, float(c.latitude), float(c.longitude))
+            })
+
+        if not candidates:
+            return Response({"detail": "No available centers"}, status=404)
+
+        # --- PREFILTER NEAREST ---
+        candidates.sort(key=lambda x: x["distance"])
+        candidates = candidates[:candidate_limit]
+
+        # --- ROUTE USING ORS ---
+        ors_url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+        headers = {
+            "Authorization": ors_key,
+            "Content-Type": "application/json"
+        }
+
+        results = []
+
+        for item in candidates:
+            payload = {
+                "coordinates": [
+                    [from_lng, from_lat],
+                    [item["lng"], item["lat"]],
+                ],
+                "radiuses": [2000, 2000]
+            }
+
+            try:
+                r = requests.post(ors_url, json=payload, headers=headers, timeout=20)
+                if r.status_code != 200:
+                    continue
+
+                data = r.json()
+                feat = data["features"][0]
+                summary = feat["properties"]["summary"]
+
+                duration = summary["duration"]
+                distance = summary["distance"]
+
+                eta_min = duration / 60
+
+                # 🔥 KEY CHANGE: ETA + congestion scoring
+                score = (eta_min * 0.8) + (item["congestion"] * 0.2)
+
+                results.append({
+                    "center": item["center"],
+                    "geometry": feat["geometry"],
+                    "distance_m": distance,
+                    "duration_s": duration,
+                    "score": score
+                })
+
+            except Exception:
+                continue
+
+        if not results:
+            return Response({"detail": "No routable centers"}, status=404)
+
+        results.sort(key=lambda x: x["score"])
+        best = results[0]
+
+        return Response({
+            "center": EvacuationCenterSerializer(best["center"]).data,
+            "distance_m": best["distance_m"],
+            "duration_s": best["duration_s"],
+            "geometry": best["geometry"],
+            "score": best["score"]
+        })
+
 
 # users/api_views.py (example)
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]

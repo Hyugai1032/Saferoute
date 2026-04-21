@@ -44,6 +44,9 @@
           <button class="control-btn" @click="fitToBounds" title="Fit to Centers">
             🎯
           </button>
+          <button class="control-btn" @click="suggestNearestCenter">
+            🧭 Suggest Center
+          </button>
         </div>
       </div>
     </div>
@@ -540,6 +543,43 @@ const fitToBounds = () => {
 
   const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
   map.value.fitBounds(group.getBounds().pad(0.1))
+}
+
+const suggestNearestCenter = () => {
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      try {
+        const payload = {
+          from: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          },
+          avoid_hazards: true,
+          recent_hours: 48,
+          max_congestion_percent: 90,
+          candidate_limit: 6,
+        }
+
+        const res = await api.post("/route/suggest-center/", payload)
+
+        selectedCenter.value = res.data.center
+
+        drawRoute(
+          res.data.geometry,
+          res.data.distance_m,
+          res.data.duration_s
+        )
+      } catch (e) {
+        console.error("Suggest center failed:", e)
+        alert("Unable to suggest an available center.")
+      }
+    },
+    (err) => {
+      console.error(err)
+      alert("Please allow location access.")
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  )
 }
 
 const handleResize = () => {

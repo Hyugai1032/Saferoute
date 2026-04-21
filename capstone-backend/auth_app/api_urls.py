@@ -11,6 +11,7 @@ from .api_views import (
     MapOverviewView,
     HazardReportDetailView,
     ORSRouteView,
+    SuggestNearestAvailableCenterView,
     MeView,
     UpdateMeView,
 )
@@ -36,6 +37,7 @@ urlpatterns = [
     path('hazards/<int:pk>/', HazardReportDetailView.as_view()),
     path("map/overview/", MapOverviewView.as_view(), name="map_overview"),
     path("route/ors/", ORSRouteView.as_view(), name="route_ors"),
+    path("route/suggest-center/", SuggestNearestAvailableCenterView.as_view()),
     path('', include(router.urls)),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/me/update/", UpdateMeView.as_view(), name="me-update"),
