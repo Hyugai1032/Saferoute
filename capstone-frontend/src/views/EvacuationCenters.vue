@@ -400,6 +400,7 @@ import { getAuthHeader } from '../services/authService';
 </script>
 
 <script>
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 export default {
   name: 'EvacManager',
   data() {
@@ -464,7 +465,7 @@ export default {
   methods: {
     async fetchMunicipalities() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/municipalities/?page_size=9999', {
+        const res = await fetch(`${API_BASE}municipalities/?page_size=9999`, {
           headers: getAuthHeader()
         });
         if (!res.ok) return;
@@ -480,7 +481,7 @@ export default {
 
     async fetchBarangays() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/barangays/?page_size=9999', {
+        const res = await fetch(`${API_BASE}barangays/?page_size=9999`, {
           headers: getAuthHeader()
         });
         if (!res.ok) return;
@@ -527,7 +528,7 @@ export default {
       formData.append("file", this.file);
 
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/evac_centers/evac-centers/upload/", {
+        const res = await fetch(`${API_BASE}evac_centers/evac-centers/upload/`, {
           method: "POST",
           headers: {
             ...getAuthHeader(),
@@ -580,7 +581,7 @@ export default {
         params.set("page", pageNum);
         params.set("page_size", Number(this.pagination.page_size) || 10);
 
-        const url = `http://127.0.0.1:8000/api/evac_centers/evac-centers/?${params.toString()}`;
+        const url = `${API_BASE}evac_centers/evac-centers/?${params.toString()}`;
 
         const res = await fetch(url, { headers: getAuthHeader() });
         if (!res.ok) throw new Error('Failed to fetch');
@@ -639,7 +640,7 @@ export default {
       };
 
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/evac_centers/evac-centers/', {
+        const res = await fetch(`${API_BASE}evac_centers/evac-centers/`, {
           method: 'POST',
           headers: {
             ...getAuthHeader(),
@@ -699,7 +700,7 @@ export default {
           shelter_category: this.editForm.shelter_category || 'INSIDE_EC',
         };
 
-        const res = await fetch(`http://127.0.0.1:8000/api/evac_centers/evac-centers/${this.editForm.id}/`, {
+        const res = await fetch(`${API_BASE}evac_centers/evac-centers/${this.editForm.id}/`, {
           method: 'PUT',
           headers: {
             ...getAuthHeader(),
@@ -726,7 +727,7 @@ export default {
       if (!confirm('Are you sure you want to delete this center?')) return;
 
       try {
-        const res = await fetch(`http://127.0.0.1:8000/api/evac_centers/evac-centers/${id}/`, {
+        const res = await fetch(`${API_BASE}evac_centers/evac-centers/${id}/`, {
           method: 'DELETE',
           headers: getAuthHeader()
         });

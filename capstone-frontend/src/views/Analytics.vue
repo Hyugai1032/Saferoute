@@ -288,6 +288,8 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+
 // --- Congestion Risk (Hybrid Real-time Model) ---
 const centers = ref([])                 // list of centers for dropdown/table
 const centerRisks = ref([])             // computed risk results for each center
@@ -553,7 +555,7 @@ let barChart, pieChart, lineChart, weatherChart
 onMounted(async () => {
   // Fetch predictions and update risk + weather data
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/analytics/weather/predict/')  // Use relative URL for same-origin; adjust if needed
+    const response = await fetch('${API_BASE}analytics/weather/predict/')  // Use relative URL for same-origin; adjust if needed
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
