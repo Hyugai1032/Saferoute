@@ -300,8 +300,6 @@ const horizonMinutes = ref(60)
 let refreshTimer
 let riskChart
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
-
 Chart.register(...registerables)
 
 const currentPage = ref(1)

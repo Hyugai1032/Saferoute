@@ -38,6 +38,7 @@ from .permissions import (
     IsOwnerOrAdmin,
     GisLayerRolePermission
 )
+from analytics_app.services.congestion import compute_congestion_risk, CongestionParams
 
 EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 EvacuationLog = apps.get_model("evac_app", "EvacuationLog")
@@ -429,7 +430,46 @@ class GisLayerViewSet(viewsets.ModelViewSet):
         if not layer:
             return Response({"detail": "No GIS layers found."}, status=404)
         return Response(self.get_serializer(layer).data)
-    
+
+def get_center_prediction(center, window=60, horizon=60):
+    result = compute_congestion_risk(
+        center=center,
+        EvacuationLogModel=EvacuationLog,
+        params=CongestionParams(
+            window_minutes=window,
+            horizon_minutes=horizon
+        ),
+    )
+
+    if "error" in result:
+        return {
+            "predicted_congestion_percent": None,
+            "predicted_status": "UNAVAILABLE",
+            "prediction_note": result.get("error"),
+        }
+
+    predicted = (
+        result.get("predicted_congestion_percent")
+        or result.get("predicted_percent")
+        or result.get("risk_percent")
+        or result.get("congestion_percent")
+        or 0
+    )
+
+    predicted = round(float(predicted), 1)
+
+    if predicted >= 90:
+        status = "LIKELY_FULL"
+    elif predicted >= 70:
+        status = "MAY_BECOME_CROWDED"
+    else:
+        status = "LIKELY_AVAILABLE"
+
+    return {
+        "predicted_congestion_percent": predicted,
+        "predicted_status": status,
+        "prediction_window_minutes": horizon,
+    }
 
 class MapOverviewView(APIView):
     """
@@ -468,8 +508,28 @@ class MapOverviewView(APIView):
             centers_qs = centers_qs.filter(municipality_id=requested_municipality_id)
             hazards_qs = hazards_qs.filter(municipality_id=requested_municipality_id)
 
+        centers_data = EvacuationCenterSerializer(centers_qs, many=True).data
+
+        center_objects = {c.id: c for c in centers_qs}
+
+        window = int(request.query_params.get("prediction_window", 60))
+        horizon = int(request.query_params.get("prediction_horizon", 60))
+
+        for center_data in centers_data:
+            center_obj = center_objects.get(center_data["id"])
+            if not center_obj:
+                continue
+
+            center_data.update(
+                get_center_prediction(
+                    center_obj,
+                    window=window,
+                    horizon=horizon
+                )
+            )
+
         return Response({
-            "centers": EvacuationCenterSerializer(centers_qs, many=True).data,
+            "centers": centers_data,
             "hazards": HazardPinSerializer(hazards_qs, many=True).data,
         })
     

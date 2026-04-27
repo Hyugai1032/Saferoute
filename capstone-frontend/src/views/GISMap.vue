@@ -101,6 +101,30 @@
               </div>
             </div>
 
+            <div class="metrics-section">
+              <h4>Predicted Congestion</h4>
+
+              <div class="progress-container">
+                <div class="progress-bar large">
+                  <div
+                    class="progress-fill"
+                    :class="getPercentLevel(getPredictedCongestion(selectedCenter))"
+                    :style="{ width: (getPredictedCongestion(selectedCenter) || 0) + '%' }"
+                  ></div>
+                </div>
+
+                <div class="progress-text">
+                  <template v-if="getPredictedCongestion(selectedCenter) !== null">
+                    {{ getPredictedCongestion(selectedCenter) }}%
+                    — {{ getPredictedStatusText(selectedCenter) }}
+                  </template>
+                  <template v-else>
+                    Prediction unavailable
+                  </template>
+                </div>
+              </div>
+            </div>
+
             <div class="metrics-section" v-if="routeInfo">
               <h4>Route Info</h4>
               <div class="center-info">
@@ -246,6 +270,8 @@ const createCenterIcon = (center) => {
   const buildingIcon = getBuildingIcon(center)
   const percentage = getOccupancyPercentage(center)
   const typeLabel = getBuildingType(center).replaceAll('_', ' ')
+  const predicted = getPredictedCongestion(center)
+  const predictedText = predicted == null ? 'Pred: N/A' : `Pred: ${predicted}%`
 
   return L.divIcon({
     className: `custom-marker ${pulseClass}`,
@@ -256,7 +282,11 @@ const createCenterIcon = (center) => {
           <span class="building-icon">${buildingIcon}</span>
         </div>
         <div class="marker-hover-badge">
-          <span class="hover-badge-text">${typeLabel} • ${percentage}%</span>
+          <span class="hover-badge-text">
+            ${typeLabel}<br/>
+            Now: ${percentage}%<br/>
+            ${predictedText}
+          </span>
         </div>
       </div>
     `,
@@ -580,6 +610,27 @@ const suggestNearestCenter = () => {
     },
     { enableHighAccuracy: true, timeout: 15000 }
   )
+}
+
+const getPredictedCongestion = (center) =>
+  center.predicted_congestion_percent == null
+    ? null
+    : Number(center.predicted_congestion_percent)
+
+const getPercentLevel = (pct) => {
+  if (pct == null) return 'normal'
+  if (pct >= 90) return 'critical'
+  if (pct >= 70) return 'warning'
+  return 'normal'
+}
+
+const getPredictedStatusText = (center) => {
+  const pct = getPredictedCongestion(center)
+
+  if (pct == null) return 'Prediction unavailable'
+  if (pct >= 90) return 'Likely Full Soon'
+  if (pct >= 70) return 'May Become Crowded'
+  return 'Likely Available'
 }
 
 const handleResize = () => {
