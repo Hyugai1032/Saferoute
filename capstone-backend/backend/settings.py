@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import dj_database_url
 
 load_dotenv()
 
@@ -103,6 +104,7 @@ DATABASES = {
             'use_unicode': True,
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES';",
         },
+        'default': dj_database_url.parse(os.getenv("MYSQL_PUBLIC_URL")),
     }
 }
 
