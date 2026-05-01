@@ -93,11 +93,16 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('MYSQLDATABASE', 'capstone_db'),
-        'USER': os.getenv('MYSQLUSER', 'root'),
-        'PASSWORD': os.getenv('MYSQLPASSWORD', ''),
-        'HOST': os.getenv('MYSQLHOST', '127.0.0.1'),
-        'PORT': os.getenv('MYSQLPORT', '3306'),
+        'NAME': os.getenv('MYSQLDATABASE'),
+        'USER': os.getenv('MYSQLUSER'),
+        'PASSWORD': os.getenv('MYSQLPASSWORD'),
+        'HOST': os.getenv('MYSQLHOST'),
+        'PORT': os.getenv('MYSQLPORT'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'use_unicode': True,
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES';",
+        },
     }
 }
 
