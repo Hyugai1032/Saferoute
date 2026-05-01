@@ -106,7 +106,7 @@ DATABASES = {
     }
 }
 
-print("MYSQLDATABASE =", os.getenv("MYSQ_LDATABASE"))
+print("MYSQLDATABASE =", os.getenv("MYSQL_DATABASE"))
 print("MYSQLUSER =", os.getenv("MYSQLUSER"))
 print("MYSQLHOST =", os.getenv("MYSQLHOST"))
 print("MYSQLPORT =", os.getenv("MYSQLPORT"))
