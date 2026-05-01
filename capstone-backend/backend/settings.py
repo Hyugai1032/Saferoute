@@ -106,6 +106,12 @@ DATABASES = {
     }
 }
 
+print("MYSQLDATABASE =", os.getenv("MYSQLDATABASE"))
+print("MYSQLUSER =", os.getenv("MYSQLUSER"))
+print("MYSQLHOST =", os.getenv("MYSQLHOST"))
+print("MYSQLPORT =", os.getenv("MYSQLPORT"))
+print("MYSQLPASSWORD EXISTS =", bool(os.getenv("MYSQLPASSWORD")))
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
