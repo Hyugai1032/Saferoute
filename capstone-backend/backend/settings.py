@@ -95,7 +95,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('MYSQL_DATABASE'),
         'USER': os.getenv('MYSQLUSER'),
-        'PASSWORD': os.getenv('MYSQL_ROOT_PASSWORD'),
+        'PASSWORD': os.getenv('MYSQLPASSWORD'),
         'HOST': os.getenv('MYSQLHOST'),
         'PORT': os.getenv('MYSQLPORT'),
         'OPTIONS': {
@@ -105,12 +105,6 @@ DATABASES = {
         },
     }
 }
-
-print("MYSQLDATABASE =", os.getenv("MYSQL_DATABASE"))
-print("MYSQLUSER =", os.getenv("MYSQLUSER"))
-print("MYSQLHOST =", os.getenv("MYSQLHOST"))
-print("MYSQLPORT =", os.getenv("MYSQLPORT"))
-print("MYSQLPASSWORD EXISTS =", bool(os.getenv("MYSQLPASSWORD")))
 
 
 # Password validation
