@@ -455,7 +455,7 @@ const drawRoute = (geometry, distanceM = 0, durationS = 0) => {
     style: { weight: 5 },
   }).addTo(routeLayer.value)
 
-  map.value.fitBounds(routeGeo.getBounds().pad(0.2))
+  safeFitBounds(routeGeo.getBounds(), 0.2)
 
   routeInfo.value = {
     distance_km: (Number(distanceM || 0) / 1000).toFixed(2),
@@ -507,19 +507,56 @@ const fitMapToCenters = () => {
   if (!coords.length || !map.value) return
 
   const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
-  map.value.fitBounds(group.getBounds().pad(0.1))
+  safeFitBounds(group.getBounds(), 0.1)
+}
+
+const isUnmounted = ref(false)
+
+const waitForPaint = () =>
+  new Promise(resolve => requestAnimationFrame(resolve))
+
+const mapContainerExists = () => {
+  const el = document.getElementById('map')
+  return el && el.isConnected
+}
+
+const safeInvalidateSize = () => {
+  if (!map.value || !mapContainerExists()) return
+
+  requestAnimationFrame(() => {
+    if (map.value && mapContainerExists()) {
+      map.value.invalidateSize()
+    }
+  })
+}
+
+const safeFitBounds = (bounds, pad = 0.1) => {
+  if (!map.value || !mapContainerExists()) return
+  if (!bounds || !bounds.isValid || !bounds.isValid()) return
+
+  requestAnimationFrame(() => {
+    if (map.value && mapContainerExists()) {
+      map.value.fitBounds(bounds.pad(pad))
+    }
+  })
 }
 
 const initializeMap = async () => {
   await nextTick()
+  await waitForPaint()
 
-  map.value = L.map('map').setView([13.0, 121.1], 9)
+  const el = document.getElementById('map')
+  if (!el || map.value) return
+
+  map.value = L.map(el, {
+    zoomAnimation: false,
+  }).setView([13.0, 121.1], 9)
 
   osmLayer.value = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
   })
 
-  satelliteLayer.value = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+  satelliteLayer.value = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={z}', {
     maxZoom: 20,
     subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
     attribution: '&copy; Google',
@@ -531,12 +568,15 @@ const initializeMap = async () => {
   hazardLayer.value = L.layerGroup().addTo(map.value)
   routeLayer.value = L.layerGroup().addTo(map.value)
 
-  await fetchMapOverview()
-  renderCenters()
-  renderHazards()
-  fitToBounds()
-
-  map.value.invalidateSize()
+  try {
+    await fetchMapOverview()
+    renderCenters()
+    renderHazards()
+    fitToBounds()
+    safeInvalidateSize()
+  } catch (err) {
+    console.error('Failed to initialize map data:', err)
+  }
 }
 
 // ---- UI Buttons ----
@@ -545,7 +585,7 @@ const refreshData = async () => {
   await fetchMapOverview()
   renderCenters()
   renderHazards()
-  map.value.invalidateSize()
+  safeInvalidateSize()
 }
 
 const toggleSatellite = () => {
@@ -561,7 +601,7 @@ const toggleSatellite = () => {
     if (!map.value.hasLayer(osmLayer.value)) map.value.addLayer(osmLayer.value)
   }
 
-  map.value.invalidateSize()
+  safeInvalidateSize()
 }
 
 const fitToBounds = () => {
@@ -572,7 +612,7 @@ const fitToBounds = () => {
   if (!coords.length || !map.value) return
 
   const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
-  map.value.fitBounds(group.getBounds().pad(0.1))
+  safeFitBounds(group.getBounds(), 0.1)
 }
 
 const suggestNearestCenter = () => {
@@ -634,32 +674,44 @@ const getPredictedStatusText = (center) => {
 }
 
 const handleResize = () => {
-  if (map.value) {
-    map.value.invalidateSize()
-  }
+  safeInvalidateSize()
 }
 
 watch(selectedTypes, (val) => {
   localStorage.setItem('buildingFilter', JSON.stringify(val))
 }, { deep: true })
 
-onMounted(() => {
-  initializeMap()
-  window.addEventListener('resize', handleResize)
+onMounted(async () => {
+  isUnmounted.value = false
+
   const saved = localStorage.getItem('buildingFilter')
   if (saved) selectedTypes.value = JSON.parse(saved)
+
+  await initializeMap()
+  window.addEventListener('resize', handleResize)
 })
 
+
 onActivated(() => {
-  if (map.value) {
-    map.value.invalidateSize()
-  }
+  safeInvalidateSize()
 })
 
 onUnmounted(() => {
+  isUnmounted.value = true
+
   if (map.value) {
+    map.value.stop()
+    map.value.off()
     map.value.remove()
+    map.value = null
   }
+
+  centerLayer.value = null
+  hazardLayer.value = null
+  routeLayer.value = null
+  osmLayer.value = null
+  satelliteLayer.value = null
+
   window.removeEventListener('resize', handleResize)
 })
 

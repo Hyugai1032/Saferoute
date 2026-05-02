@@ -468,22 +468,50 @@ const navigateToFullMap = () => {
   router.push('/admin/map')
 }
 
+const waitForPaint = () =>
+  new Promise(resolve => requestAnimationFrame(resolve))
+
+const quickMapContainerExists = () => {
+  const el = document.getElementById('quick-map')
+  return el && el.isConnected
+}
+
+const safeQuickMapInvalidate = () => {
+  if (!quickMap || !quickMapContainerExists()) return
+
+  requestAnimationFrame(() => {
+    if (quickMap && quickMapContainerExists()) {
+      quickMap.invalidateSize()
+    }
+  })
+}
+
 const initializeQuickMap = async () => {
   await nextTick()
+  await waitForPaint()
+
+  const el = document.getElementById('quick-map')
+  if (!el) return
 
   if (quickMap) {
+    quickMap.stop()
+    quickMap.off()
     quickMap.remove()
     quickMap = null
   }
 
-  quickMap = L.map('quick-map').setView([13.0, 121.1], 9)
+  quickMap = L.map(el, {
+    zoomAnimation: false,
+  }).setView([13.0, 121.1], 9)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(quickMap)
 
   mapLayerGroup = L.layerGroup().addTo(quickMap)
+
   updateMapMarkers()
+  safeQuickMapInvalidate()
 }
 
 const updateMapMarkers = () => {
@@ -495,7 +523,13 @@ const updateMapMarkers = () => {
     statusCenters.value.map(center => [center.id, center])
   )
 
-  const validCenters = mapCenters.value.filter(center =>
+  const validCenters = mapCenters.value
+  .map(center => ({
+    ...center,
+    latitude: Number(center.latitude),
+    longitude: Number(center.longitude),
+  }))
+  .filter(center =>
     Number.isFinite(center.latitude) &&
     Number.isFinite(center.longitude) &&
     !(center.latitude === 0 && center.longitude === 0)
@@ -535,7 +569,13 @@ const updateMapMarkers = () => {
 
   if (validCenters.length > 0) {
     const bounds = L.latLngBounds(validCenters.map(c => [c.latitude, c.longitude]))
-    quickMap.fitBounds(bounds.pad(0.1))
+    if (bounds.isValid()) {
+      requestAnimationFrame(() => {
+        if (quickMap && quickMapContainerExists()) {
+          quickMap.fitBounds(bounds.pad(0.1))
+        }
+      })
+    }
   }
 }
 
@@ -552,9 +592,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (quickMap) {
+    quickMap.stop()
+    quickMap.off()
     quickMap.remove()
     quickMap = null
   }
+
+  mapLayerGroup = null
 })
 </script>
 

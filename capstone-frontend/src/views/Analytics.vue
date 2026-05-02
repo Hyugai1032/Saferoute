@@ -553,7 +553,7 @@ let barChart, pieChart, lineChart, weatherChart
 onMounted(async () => {
   // Fetch predictions and update risk + weather data
   try {
-    const response = await fetch('${API_BASE}analytics/weather/predict/')  // Use relative URL for same-origin; adjust if needed
+    const response = await fetch(`${API_BASE}analytics/weather/predict/`)  // Use relative URL for same-origin; adjust if needed
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
