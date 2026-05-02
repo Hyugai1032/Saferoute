@@ -31,10 +31,11 @@ SECRET_KEY = 'django-insecure-2r6wp%9bmgd7z=i%uu3a0ttjh5ig#7=o=sximq(u9$c13^%dz7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1",
+ALLOWED_HOSTS = ["saferoute-production-319f.up.railway.app",
+                 "127.0.0.1",
                  "localhost",
                  "10.175.96.197",
-                 "saferoute.up.railway.app"
+                 "saferoute.up.railway.app",
                 ]
 
 
@@ -90,12 +91,28 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 import dj_database_url
-DATABASES = {
-    'default': dj_database_url.parse(
-        os.getenv("MYSQL_URL"),
-        conn_max_age=600
-    )
-}
+MYSQL_URL = os.getenv("MYSQL_URL")
+
+if MYSQL_URL and MYSQL_URL.startswith("mysql://"):
+    # Railway / production database
+    DATABASES = {
+        "default": dj_database_url.parse(MYSQL_URL, conn_max_age=600)
+    }
+else:
+    # Local development database
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": "capstone_db",
+            "USER": "root",
+            "PASSWORD": "",
+            "HOST": "127.0.0.1",
+            "PORT": "3306",
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
+    }
 
 
 # Password validation
