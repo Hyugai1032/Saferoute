@@ -199,6 +199,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://saferoute-topaz.vercel.app",
+    "https://saferoute-production-319f.up.railway.app",
 ]
 
 # JWT settings (optional customization)
