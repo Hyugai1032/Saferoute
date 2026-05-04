@@ -177,8 +177,8 @@ async function loadReport() {
   error.value = ''
 
   try {
-    const asOfIso = asOfInput.value ? new Date(asOfInput.value).toISOString() : ''
-    const url = `${API_BASE}analytics/reports/affected-population/${asOfIso ? `?as_of=${encodeURIComponent(asOfIso)}` : ''}`
+    const asOf = asOfInput.value || ''
+    const url = `${API_BASE}analytics/reports/affected-population/${asOf ? `?as_of=${encodeURIComponent(asOf)}` : ''}`
 
     const res = await fetch(url, {
       headers: {

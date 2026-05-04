@@ -248,8 +248,6 @@ class AffectedPopulationReportView(APIView):
             if as_of is None:
                 return Response({"detail": "Invalid as_of datetime format."}, status=400)
 
-            # IMPORTANT:
-            # Since USE_TZ = False, MySQL needs a naive datetime.
             if timezone.is_aware(as_of):
                 as_of = timezone.make_naive(as_of, timezone.get_current_timezone())
         else:
