@@ -208,6 +208,20 @@ export default {
       ]
     };
   },
+
+  mounted() {
+    try {
+      this.fetchMunicipalities();
+    } catch (e) {
+      console.error("Failed to load municipalities:", e);
+    }
+
+    const shapes = document.querySelectorAll(".floating-shape");
+    shapes.forEach((shape, index) => {
+      shape.style.animation = `float ${3 + index}s ease-in-out infinite`;
+    });
+  },
+
   methods: {
     togglePasswordVisibility() {
       this.showPassword = !this.showPassword;
@@ -247,20 +261,9 @@ export default {
         this.dropdownLoading.municipalities = false;
       }
     },
+
   },
 
-    async mounted() {
-      try {
-        this.fetchMunicipalities();
-      } catch (e) {
-        console.error("Failed to load municipalities:", e);
-      }
-
-      const shapes = document.querySelectorAll(".floating-shape");
-      shapes.forEach((shape, index) => {
-        shape.style.animation = `float ${3 + index}s ease-in-out infinite`;
-      });
-    }
 };
 </script>
 

@@ -222,11 +222,11 @@
         </div>
       </div>
 
-      <!-- Weather Forecast Section -->
+      <!-- Weather Forecast Section
       <div class="weather-section" v-if="weatherPredictions.length > 0">
         <h3 class="weather-title">🌤️ 72-Hour Weather Forecast</h3>
 
-        <!-- Weather Summary Cards -->
+         Weather Summary Cards 
         <div class="weather-summary-row">
           <div class="weather-summary-card">
             <h4>{{ weatherPredictions[0].TAVG.toFixed(1) }}°C</h4>
@@ -246,7 +246,7 @@
           </div>
         </div>
 
-        <!-- Weather Data Table -->
+         Weather Data Table 
         <div class="weather-table-container styled-scroll">
           <table class="weather-table dark-table">
             <thead>
@@ -280,7 +280,7 @@
       <div v-else>
         <p class="loading-text">🔄 Fetching weather data...</p>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
