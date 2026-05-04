@@ -279,8 +279,8 @@
 
       <div v-else>
         <p class="loading-text">🔄 Fetching weather data...</p>
-      </div>
-    </div> -->
+      </div> -->
+    </div> 
   </div>
 </template>
 
