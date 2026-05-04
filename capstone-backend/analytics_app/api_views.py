@@ -241,13 +241,19 @@ class AffectedPopulationReportView(APIView):
 
     def get(self, request):
         as_of_raw = request.query_params.get("as_of")
-        as_of = parse_datetime(as_of_raw) if as_of_raw else timezone.now()
 
-        if as_of_raw and as_of is None:
-            return Response({"detail": "Invalid as_of datetime format."}, status=400)
+        if as_of_raw:
+            as_of = parse_datetime(as_of_raw)
 
-        if timezone.is_naive(as_of):
-            as_of = timezone.make_aware(as_of, timezone.get_current_timezone())
+            if as_of is None:
+                return Response({"detail": "Invalid as_of datetime format."}, status=400)
+
+            # IMPORTANT:
+            # Since USE_TZ = False, MySQL needs a naive datetime.
+            if timezone.is_aware(as_of):
+                as_of = timezone.make_naive(as_of, timezone.get_current_timezone())
+        else:
+            as_of = timezone.localtime(timezone.now()).replace(tzinfo=None)
 
         data = build_affected_population_report(
             EvacuationCenterModel=EvacuationCenter,

@@ -69,7 +69,10 @@ def _add_totals(target: dict, row: dict):
 
 def build_affected_population_report(*, EvacuationCenterModel, EvacuationLogModel, as_of=None):
     if as_of is None:
-        as_of = timezone.now()
+        as_of = timezone.localtime(timezone.now()).replace(tzinfo=None)
+
+    if timezone.is_aware(as_of):
+        as_of = timezone.make_naive(as_of, timezone.get_current_timezone())
 
     centers = list(
         EvacuationCenterModel.objects.select_related("municipality", "barangay").values(
