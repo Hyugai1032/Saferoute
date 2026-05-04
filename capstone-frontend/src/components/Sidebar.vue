@@ -7,28 +7,20 @@
     <div class="sidebar-content">
       <!-- Logo Section -->
       <div class="logo-section" @click="$emit('toggle')">
-        <div class="logo">
-          <div class="logo-mark">
-            <div class="logo-inner">SR+</div>
-            <div class="logo-pulse"></div>
-          </div>
-          <div class="logo-text" :class="{ 'logo-text-hidden': isCollapsed }">
-            <div class="app-name">SafeRoute+</div>
-            <div class="app-tagline">Emergency Response System</div>
-          </div>
-        </div>
-        <!-- <button 
-          class="collapse-btn" 
-          @click="toggleCollapse" 
-          :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        >
-          <div class="collapse-icon" :class="{ rotated: isCollapsed }">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </button> -->
+  <div class="logo">
+    <div class="logo-mark">
+      <div class="logo-inner">
+        <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
       </div>
+      <div class="logo-pulse"></div>
+    </div>
+
+    <div class="logo-text" :class="{ 'logo-text-hidden': isCollapsed }">
+      <div class="app-name">SafeRoute+</div>
+      <div class="app-tagline">Emergency Response System</div>
+    </div>
+  </div>
+</div>
 
       <!-- Navigation -->
       <nav class="sidebar-nav">
@@ -71,6 +63,8 @@
 <script setup>
 import { useRoute } from 'vue-router';
 import { ref } from 'vue';
+
+import saferouteLogo from '@/assets/saferoute-logo.png'
 
 defineProps({ isCollapsed: Boolean })
 defineEmits(['toggle'])
@@ -168,24 +162,32 @@ const navItems = [
 
 .logo-mark {
   position: relative;
-  width: 45px;
-  height: 45px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
   flex-shrink: 0;
 }
 
 .logo-inner {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  border-radius: 12px;
+  background: linear-gradient(135deg, #9fcef6 0%, #95eff4 100%);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
-  color: white;
-  font-size: 14px;
   position: relative;
   z-index: 2;
+  overflow: hidden;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+}
+
+.logo-img {
+  width: 50px;
+  height:  50px;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
 }
 
 .logo-pulse {
@@ -195,7 +197,7 @@ const navItems = [
   right: -2px;
   bottom: -2px;
   background: linear-gradient(135deg, #4facfe, #00f2fe);
-  border-radius: 14px;
+  border-radius: 16px;
   opacity: 0.6;
   animation: pulse 2s infinite;
   z-index: 1;
@@ -211,6 +213,9 @@ const navItems = [
   opacity: 0;
   transform: translateX(-10px);
 }
+
+
+
 
 .app-name {
   font-weight: 900;
