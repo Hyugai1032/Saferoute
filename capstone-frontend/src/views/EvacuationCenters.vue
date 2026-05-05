@@ -108,7 +108,7 @@
 
           <div class="form-group">
             <label>Shelter Category</label>
-            <select v-model="form.shelter_category">
+            <select v-model="editForm.shelter_category">
               <option value="INSIDE_EC">Inside Evacuation Center</option>
               <option value="OUTSIDE_EC">Outside Evacuation Center</option>
             </select>
@@ -152,7 +152,7 @@
           <select v-model="filters.barangay">
             <option value="">All Barangays</option>
             <option
-              v-for="b in filterBarangays.filter(br => !filters.municipality || getBarangayMunicipalityId(br) === Number(filters.municipality))"
+              v-for="b in filterBarangays"
               :key="b.id"
               :value="b.id"
             >
@@ -468,12 +468,18 @@ export default {
   watch: {
     "form.municipality"(newVal) {
       this.form.barangay = "";
-      this.fetchBarangaysByMunicipality(newVal);
+      this.fetchBarangaysByMunicipality(newVal, "form");
     },
 
     "filters.municipality"(newVal) {
       this.filters.barangay = "";
-      this.fetchBarangaysByMunicipality(newVal);
+      this.fetchBarangaysByMunicipality(newVal, "filter");
+    },
+
+    "editForm.municipality"(newVal) {
+      if (!this.editing || !this.editForm) return;
+      this.editForm.barangay = "";
+      this.fetchBarangaysByMunicipality(newVal, "form");
     }
   },
 
@@ -502,9 +508,10 @@ export default {
       );
     },
 
-    async fetchBarangaysByMunicipality(municipalityId) {
+    async fetchBarangaysByMunicipality(municipalityId, target = "form") {
       if (!municipalityId) {
-        this.allBarangays = [];
+        if (target === "form") this.formBarangays = [];
+        if (target === "filter") this.filterBarangays = [];
         return;
       }
 
@@ -516,10 +523,16 @@ export default {
         if (!res.ok) throw new Error("Failed to fetch barangays");
 
         const data = await res.json();
-        this.allBarangays = Array.isArray(data) ? data : (data.results || []);
+        const barangays = Array.isArray(data) ? data : (data.results || []);
+
+        if (target === "form") this.formBarangays = barangays;
+        if (target === "filter") this.filterBarangays = barangays;
+
       } catch (err) {
         console.error("Failed to fetch barangays:", err);
-        this.allBarangays = [];
+
+        if (target === "form") this.formBarangays = [];
+        if (target === "filter") this.filterBarangays = [];
       }
     },
 
@@ -709,8 +722,14 @@ export default {
 
     startEdit(center) {
       this.editing = true;
-      this.editForm = { ...center,
-      shelter_category: center.shelter_category || 'INSIDE_EC', };
+      this.editForm = {
+        ...center,
+        shelter_category: center.shelter_category || 'INSIDE_EC',
+      };
+
+      if (center.municipality) {
+        this.fetchBarangaysByMunicipality(center.municipality, "form");
+      }
     },
 
     cancelEdit() {
