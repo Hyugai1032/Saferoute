@@ -21,7 +21,7 @@ export const login = async (credentials) => {
     };
 
     // FIXED URL
-    const response = await axios.post(API_URL + 'auth/login/', payload);
+    const response = await axios.post(API_URL + 'auth/login', payload);
 
     localStorage.setItem('access_token', response.data.access);
     localStorage.setItem('refresh_token', response.data.refresh);
