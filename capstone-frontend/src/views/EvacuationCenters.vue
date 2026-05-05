@@ -30,7 +30,7 @@
 
         <div class="form-group">
           <label>Municipality *</label>
-          <select v-model="form.municipality" required>
+          <select v-model="form.municipality" @change="onFormMunicipalityChange" required>
             <option value="">-- Select Municipality --</option>
             <option v-for="mun in municipalities" :key="mun.id" :value="mun.id" v-if="mun">
               {{ mun.name }}
@@ -142,7 +142,7 @@
         <h3>Filter Centers</h3>
 
         <div class="filter-row">
-          <select v-model="filters.municipality">
+          <select v-model="filters.municipality" @change="onFilterMunicipalityChange">
             <option value="">All Municipalities</option>
             <option v-for="m in municipalities" :key="m.id" :value="m.id">
               {{ m.name }}
@@ -307,7 +307,7 @@
 
           <div class="form-group">
             <label>Municipality *</label>
-            <select v-model="editForm.municipality" required>
+            <select v-model="editForm.municipality" @change="onEditMunicipalityChange" required>
               <option v-for="mun in municipalities" :key="mun.id" :value="mun.id">
                 {{ mun.name }}
               </option>
@@ -537,6 +537,22 @@ export default {
         b => Number(b.id) === Number(brgyId)
       );
       return brgy ? brgy.name : `ID: ${brgyId}`;
+    },
+
+    async onFormMunicipalityChange() {
+      this.form.barangay = "";
+      await this.fetchBarangaysByMunicipality(this.form.municipality, "form");
+    },
+
+    async onFilterMunicipalityChange() {
+      this.filters.barangay = "";
+      await this.fetchBarangaysByMunicipality(this.filters.municipality, "filter");
+    },
+
+    async onEditMunicipalityChange() {
+      if (!this.editForm) return;
+      this.editForm.barangay = "";
+      await this.fetchBarangaysByMunicipality(this.editForm.municipality, "form");
     },
 
     onFileChange(e) {
