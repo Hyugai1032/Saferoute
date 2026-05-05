@@ -30,9 +30,9 @@
 
         <div class="form-group">
           <label>Municipality *</label>
-          <select v-model="form.municipality" @change="onFormMunicipalityChange" required>
+          <select v-model="form.municipality" required>
             <option value="">-- Select Municipality --</option>
-            <option v-for="mun in municipalities" :key="mun.id" :value="mun.id" v-if="mun">
+            <option v-for="mun in municipalities" :key="mun.id" :value="mun.id">
               {{ mun.name }}
             </option>
           </select>
@@ -498,15 +498,22 @@ export default {
   methods: {
     async fetchMunicipalities() {
       try {
+        console.log("Fetching municipalities from:", `${API_BASE}municipalities/?page_size=9999`);
+
         const res = await fetch(`${API_BASE}municipalities/?page_size=9999`, {
           headers: getAuthHeader()
         });
+
+        console.log("Municipality status:", res.status);
+
         if (!res.ok) return;
 
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.results || []);
 
         this.municipalities = list.filter(m => m && m.id != null);
+
+        console.log("Municipalities loaded:", this.municipalities);
       } catch (err) {
         console.error('Failed to fetch municipalities:', err);
       }
