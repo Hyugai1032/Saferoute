@@ -531,20 +531,20 @@ const stats = ref({
   predictedRisk: 0
 })
 
-const weatherPredictions = ref([])  // Store fetched predictions
+// const weatherPredictions = ref([])  // Store fetched predictions
 
 
-const avgHumidity = computed(() => {
-  if (weatherPredictions.value.length === 0) return 0
-  return Math.round(
-    weatherPredictions.value.slice(0, 72).reduce((acc, p) => acc + p.RH, 0) / 72
-  )
-})
+// const avgHumidity = computed(() => {
+//   if (weatherPredictions.value.length === 0) return 0
+//   return Math.round(
+//     weatherPredictions.value.slice(0, 72).reduce((acc, p) => acc + p.RH, 0) / 72
+//   )
+// })
 
-const maxWind = computed(() => {
-  if (weatherPredictions.value.length === 0) return 0
-  return Math.max(...weatherPredictions.value.map(p => p.WDSP.toFixed(1)))
-})
+// const maxWind = computed(() => {
+//   if (weatherPredictions.value.length === 0) return 0
+//   return Math.max(...weatherPredictions.value.map(p => p.WDSP.toFixed(1)))
+// })
 
 
 const currentChart = ref('Evacuees')
@@ -552,31 +552,31 @@ let barChart, pieChart, lineChart, weatherChart
 
 onMounted(async () => {
   // Fetch predictions and update risk + weather data
-  try {
-    const response = await fetch(`${API_BASE}analytics/weather/predict/`)  // Use relative URL for same-origin; adjust if needed
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
-    if (data.error) {
-      console.error(data.error)
-      stats.value.predictedRisk = 78  // Fallback
-    } else {
-      weatherPredictions.value = data.predictions.slice(0, 72)  // All 72 hours for table/diagram
-      let prcp_sum = 0
-      weatherPredictions.value.slice(0, 48).forEach(pred => {  // First 48h for risk
-        prcp_sum += pred.PRCP || 0
-      })
-      // Arbitrary risk calculation: e.g., 2% per mm precipitation
-      stats.value.predictedRisk = Math.min(100, Math.round(prcp_sum * 2))
+  // try {
+  //   const response = await fetch(`${API_BASE}analytics/weather/predict/`)  // Use relative URL for same-origin; adjust if needed
+  //   if (!response.ok) {
+  //     throw new Error(`HTTP error! status: ${response.status}`)
+  //   }
+  //   const data = await response.json()
+  //   if (data.error) {
+  //     console.error(data.error)
+  //     stats.value.predictedRisk = 78  // Fallback
+  //   } else {
+  //     weatherPredictions.value = data.predictions.slice(0, 72)  // All 72 hours for table/diagram
+  //     let prcp_sum = 0
+  //     weatherPredictions.value.slice(0, 48).forEach(pred => {  // First 48h for risk
+  //       prcp_sum += pred.PRCP || 0
+  //     })
+  //     // Arbitrary risk calculation: e.g., 2% per mm precipitation
+  //     stats.value.predictedRisk = Math.min(100, Math.round(prcp_sum * 2))
       
-      // Initialize Weather Chart after data is fetched
-      initWeatherChart()
-    }
-  } catch (error) {
-    console.error('Failed to fetch predictions:', error)
-    stats.value.predictedRisk = 78  // Fallback
-  }
+  //     // Initialize Weather Chart after data is fetched
+  //     initWeatherChart()
+  //   }
+  // } catch (error) {
+  //   console.error('Failed to fetch predictions:', error)
+  //   stats.value.predictedRisk = 78  // Fallback
+  // }
 
   try {
     await fetchCenters()

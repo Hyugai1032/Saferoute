@@ -42,7 +42,7 @@
           <label>Barangay</label>
           <select v-model="form.barangay">
             <option value="">-- Select Barangay --</option>
-            <option v-for="brgy in formBarangays" :key="brgy.id" :value="brgy.id">
+            <option v-for="brgy in formFilteredBarangays" :key="brgy.id" :value="brgy.id">
               {{ brgy.name }}
             </option>
           </select>
@@ -151,11 +151,7 @@
 
           <select v-model="filters.barangay">
             <option value="">All Barangays</option>
-            <option
-              v-for="b in filterBarangays"
-              :key="b.id"
-              :value="b.id"
-            >
+            <option v-for="b in filterFilteredBarangays" :key="b.id" :value="b.id">
               {{ b.name }}
             </option>
           </select>
@@ -318,7 +314,7 @@
             <label>Barangay</label>
             <select v-model="editForm.barangay">
               <option value="">-- None --</option>
-              <option v-for="brgy in formBarangays" :key="brgy.id" :value="brgy.id">
+              <option v-for="brgy in editFilteredBarangays" :key="brgy.id" :value="brgy.id">
                 {{ brgy.name }}
               </option>
             </select>
@@ -410,8 +406,7 @@ export default {
       uploadResult: null,
       centers: [],
       municipalities: [],
-      formBarangays: [],     // for Add Center / Edit Center form barangay dropdown
-      filterBarangays: [] ,  // for table/search filter barangay dropdown
+      allBarangays: [],
       loading: false,
       form: {
         name: '',
@@ -452,6 +447,7 @@ export default {
 
   mounted() {
     this.fetchMunicipalities();
+    this.fetchBarangays();
     this.fetchCenters();
   },
 
@@ -473,6 +469,32 @@ export default {
     }
   },
 
+  computed: {
+    formFilteredBarangays() {
+      if (!this.form.municipality) return [];
+
+      return this.allBarangays.filter(
+        b => this.getBarangayMunicipalityId(b) === Number(this.form.municipality)
+      );
+    },
+
+    filterFilteredBarangays() {
+      if (!this.filters.municipality) return [];
+
+      return this.allBarangays.filter(
+        b => this.getBarangayMunicipalityId(b) === Number(this.filters.municipality)
+      );
+    },
+
+    editFilteredBarangays() {
+      if (!this.editForm?.municipality) return [];
+
+      return this.allBarangays.filter(
+        b => this.getBarangayMunicipalityId(b) === Number(this.editForm.municipality)
+      );
+    }
+  },
+
   methods: {
     async fetchMunicipalities() {
       try {
@@ -487,6 +509,24 @@ export default {
         this.municipalities = list.filter(m => m && m.id != null);
       } catch (err) {
         console.error('Failed to fetch municipalities:', err);
+      }
+    },
+
+    async fetchBarangays() {
+      try {
+        const res = await fetch(`${API_BASE}barangays/?page_size=9999`, {
+          headers: getAuthHeader()
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch barangays");
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.results || []);
+
+        this.allBarangays = list.filter(b => b && b.id != null);
+      } catch (err) {
+        console.error("Failed to fetch barangays:", err);
+        this.allBarangays = [];
       }
     },
 
