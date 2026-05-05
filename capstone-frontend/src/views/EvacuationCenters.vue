@@ -450,16 +450,6 @@ export default {
     }
   },
 
-  computed: {
-    filteredBarangays() {
-      if (!this.form.municipality) return [];
-
-      return this.allBarangays.filter(
-        b => this.getBarangayMunicipalityId(b) === Number(this.form.municipality)
-      );
-    }
-  },
-
   mounted() {
     this.fetchMunicipalities();
     this.fetchCenters();
@@ -543,7 +533,9 @@ export default {
 
     getBarangayName(brgyId) {
       if (!brgyId) return '-';
-      const brgy = this.allBarangays.find(b => b.id === brgyId);
+      const brgy = [...this.formBarangays, ...this.filterBarangays].find(
+        b => Number(b.id) === Number(brgyId)
+      );
       return brgy ? brgy.name : `ID: ${brgyId}`;
     },
 
