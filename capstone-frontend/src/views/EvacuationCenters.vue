@@ -985,22 +985,53 @@ button:disabled {
 .modal {
   position: fixed;
   inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.65);
+
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: 1000;
-  animation: fadeIn 0.3s ease;
+
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .modal-content {
-  background: #1a1a2e;
-  padding: 2rem;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  animation: slideUp 0.3s ease;
+  width: min(720px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+
+  background: #1f2033;
+  border-radius: 18px;
+  padding: 1.5rem;
+
+  box-sizing: border-box;
+}
+
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-content .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.modal-actions {
+  position: sticky;
+  bottom: 0;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+
+  background: #1f2033;
 }
 
 .modal-content h3 {
@@ -1058,6 +1089,30 @@ div[v-if="uploading"], div[v-if="loading"] {
 
   .list th, .list td {
     padding: 0.75rem;
+  }
+
+  .modal {
+    align-items: flex-start;
+    padding: 0.75rem;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    padding: 1rem;
+    border-radius: 14px;
+  }
+
+  .modal-content .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
   }
 }
 
