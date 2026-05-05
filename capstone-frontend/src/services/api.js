@@ -26,7 +26,7 @@ api.interceptors.response.use(
 const refreshToken = localStorage.getItem('refresh_token');
 if (!refreshToken) {
   localStorage.clear();
-  window.location.href = '/auth/login';
+  window.location.href = '/auth/login/';
   return Promise.reject(error);
 }
 
@@ -44,7 +44,7 @@ if (!refreshToken) {
       } catch (err) {
         console.error("Token refresh failed:", err);
         localStorage.clear();
-        window.location.href = '/auth/login';
+        window.location.href = '/auth/login/';
       }
     }
 
