@@ -37,14 +37,10 @@ const routes = [
     name: 'LandingPage',
     component: LandingPage
   },
-  {
-    path: '/',
-    redirect: '/auth/login'
-  },
 
   // USER ROUTES
   {
-    path: '/auth/login',
+    path: '/auth/login/',
     name: 'UserLogin',
     component: UserLogin
   },
@@ -144,7 +140,7 @@ const isProvincialAdmin =
 
   // 1) if route needs auth but not logged in -> login
   if (needsAuth && !isAuthenticated) {
-    return next("/auth/login");
+    return next("/auth/login/");
   }
 
   // 2) if already logged in and trying to go auth pages -> redirect to proper dashboard
