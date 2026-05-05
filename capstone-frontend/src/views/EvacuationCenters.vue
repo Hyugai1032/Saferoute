@@ -108,7 +108,7 @@
 
           <div class="form-group">
             <label>Shelter Category</label>
-            <select v-model="editForm.shelter_category">
+            <select v-model="form.shelter_category">
               <option value="INSIDE_EC">Inside Evacuation Center</option>
               <option value="OUTSIDE_EC">Outside Evacuation Center</option>
             </select>
@@ -296,7 +296,7 @@
     </section>
 
     <!-- Edit Modal -->
-    <div v-if="editing" class="modal" @click.self="cancelEdit">
+    <div v-if="editing && editForm" class="modal" @click.self="cancelEdit">
       <div class="modal-content">
         <h3>Edit Center</h3>
         <form @submit.prevent="submitEdit">
@@ -364,7 +364,7 @@
 
             <div class="form-group">
               <label>Shelter Category</label>
-              <select v-model="form.shelter_category">
+              <select v-model="editForm.shelter_category">
                 <option value="INSIDE_EC">Inside Evacuation Center</option>
                 <option value="OUTSIDE_EC">Outside Evacuation Center</option>
               </select>
