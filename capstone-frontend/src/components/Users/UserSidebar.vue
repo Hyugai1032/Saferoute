@@ -71,7 +71,7 @@
 <script setup>
 import { useRoute } from 'vue-router';
 import { ref } from 'vue';
-
+import saferouteLogo from '@/assets/saferoute-logo.png'
 defineProps({ isCollapsed: Boolean })
 defineEmits(['toggle'])
 
@@ -174,6 +174,14 @@ const navItems = [
   font-size: 14px;
   position: relative;
   z-index: 2;
+}
+
+.logo-img {
+  width: 50px;
+  height:  50px;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
 }
 
 .logo-pulse {

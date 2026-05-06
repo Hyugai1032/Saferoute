@@ -404,7 +404,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-
+import saferouteLogo from '@/assets/saferoute-logo.png'
 const router = useRouter()
 
 const contactInfo = {
@@ -1520,7 +1520,13 @@ margin-bottom: 30px;
   margin-bottom: 1rem;
 }
 
-
+.logo-img {
+  width: 50px;
+  height:  50px;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+}
 
 
 @media (max-width: 860px) {
