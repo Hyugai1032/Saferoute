@@ -485,7 +485,7 @@ class MapOverviewView(APIView):
 
         centers_qs = EvacuationCenter.objects.all()
         since = timezone.now() - timedelta(hours=recent_hours)
-        hazards_qs = HazardReport.objects.filter(created_at__gte=since, status = "APPROVED")
+        hazards_qs = HazardReport.objects.filter(validated_at__gte=since, status = "APPROVED")
 
         if user.role == "MUNICIPAL_ADMIN":
             if not user.municipality_id:
@@ -645,7 +645,7 @@ class ORSRouteView(APIView):
         if avoid_hazards:
             since = timezone.now() - timedelta(hours=recent_hours)
             hz = (HazardReport.objects
-                  .filter(created_at__gte=since, status = "APPROVED")
+                  .filter(validated_at__gte=since, status = "APPROVED")
                   .exclude(latitude__isnull=True)
                   .exclude(longitude__isnull=True))
 
