@@ -11,8 +11,10 @@
 
     <div class="staff-layout">
       <HeaderBar
-        :sidebarCollapsed="sidebarCollapsed"
-        :isMobile="isMobile"
+        :sidebar-collapsed="sidebarCollapsed"
+        :is-mobile="isMobile"
+        title="Staff Dashboard"
+        subtitle="Manage assigned evacuation center tasks"
         @toggleSidebar="toggleSidebar"
       />
 

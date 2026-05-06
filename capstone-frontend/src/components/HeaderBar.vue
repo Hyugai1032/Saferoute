@@ -1,47 +1,37 @@
 <template>
   <header class="header-bar" :style="headerStyle">
     <div class="header-left">
-      <button v-if="isMobile" @click="toggleSidebar" class="sidebar-toggle" aria-label="toggle sidebar">
+      <button
+        v-if="isMobile"
+        @click="toggleSidebar"
+        class="sidebar-toggle"
+        aria-label="toggle sidebar"
+      >
         <div class="toggle-icon" :class="{ 'toggle-icon-collapsed': sidebarCollapsed }">
           <span></span>
           <span></span>
           <span></span>
         </div>
-        <span class="toggle-text" v-if="sidebarCollapsed"> Menu</span>
+        <span class="toggle-text" v-if="sidebarCollapsed">Menu</span>
       </button>
-      <div class="search-container">
-        <div class="search-icon">🔍</div>
-        <input 
-          v-model="searchQuery" 
-          @input="handleSearch" 
-          placeholder="Search evacuees, centers, or items..." 
-          class="search-input"
-        />
+
+      <div class="header-title">
+        <h1>{{ title }}</h1>
+        <p>{{ subtitle }}</p>
       </div>
     </div>
-    
+
     <div class="header-right">
-      <div class="header-actions">
-        <!-- <button class="quick-add-btn" @click="openQuickAdd">
-          <span class="add-icon">+</span>
-          Quick Add
-        </button> -->
-      </div>
-      <div class="header-notifications">
-        <button class="notification-btn" @click="toggleNotifications">
-          <div class="notification-icon">🔔</div>
-<div class="notification-badge" v-if="notifCount > 0">{{ notifCount }}</div>        </button>
-      </div>
-<div class="user-profile" @click.stop="goProfile" style="cursor:pointer" title="Open profile">
-        
-        <div class="profile-info">
-          <div class="profile-name">{{ user?.first_name }} {{ user?.last_name }}</div>
-          <div class="profile-role">{{ user?.role }}</div>
+      <button
+        v-if="showAdminNotifications"
+        class="notification-btn"
+        @click="goToHazardReports"
+      >
+        <div class="notification-icon">🔔</div>
+        <div class="notification-badge" v-if="notifCount > 0">
+          {{ notifCount }}
         </div>
-        <div class="profile-avatar">
-          <div class="avatar">{{ (user?.first_name?.[0] || '') + (user?.last_name?.[0] || '') }}</div>
-        </div>
-      </div>
+      </button>
     </div>
   </header>
 </template>
@@ -53,81 +43,68 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 
-function goProfile() {
-  const role = String(user?.role || "").toUpperCase();
+const props = defineProps({
+  sidebarCollapsed: {
+    type: Boolean,
+    default: false,
+  },
+  isMobile: {
+    type: Boolean,
+    default: false,
+  },
+  title: {
+    type: String,
+    default: "Dashboard",
+  },
+  subtitle: {
+    type: String,
+    default: "System overview",
+  },
+});
 
-  // IMPORTANT: match your actual backend role values
-  if (role === "ADMIN") {
-    router.push({ name: "AdminProfile" });
-    return;
-  }
+const emit = defineEmits(["toggleSidebar"]);
 
-  // everything else treated as staff (EVAC_CENTER_STAFF, STAFF, etc.)
-  router.push({ name: "StaffProfile" });
-}
+const user = ref(JSON.parse(localStorage.getItem("userData") || "{}"));
+const notifCount = ref(0);
 
+const role = computed(() => String(user.value?.role || "").toUpperCase());
+
+const showAdminNotifications = computed(() => {
+  return role.value === "ADMIN" || role.value === "PROVINCIAL_ADMIN";
+});
 
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const API_BASE = RAW_BASE.replace(/\/api\/?$/, "");
 const HAZARDS_URL = `${API_BASE}/api/hazards/`;
 
-const user = ref(JSON.parse(localStorage.getItem("userData")));
-
-const searchQuery = ref('');
-
-const emit = defineEmits(['search', 'toggleSidebar']);
-
-const notifCount = ref(0);
-const notifLoading = ref(false);
-
 const fetchNotifCount = async () => {
-  notifLoading.value = true;
+  if (!showAdminNotifications.value) return;
+
   try {
     const token = localStorage.getItem("access_token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    // Count "new" hazard reports (REPORTED)
     const res = await axios.get(`${HAZARDS_URL}?status=REPORTED`, { headers });
-    const list = Array.isArray(res.data) ? res.data : (res.data.results || []);
+    const list = Array.isArray(res.data) ? res.data : res.data.results || [];
+
     notifCount.value = list.length;
   } catch (e) {
     console.error("Failed to load notif count:", e);
-    // Don't break UI if API fails
     notifCount.value = 0;
-  } finally {
-    notifLoading.value = false;
   }
 };
 
-const handleSearch = () => {
-  emit('search', searchQuery.value);
+const goToHazardReports = () => {
+  router.push({ name: "Hazard Reports" });
 };
 
-// const openQuickAdd = () => {
-//   alert('Quick add functionality - Add new evacuee, center, or alert');
-// };
-
-const toggleNotifications = () => {
-router.push({ name: "Hazard Reports" });};
 const toggleSidebar = () => {
-  emit('toggleSidebar');
+  emit("toggleSidebar");
 };
-
-// Accept sidebarCollapsed as a prop
-const { sidebarCollapsed, isMobile } = defineProps({
-  sidebarCollapsed: {
-    type: Boolean,
-    default: false
-  },
-  isMobile: {
-    type: Boolean,
-    default: false
-  }
-});
 
 const headerStyle = computed(() => ({
-  marginLeft: sidebarCollapsed ? '80px' : '280px',
-  transition: 'margin-left 0.3s ease'
+  marginLeft: props.sidebarCollapsed ? "80px" : "280px",
+  transition: "margin-left 0.3s ease",
 }));
 
 let pollId = null;
@@ -135,18 +112,16 @@ let pollId = null;
 onMounted(() => {
   fetchNotifCount();
 
-  // poll every 20s (MVP "real-time")
-  pollId = setInterval(fetchNotifCount, 20000);
-
-  // if a user submits a report (in same browser), update instantly
-  window.addEventListener("alerts:newReport", fetchNotifCount);
+  if (showAdminNotifications.value) {
+    pollId = setInterval(fetchNotifCount, 20000);
+    window.addEventListener("alerts:newReport", fetchNotifCount);
+  }
 });
 
 onBeforeUnmount(() => {
   if (pollId) clearInterval(pollId);
   window.removeEventListener("alerts:newReport", fetchNotifCount);
 });
-
 </script>
 
 <style scoped>

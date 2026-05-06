@@ -105,13 +105,13 @@ const routes = [
   path: "/admin/profile",
   name: "AdminProfile",
   component: UserProfile,
-  meta: { requiresAuth: true },
+  meta: { requiresAuth: true, role: ['admin'] },
 },
 {
   path: "/staff/profile",
   name: "StaffProfile",
   component: UserProfile,
-  meta: { requiresAuth: true },
+  meta: { requiresAuth: true, role: 'staff' },
 },
 
 ]
@@ -124,19 +124,19 @@ const router = createRouter({
 // AUTH + ROLE GUARD
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
-const userData = JSON.parse(localStorage.getItem("userData") || "{}");
-const userType = userData.userType || "citizen"; // default
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+  const userType = userData.userType || "citizen";
 
-const isProvincialAdmin =
-  userType === "admin" &&
-  (
-    userData.role === "PROVINCIAL_ADMIN" ||
-    userData.isProvincialAdmin === true ||
-    userData.municipality_id == null
-  );
+  const isProvincialAdmin =
+    userType === "admin" &&
+    (
+      userData.role === "PROVINCIAL_ADMIN" ||
+      userData.isProvincialAdmin === true ||
+      userData.municipality_id == null
+    );
 
   const isAuthRoute = to.path.startsWith("/auth/");
-  const needsAuth = to.matched.some(r => r.meta?.requiresAuth); // handles children properly
+  const needsAuth = to.matched.some(r => r.meta?.requiresAuth);
 
   // 1) if route needs auth but not logged in -> login
   if (needsAuth && !isAuthenticated) {
@@ -146,29 +146,41 @@ const isProvincialAdmin =
   // 2) if already logged in and trying to go auth pages -> redirect to proper dashboard
   if (isAuthenticated && isAuthRoute) {
     const target =
-      userType === "admin" ? "/admin/dashboard"
-      : userType === "staff" ? "/staff/dashboard"
-      : "/user/dashboard";
+      userType === "admin"
+        ? "/admin/dashboard"
+        : userType === "staff"
+          ? "/staff/dashboard"
+          : "/user/dashboard";
 
-    // prevent redirect loop
     if (to.path !== target) return next(target);
     return next();
   }
 
-  // 3) role-based restriction (only when logged in)
-  const requiredRole = to.meta?.role;
+  // 3) role-based restriction
+  const matchedRoleRecord = to.matched.find(r => r.meta?.role);
+  const requiredRole = matchedRoleRecord?.meta?.role;
+
   if (isAuthenticated && requiredRole) {
-    const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!allowed.includes(userType)) {
+    const allowedRoles = Array.isArray(requiredRole)
+      ? requiredRole
+      : [requiredRole];
+
+    if (!allowedRoles.includes(userType)) {
       const fallback =
-        (userType === "admin" || userType === "staff") ? "/admin/dashboard" : "/user/dashboard";
+        userType === "admin"
+          ? "/admin/dashboard"
+          : userType === "staff"
+            ? "/staff/dashboard"
+            : "/user/dashboard";
 
       if (to.path !== fallback) return next(fallback);
-      return next(); // ✅ add this
+      return next();
     }
   }
 
+  // 4) provincial-only restriction
   const provincialOnly = to.matched.some(r => r.meta?.provincialOnly);
+
   if (isAuthenticated && provincialOnly && !isProvincialAdmin) {
     return next("/admin/dashboard");
   }

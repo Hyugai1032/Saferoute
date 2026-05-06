@@ -72,6 +72,7 @@ const navItems = [
   { to: "/staff/dashboard", name: "Dashboard", icon: "📊" },
   { to: "/staff/logs", name: "Evacuation Logs", icon: "📥" },
   { to: "/staff/map", name: "GIS Map", icon: "🗺️" },                 // optional
+  { to: '/user/profile', name: 'Profile', icon: '👤' },
 ];
 </script>
 

@@ -36,7 +36,7 @@
 
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
-import { loadRouteLocation, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 const handleNewReport = () => {
   // instant badge bump (optimistic)

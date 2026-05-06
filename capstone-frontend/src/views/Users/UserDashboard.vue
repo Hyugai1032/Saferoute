@@ -333,7 +333,7 @@ onMounted(() => {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -349,6 +349,7 @@ onMounted(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  min-height: 135px;
 }
 
 .status-card::before {
