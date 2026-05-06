@@ -340,6 +340,7 @@ onMounted(() => {
 
 .status-card {
   background: rgba(30, 30, 40, 0.8);
+  min-height: 135px;
   border-radius: 15px;
   padding: 25px;
   display: flex;
@@ -349,7 +350,6 @@ onMounted(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  min-height: 135px;
 }
 
 .status-card::before {

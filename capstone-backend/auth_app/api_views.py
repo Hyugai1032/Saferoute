@@ -197,16 +197,24 @@ class HazardReportDetailView(APIView):
             updated.reviewed_at = timezone.now()
 
             new_status = serializer.validated_data["status"]
+
             if new_status == "APPROVED":
                 updated.validated_at = timezone.now()
                 updated.dismissed_at = None
+
             elif new_status == "DISMISSED":
                 updated.dismissed_at = timezone.now()
                 updated.validated_at = None
 
+            elif new_status == "REPORTED":
+                updated.validated_at = None
+                updated.dismissed_at = None
+
             updated.save(update_fields=[
-                "reviewed_by", "reviewed_at",
-                "validated_at", "dismissed_at"
+                "reviewed_by",
+                "reviewed_at",
+                "validated_at",
+                "dismissed_at",
             ])
             
         return Response(

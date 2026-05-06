@@ -37,7 +37,7 @@
     <div v-if="loading" class="state muted">Loading reports…</div>
     <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
     <div v-else-if="reports.length === 0" class="state muted">
-      No pending reports found.
+      No reports found for the selected filters.
     </div>
 
     <!-- Reports Grid -->
@@ -128,12 +128,21 @@
 
         <!-- Actions (don’t trigger openPreview) -->
         <div class="actions" @click.stop>
-          <button class="btn approve" @click="approve(report.id)">
-            Approve
-          </button>
-          <button class="btn dismiss" @click="dismiss(report.id)">
-            Dismiss
-          </button>
+          <template v-if="report.status === 'REPORTED'">
+            <button class="btn approve" @click="approveReport(report)">
+              Approve
+            </button>
+
+            <button class="btn dismiss" @click="dismissReport(report)">
+              Dismiss
+            </button>
+          </template>
+
+          <template v-else-if="report.status === 'APPROVED' || report.status === 'DISMISSED'">
+            <button class="pending-btn" @click="markPending(report)">
+              Mark as Pending
+            </button>
+          </template>
         </div>
       </div>
     </div>
@@ -183,13 +192,22 @@
                 <div class="v pre">{{ selected?.description || "—" }}</div>
               </div>
 
-              <div class="drawer-actions">
-                <button class="btn approve" @click="approve(selected.id); closePreview()">
-                  Approve
-                </button>
-                <button class="btn dismiss" @click="dismiss(selected.id); closePreview()">
-                  Dismiss
-                </button>
+              <div class="modal-actions" v-if="selected">
+                <template v-if="selected.status === 'REPORTED'">
+                  <button class="approve-btn" @click="approveReport(selected)">
+                    Approve
+                  </button>
+
+                  <button class="dismiss-btn" @click="dismissReport(selected)">
+                    Dismiss
+                  </button>
+                </template>
+
+                <template v-else-if="selected.status === 'APPROVED' || selected.status === 'DISMISSED'">
+                  <button class="pending-btn" @click="markPending(selected)">
+                    Mark as Pending
+                  </button>
+                </template>
               </div>
             </div>
 
@@ -313,14 +331,45 @@ async function loadReports() {
   }
 }
 
-async function approve(id) {
-  await api.patch(`hazards/${id}/`, { status: "APPROVED" });
-  await loadReports();
+async function updateReportStatus(report, status) {
+  const actionLabels = {
+    REPORTED: "move this report back to pending",
+    APPROVED: "approve this report",
+    DISMISSED: "dismiss this report",
+  };
+
+  const confirmAction = confirm(
+    `Are you sure you want to ${actionLabels[status] || "update this report"}?`
+  );
+
+  if (!confirmAction) return;
+
+  try {
+    await api.patch(`hazards/${report.id}/`, {
+      status,
+    });
+
+    if (selected?.value?.id === report.id) {
+      selected.value.status = status;
+    }
+
+    await loadReports();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update report status.");
+  }
 }
 
-async function dismiss(id) {
-  await api.patch(`hazards/${id}/`, { status: "DISMISSED" });
-  await loadReports();
+function approveReport(report) {
+  return updateReportStatus(report, "APPROVED");
+}
+
+function dismissReport(report) {
+  return updateReportStatus(report, "DISMISSED");
+}
+
+function markPending(report) {
+  return updateReportStatus(report, "REPORTED");
 }
 
 onMounted(() => {
@@ -797,5 +846,21 @@ onBeforeUnmount(() => {
 .filter-group select:focus {
   border-color: rgba(120,190,255,0.35);
   box-shadow: 0 0 0 3px rgba(0,140,255,0.15);
+}
+
+.pending-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #111827;
+  background: #facc15;
+  transition: 0.2s ease;
+}
+
+.pending-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 </style>
