@@ -92,7 +92,7 @@ const navItems = [
     { to: '/admin/reports/affected-population', name: 'Affected Population Report', icon: '📄' }
   ] : []),
   { to: '/admin/users', name: 'User Management', icon: '👥' },
-    { to: '/user/profile', name: 'Profile', icon: '👤' },
+    { to: '/admin/profile', name: 'Profile', icon: '👤' },
 ];
 </script>
 

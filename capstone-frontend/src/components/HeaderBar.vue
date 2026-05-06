@@ -15,9 +15,8 @@
         <span class="toggle-text" v-if="sidebarCollapsed">Menu</span>
       </button>
 
-      <div class="header-title">
-        <h1>{{ title }}</h1>
-        <p>{{ subtitle }}</p>
+      <div class="user-info">
+        <h1>Welcome back, {{ user?.first_name }} {{ user?.last_name }}</h1>
       </div>
     </div>
 

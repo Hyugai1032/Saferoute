@@ -82,7 +82,8 @@ const routes = [
         name: 'AffectedPopulationReport',
         component: AffectedPopulationReport,
         meta: { requiresAuth: true, role: ['admin'], provincialOnly: true }
-      }
+      },
+      { path: 'profile', name: 'AdminProfile', component: UserProfile },
     ]
   },
 
@@ -97,22 +98,9 @@ const routes = [
       { path: "centers", name: "StaffCenters", component: EvacuationCenters },
       { path: "logs", name: "StaffLogs", component: StaffLogs },
       { path: "map", name: "StaffMap", component: GISMap },
+      { path: "profile", name: "StaffProfile", component: UserProfile },
     ],
   },
-
-
-{
-  path: "/admin/profile",
-  name: "AdminProfile",
-  component: UserProfile,
-  meta: { requiresAuth: true, role: ['admin'] },
-},
-{
-  path: "/staff/profile",
-  name: "StaffProfile",
-  component: UserProfile,
-  meta: { requiresAuth: true, role: 'staff' },
-},
 
 ]
 
