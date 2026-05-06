@@ -9,7 +9,7 @@
       <div class="logo-section">
         <div class="logo">
           <div class="logo-mark">
-            <div class="logo-inner">SR+</div>
+            <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
             <div class="logo-pulse"></div>
           </div>
           <div class="logo-text" :class="{ 'logo-text-hidden': isCollapsed }">

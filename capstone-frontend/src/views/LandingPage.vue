@@ -8,7 +8,7 @@
     <!-- NAVBAR -->
     <header class="landing-header">
       <div class="brand" @click="scrollToSection('hero')">
-        <div class="brand-mark">S</div>
+        <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
         <div>
           <h1>SafeRoute</h1>
           <p>Evacuation Monitoring System</p>
