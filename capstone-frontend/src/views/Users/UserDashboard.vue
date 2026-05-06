@@ -35,7 +35,7 @@
         </div>
       </div>
     </div>
-    </div>
+    
     
     <div class="dashboard-content">
       <!-- Recent Hazards -->
@@ -71,6 +71,7 @@
             <div class="hazard-time">{{ hazard.time }}</div>
           </div>
         </div>
+      </div>
       </div>
       
       <!-- Emergency Contacts -->
