@@ -7,20 +7,20 @@
     <div class="sidebar-content">
       <!-- Logo Section -->
       <div class="logo-section" @click="$emit('toggle')">
-  <div class="logo">
-    <div class="logo-mark">
-      <div class="logo-inner">
-        <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
-      </div>
-      <div class="logo-pulse"></div>
-    </div>
+        <div class="logo">
+          <div class="logo-mark">
+            <div class="logo-inner">
+              <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
+            </div>
+            <div class="logo-pulse"></div>
+          </div>
 
-    <div class="logo-text" :class="{ 'logo-text-hidden': isCollapsed }">
-      <div class="app-name">SafeRoute+</div>
-      <div class="app-tagline">Emergency Response System</div>
-    </div>
-  </div>
-</div>
+          <div class="logo-text" :class="{ 'logo-text-hidden': isCollapsed }">
+            <div class="app-name">SafeRoute+</div>
+            <div class="app-tagline">Emergency Response System</div>
+          </div>
+        </div>
+      </div>
 
       <!-- Navigation -->
       <nav class="sidebar-nav">
