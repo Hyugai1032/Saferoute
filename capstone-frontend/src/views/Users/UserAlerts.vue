@@ -447,7 +447,6 @@ mapHazardToAlert(h, category = "nearby", distanceKm = null) {
 
   const alertTime =
     h.approved_at ||
-    h.updated_at ||
     h.created_at ||
     new Date().toISOString();
 

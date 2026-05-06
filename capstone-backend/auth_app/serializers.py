@@ -451,7 +451,6 @@ class NearbyHazardAlertSerializer(serializers.ModelSerializer):
             "longitude",
             "status",
             "created_at",
-            "updated_at",
             "validated_at",
             "distance_km",
         ]

@@ -151,7 +151,7 @@ function formatTimeAgo(dateString) {
 
 function mapHazardToDashboardItem(h) {
   const type = h.hazard_type || h.type || "Hazard";
-  const alertTime = h.approved_at || h.updated_at || h.created_at;
+  const alertTime = h.approved_at || h.created_at;
 
   return {
     id: h.id,
