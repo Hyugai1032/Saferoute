@@ -98,43 +98,7 @@
                   </router-link>
                 </p>
               </div>
-
-              <div class="divider">
-                <span>or continue with</span>
-              </div>
-
-              <div class="social-login">
-                <button type="button" class="social-btn google">
-                  <i class="fab fa-google"></i>
-                  Google
-                </button>
-                <button type="button" class="social-btn microsoft">
-                  <i class="fab fa-microsoft"></i>
-                  Microsoft
-                </button>
-              </div>
-
-              <p class="terms">
-                By continuing, you agree to our 
-                <a href="#" class="terms-link">Terms of Service</a> and 
-                <a href="#" class="terms-link">Privacy Policy</a>
-              </p>
             </form>
-          </div>
-
-          <!-- Demo Accounts Section -->
-          <div class="demo-accounts">
-            <h4>Quick Test Accounts</h4>
-            <div class="demo-buttons">
-              <button class="demo-btn user" @click="fillDemo('user')">
-                <i class="fas fa-user"></i>
-                User Account
-              </button>
-              <button class="demo-btn admin" @click="fillDemo('admin')">
-                <i class="fas fa-cog"></i>
-                Admin Account
-              </button>
-            </div>
           </div>
         </div>
       </div>

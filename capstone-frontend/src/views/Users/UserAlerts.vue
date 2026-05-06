@@ -30,55 +30,13 @@
 
     <!-- Main Content -->
     <div class="alerts-content">
-      <!-- Notification Preferences -->
-      <div class="preferences-card">
-        <div class="preferences-header">
-          <h3>Notification Preferences</h3>
-          <button class="toggle-btn" @click="togglePreferences">
-            <i class="icon-settings"></i>
-            Settings
-          </button>
-        </div>
-        <transition name="fade">
-          <div v-if="showPreferences" class="preferences-content">
-            <div class="preference-item">
-              <label>Push Notifications</label>
-              <label class="switch">
-                <input type="checkbox" v-model="preferences.push">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="preference-item">
-              <label>Email Alerts</label>
-              <label class="switch">
-                <input type="checkbox" v-model="preferences.email">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="preference-item">
-              <label>SMS Notifications</label>
-              <label class="switch">
-                <input type="checkbox" v-model="preferences.sms">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div class="preference-item">
-              <label>Critical Alerts Only</label>
-              <label class="switch">
-                <input type="checkbox" v-model="preferences.criticalOnly">
-                <span class="slider"></span>
-              </label>
-            </div>
-          </div>
-        </transition>
-      </div>
 
-<div v-if="loadingAlerts" class="loading-line">
-  Loading alerts...
-</div>
-<div v-else-if="alertsError" class="error-line">
-  {{ alertsError }}
-</div>
+      <div v-if="loadingAlerts" class="loading-line">
+        Loading alerts...
+      </div>
+      <div v-else-if="alertsError" class="error-line">
+        {{ alertsError }}
+      </div>
 
       <!-- Alert Filters -->
       <div class="filters-section">
