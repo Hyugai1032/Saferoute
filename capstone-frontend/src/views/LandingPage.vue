@@ -763,14 +763,31 @@ onMounted(() => {
   backdrop-filter: blur(18px);
 }
 
-.preview-top,
-.activity-header,
-/* .trust-strip {
+.preview-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-} */
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.preview-title {
+  flex: 1;
+}
+
+.preview-title .mini-label {
+  margin: 0 0 0.5rem;
+}
+
+.preview-title h3 {
+  margin: 0;
+}
+
+.status-pill {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
 
 .preview-top h3,
 .activity-header h4,
