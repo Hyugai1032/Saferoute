@@ -14,6 +14,7 @@ from .api_views import (
     SuggestNearestAvailableCenterView,
     MeView,
     UpdateMeView,
+    NearbyHazardAlertsView,
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -41,4 +42,9 @@ urlpatterns = [
     path('', include(router.urls)),
     path("api/me/", MeView.as_view(), name="me"),
     path("api/me/update/", UpdateMeView.as_view(), name="me-update"),
+    path(
+        "user/nearby-hazard-alerts/",
+        NearbyHazardAlertsView.as_view(),
+        name="nearby-hazard-alerts"
+    ),
 ]

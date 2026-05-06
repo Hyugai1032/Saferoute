@@ -224,6 +224,11 @@
         Emergency Alert
       </button>
 
+      <button class="emergency-btn" @click="useMyLocation">
+        <i class="icon-location"></i>
+        Use My Location
+      </button>
+
       <button class="emergency-btn" @click="refreshAlerts" :disabled="refreshing">
         <i class="icon-refresh" :class="{ spinning: refreshing }"></i>
         {{ refreshing ? 'Refreshing...' : 'Refresh' }}
@@ -237,7 +242,7 @@ import axios from "axios";
 
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const API_BASE = RAW_BASE.replace(/\/api\/?$/, ""); // removes trailing /api if present
-const HAZARDS_URL = `${API_BASE}/api/hazards/`;
+const NEARBY_ALERTS_URL = `${API_BASE}/api/user/nearby-hazard-alerts/`;
 
 function haversineKm(lat1, lon1, lat2, lon2) {
   const toRad = (v) => (v * Math.PI) / 180;
@@ -278,77 +283,7 @@ todayAlerts: 0,
         { id: 'my_reports', name: 'My Reports', icon: 'icon-report' },
         { id: 'nearby', name: 'Nearby', icon: 'icon-location' }
       ],
-      alerts: [
-        {
-          id: 1,
-          title: 'Flash Flood Warning',
-          message: 'Heavy rainfall expected in your area for the next 3 hours',
-          fullMessage: 'Heavy rainfall with intensities of 2–3 inches per hour is expected. Avoid low-lying areas and do not attempt to cross flooded roads.',
-          category: 'nearby',
-          severity: 'critical',
-          icon: 'icon-flood',
-          source: 'Emergency Management',
-          location: 'Near your pinned location',
-          time: '10 min ago',
-          fullTime: 'Today',
-          createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-          read: false,
-          instructions: [
-            'Move to higher ground if needed',
-            'Avoid walking or driving through flood waters',
-            'Prepare an emergency kit',
-            'Monitor updates in the app'
-          ],
-          affectedAreas: ['Nearby roads', 'Low-lying areas']
-        },
-        {
-          id: 2,
-          title: 'Your Hazard Report Submitted',
-          message: 'We received your hazard report and it is pending review.',
-          fullMessage: 'Your hazard report has been submitted successfully. Staff will review and verify it as soon as possible.',
-          category: 'my_reports',
-          severity: 'info',
-          icon: 'icon-info',
-          source: 'System',
-          location: 'From your recent report',
-          time: '1 hour ago',
-          fullTime: 'Today',
-          createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-          read: true
-        },
-        {
-          id: 3,
-          title: 'Report Status Updated',
-          message: 'Your report status is now IN PROGRESS.',
-          fullMessage: 'A staff member has acknowledged your report and is currently taking action on it. You may receive follow-up updates.',
-          category: 'my_reports',
-          severity: 'high',
-          icon: 'icon-info',
-          source: 'Evacuation Staff',
-          location: 'From your recent report',
-          time: '2 hours ago',
-          fullTime: 'Today',
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: 4,
-          title: 'Road Closure Nearby',
-          message: 'Road blocked due to fallen power lines. Use alternate route.',
-          fullMessage: 'A nearby road is temporarily closed due to fallen power lines. Please avoid the area and use alternative routes.',
-          category: 'nearby',
-          severity: 'high',
-          icon: 'icon-traffic',
-          source: 'Emergency Management',
-          location: 'Main Road (approx. 1.2 km)',
-          time: '3 hours ago',
-          fullTime: 'Today',
-          createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          affectedAreas: ['Main Road', 'Nearby intersections']
-        }
-        // More alerts would be here...
-      ]
+      alerts: [],
     }
   },
   computed: {
@@ -506,47 +441,54 @@ saveAlert(alert) {
   await this.refreshAlerts();
 },
 
-mapHazardToAlert(h, category, distanceKm = null) {
+mapHazardToAlert(h, category = "nearby", distanceKm = null) {
   const hazardType = h.hazard_type || h.type || h.category || "Hazard";
-  const status = String(h.status || "REPORTED").toUpperCase();
+  const status = String(h.status || "APPROVED").toUpperCase();
 
-  const createdAt = h.created_at || h.createdAt || new Date().toISOString();
-  const updatedAt = h.updated_at || h.updatedAt || createdAt;
+  const alertTime =
+    h.approved_at ||
+    h.updated_at ||
+    h.created_at ||
+    new Date().toISOString();
 
   const typeLower = String(hazardType).toLowerCase();
 
   let severity = "info";
+
   if (
-    status === "VERIFIED" || status === "CONFIRMED" ||
-    typeLower.includes("flood") || typeLower.includes("fire") || typeLower.includes("landslide")
-  ) severity = "high";
-
-  if (typeLower.includes("flood") || typeLower.includes("fire") || typeLower.includes("landslide"))
+    typeLower.includes("flood") ||
+    typeLower.includes("fire") ||
+    typeLower.includes("landslide")
+  ) {
     severity = "critical";
+  } else if (
+    typeLower.includes("road") ||
+    typeLower.includes("tree") ||
+    typeLower.includes("accident")
+  ) {
+    severity = "high";
+  }
 
-  const address = h.address || h.location || "Pinned location";
-  const desc = h.description || h.details || "";
+  const address = h.address || h.location || "Nearby area";
+  const desc = h.description || h.details || "A nearby hazard has been reported.";
 
   return {
-    id: `${category}:${h.id}`,
-    title: category === "my_reports" ? `My Report: ${hazardType}` : `${hazardType} nearby`,
-    message:
-      category === "my_reports"
-        ? `Status: ${status} • ${address}`
-        : `${address}${distanceKm != null ? ` • ~${distanceKm.toFixed(1)} km` : ""}`,
-    fullMessage:
-      category === "my_reports"
-        ? `Your hazard report is currently: ${status}\n\n${desc || "No description provided."}`
-        : `${desc || "A hazard was reported in your area."}\n\nLocation: ${address}`,
+    id: `nearby:${h.id}`,
+    title: `${hazardType} nearby`,
+    message: `${address}${distanceKm != null ? ` • ~${Number(distanceKm).toFixed(1)} km away` : ""}`,
+    fullMessage: `${desc}\n\nLocation: ${address}`,
     category,
     severity,
-    icon: "icon-info",          // you can improve later
-    source: category === "my_reports" ? "Your Submission" : "Community Reports",
+    priority: severity,
+    icon: this.getHazardIcon(hazardType),
+    source: "Verified Hazard Report",
     location: address,
-    time: "",                   // optional (you can remove if not used)
-    fullTime: "",               // optional
-    createdAt: updatedAt,
+    time: this.formatTimeAgo(alertTime),
+    fullTime: new Date(alertTime).toLocaleString(),
+    createdAt: alertTime,
     read: false,
+    instructions: this.getHazardInstructions(hazardType),
+    affectedAreas: [address],
   };
 },
 async refreshAlerts() {
@@ -556,74 +498,119 @@ async refreshAlerts() {
 
   try {
     const token = localStorage.getItem("access_token");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const res = await axios.get(HAZARDS_URL, { headers });
-    const hazards = Array.isArray(res.data) ? res.data : (res.data.results || []);
+    const headers = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
 
-    // Try to get current user from localStorage
-    const meRaw = localStorage.getItem("user") || localStorage.getItem("me");
-    let me = null;
-    try { me = meRaw ? JSON.parse(meRaw) : null; } catch (e) {}
-    const myId = me?.id || me?.user_id || null;
-    const myEmail = me?.email || null;
-
-    const isMine = (h) => {
-      if (myId && (h.reporter_id === myId || h.reporter === myId)) return true;
-      if (myEmail && (h.reporter_email === myEmail)) return true;
-
-      if (h.reporter && typeof h.reporter === "object") {
-        if (myId && h.reporter.id === myId) return true;
-        if (myEmail && h.reporter.email === myEmail) return true;
-      }
-      return false;
-    };
-
-    // My Reports
-    const myReports = hazards
-      .filter(isMine)
-      .map((h) => this.mapHazardToAlert(h, "my_reports"));
-
-    // Nearby (needs userLoc)
-    let nearby = [];
-    if (this.userLoc?.lat && this.userLoc?.lng) {
-      nearby = hazards
-        .filter((h) => !isMine(h))
-        .filter((h) => h.latitude != null && h.longitude != null)
-        // OPTIONAL: show only verified nearby
-        // .filter((h) => String(h.status || "").toUpperCase() === "VERIFIED")
-        .map((h) => {
-          const d = haversineKm(
-            this.userLoc.lat,
-            this.userLoc.lng,
-            Number(h.latitude),
-            Number(h.longitude)
-          );
-          return { h, d };
-        })
-        .filter((x) => x.d <= this.radiusKm)
-        .sort((a, b) => a.d - b.d)
-        .map((x) => this.mapHazardToAlert(x.h, "nearby", x.d));
+    if (!this.userLoc?.lat || !this.userLoc?.lng) {
+      this.alertsError = "Please allow location access to see nearby hazard alerts.";
+      this.alerts = [];
+      this.updateAlertStats();
+      return;
     }
 
-    const all = [...nearby, ...myReports].sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const res = await axios.get(NEARBY_ALERTS_URL, {
+      headers,
+      params: {
+        lat: this.userLoc.lat,
+        lng: this.userLoc.lng,
+        radius_km: this.radiusKm,
+        recent_hours: 24,
+      },
     });
 
-    this.alerts = all;
-// ✅ apply read/saved states from localStorage
-this.applyLocalStatesToAlerts();
+    const hazards = Array.isArray(res.data)
+      ? res.data
+      : res.data.results || [];
+
+    this.alerts = hazards.map((h) => this.mapHazardToAlert(h, "nearby", h.distance_km));
+
+    this.applyLocalStatesToAlerts();
   } catch (err) {
     console.error(err);
+
     this.alertsError =
       err?.response?.data?.detail ||
       err?.message ||
-      "Failed to load alerts. Check API URL and login token.";
+      "Failed to load nearby alerts.";
   } finally {
     this.refreshing = false;
     this.loadingAlerts = false;
   }
 },
+
+getHazardIcon(type) {
+  const t = String(type || "").toLowerCase();
+
+  if (t.includes("flood")) return "icon-flood";
+  if (t.includes("fire")) return "icon-fire";
+  if (t.includes("landslide")) return "icon-landslide";
+  if (t.includes("tree")) return "icon-tree";
+  if (t.includes("road")) return "icon-traffic";
+
+  return "icon-warning";
+},
+
+getHazardInstructions(type) {
+  const t = String(type || "").toLowerCase();
+
+  if (t.includes("flood")) {
+    return [
+      "Avoid walking or driving through flood waters.",
+      "Move to higher ground if water level rises.",
+      "Follow evacuation advisories from local authorities.",
+    ];
+  }
+
+  if (t.includes("fire")) {
+    return [
+      "Move away from the affected area.",
+      "Avoid inhaling smoke.",
+      "Contact emergency responders if needed.",
+    ];
+  }
+
+  if (t.includes("landslide")) {
+    return [
+      "Avoid steep slopes and unstable ground.",
+      "Move away from the affected area immediately.",
+      "Monitor official evacuation advisories.",
+    ];
+  }
+
+  if (t.includes("tree") || t.includes("road")) {
+    return [
+      "Avoid passing through the affected road.",
+      "Use an alternate route.",
+      "Wait for official clearance before entering the area.",
+    ];
+  }
+
+  return [
+    "Stay alert and avoid the affected area.",
+    "Monitor updates from local authorities.",
+    "Prepare to evacuate if instructed.",
+  ];
+},
+
+formatTimeAgo(dateString) {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+},
+
 sendEmergencyAlert() {
       this.$router.push('/user/report')
     },
@@ -646,23 +633,34 @@ sendEmergencyAlert() {
 localStorage.setItem("unread_alerts_count", String(this.activeAlerts))
 window.dispatchEvent(new CustomEvent("alerts:unread", { detail: { count: this.activeAlerts } }))    }
   },
-mounted() {
-  // load last saved location for Nearby
+async mounted() {
   const saved = localStorage.getItem("alerts_userLoc");
+
   if (saved) {
-    try { this.userLoc = JSON.parse(saved); } catch(e) {}
+    try {
+      this.userLoc = JSON.parse(saved);
+    } catch (e) {}
   }
 
-  // fetch alerts from backend
-  this.refreshAlerts();
+  if (!this.userLoc?.lat || !this.userLoc?.lng) {
+    await this.useMyLocation();
+  } else {
+    await this.refreshAlerts();
+  }
 
-  // ✅ if a new report is submitted, refresh alerts list
+  this._alertsInterval = setInterval(() => {
+    this.refreshAlerts();
+  }, 60000);
+
   this._onNewReport = () => this.refreshAlerts();
   window.addEventListener("alerts:newReport", this._onNewReport);
 },
 beforeUnmount() {
   window.removeEventListener("alerts:newReport", this._onNewReport);
-  
+
+  if (this._alertsInterval) {
+    clearInterval(this._alertsInterval);
+  }
 },
 }
 </script>

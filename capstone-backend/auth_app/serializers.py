@@ -436,3 +436,28 @@ class HazardPinSerializer(serializers.ModelSerializer):
             "municipality_name",
             "created_at",
         ]
+
+class NearbyHazardAlertSerializer(serializers.ModelSerializer):
+    distance_km = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HazardReport
+        fields = [
+            "id",
+            "hazard_type",
+            "description",
+            "address",
+            "latitude",
+            "longitude",
+            "status",
+            "created_at",
+            "updated_at",
+            "validated_at",
+            "distance_km",
+        ]
+
+    def get_distance_km(self, obj):
+        distance = getattr(obj, "distance_km", None)
+        if distance is None:
+            return None
+        return round(distance, 2)

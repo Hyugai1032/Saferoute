@@ -33,7 +33,7 @@
         <div class="status-content">
           <h3>Active Hazards</h3>
           <p>{{ activeHazards }} reported in your area</p>
-          <span class="status-time">3 verified today</span>
+          <span class="status-time">{{ activeHazards }} verified nearby today</span>
         </div>
       </div>
     </div>
@@ -46,7 +46,16 @@
           <button class="view-all-btn" @click="$router.push('/user/map')">View All</button>
         </div>
         <div class="hazards-list">
+          <div v-if="loadingHazards">
+            Loading nearby hazards...
+          </div>
+
+          <div v-else-if="recentHazards.length === 0">
+            No recent nearby hazards.
+          </div>
+
           <div 
+            v-else
             v-for="hazard in recentHazards" 
             :key="hazard.id"
             class="hazard-item"
@@ -96,50 +105,138 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from "vue";
+import axios from "axios";
 
-const openShelters = ref(8)
-const activeHazards = ref(12)
-const recentHazards = ref([
-  {
-    id: 1,
-    title: 'Flooded Street',
-    type: 'flood',
-    location: 'Main Street',
-    distance: '0.8km',
-    status: 'verified',
-    time: '2 hours ago'
-  },
-  {
-    id: 2,
-    title: 'Fallen Tree',
-    type: 'tree',
-    location: 'Oak Avenue',
-    distance: '1.2km',
-    status: 'pending',
-    time: '4 hours ago'
-  },
-  {
-    id: 3,
-    title: 'Landslide Risk',
-    type: 'landslide',
-    location: 'Hill Road',
-    distance: '2.1km',
-    status: 'verified',
-    time: '6 hours ago'
-  }
-])
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = RAW_BASE.replace(/\/api\/?$/, "");
+const NEARBY_ALERTS_URL = `${API_BASE}/api/user/nearby-hazard-alerts/`;
 
-const getHazardIcon = (type) => {
-  const icons = {
-    flood: 'icon-flood',
-    tree: 'icon-tree',
-    landslide: 'icon-landslide',
-    fire: 'icon-fire',
-    default: 'icon-hazard'
-  }
-  return icons[type] || icons.default
+const openShelters = ref(8);
+const activeHazards = ref(0);
+const recentHazards = ref([]);
+const loadingHazards = ref(false);
+
+const radiusKm = ref(3);
+const userLoc = ref(null);
+
+function getHazardIcon(type) {
+  const t = String(type || "").toLowerCase();
+
+  if (t.includes("flood")) return "icon-flood";
+  if (t.includes("fire")) return "icon-fire";
+  if (t.includes("landslide")) return "icon-landslide";
+  if (t.includes("tree")) return "icon-tree";
+  if (t.includes("road")) return "icon-traffic";
+
+  return "icon-hazard";
 }
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+}
+
+function mapHazardToDashboardItem(h) {
+  const type = h.hazard_type || h.type || "Hazard";
+  const alertTime = h.approved_at || h.updated_at || h.created_at;
+
+  return {
+    id: h.id,
+    title: type,
+    type,
+    location: h.address || h.location || "Nearby area",
+    distance: h.distance_km != null ? `${Number(h.distance_km).toFixed(1)}km` : "Nearby",
+    status: String(h.status || "approved").toLowerCase(),
+    time: formatTimeAgo(alertTime),
+  };
+}
+
+async function getCurrentLocation() {
+  const saved = localStorage.getItem("alerts_userLoc");
+
+  if (saved) {
+    try {
+      userLoc.value = JSON.parse(saved);
+      return;
+    } catch (e) {}
+  }
+
+  if (!navigator.geolocation) return;
+
+  const pos = await new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+    });
+  });
+
+  userLoc.value = {
+    lat: pos.coords.latitude,
+    lng: pos.coords.longitude,
+  };
+
+  localStorage.setItem("alerts_userLoc", JSON.stringify(userLoc.value));
+}
+
+async function fetchNearbyHazards() {
+  loadingHazards.value = true;
+
+  try {
+    await getCurrentLocation();
+
+    if (!userLoc.value?.lat || !userLoc.value?.lng) {
+      recentHazards.value = [];
+      activeHazards.value = 0;
+      return;
+    }
+
+    const token = localStorage.getItem("access_token");
+
+    const headers = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+
+    const res = await axios.get(NEARBY_ALERTS_URL, {
+      headers,
+      params: {
+        lat: userLoc.value.lat,
+        lng: userLoc.value.lng,
+        radius_km: radiusKm.value,
+        recent_hours: 24,
+      },
+    });
+
+    const hazards = Array.isArray(res.data)
+      ? res.data
+      : res.data.results || [];
+
+    activeHazards.value = hazards.length;
+    recentHazards.value = hazards.slice(0, 3).map(mapHazardToDashboardItem);
+  } catch (err) {
+    console.error("Failed to load dashboard hazards:", err);
+    recentHazards.value = [];
+    activeHazards.value = 0;
+  } finally {
+    loadingHazards.value = false;
+  }
+}
+
+onMounted(() => {
+  fetchNearbyHazards();
+});
 </script>
 
 <style scoped>

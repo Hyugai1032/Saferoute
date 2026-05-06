@@ -29,7 +29,8 @@ from .serializers import (UserProfileSerializer,
                           GisLayerSerializer,
                           EvacCenterPinSerializer,
                           HazardPinSerializer,
-                          HazardReportAdminUpdateSerializer)
+                          HazardReportAdminUpdateSerializer,
+                          NearbyHazardAlertSerializer)
 from evac_app.serializers import EvacuationCenterSerializer
 from .permissions import (
     IsProvincialAdmin, 
@@ -553,6 +554,11 @@ def circle_to_polygon(lng, lat, radius_m=150, points=24):
 import math
 
 def haversine_km(lat1, lng1, lat2, lng2):
+    lat1 = float(lat1)
+    lng1 = float(lng1)
+    lat2 = float(lat2)
+    lng2 = float(lng2)
+
     r = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
@@ -563,6 +569,7 @@ def haversine_km(lat1, lng1, lat2, lng2):
         math.cos(math.radians(lat2)) *
         math.sin(dlng / 2) ** 2
     )
+
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return r * c
 
@@ -687,6 +694,58 @@ class ORSRouteView(APIView):
             "geometry": geometry,
             "used_hazard_avoidance": avoid_hazards,
         })
+    
+class NearbyHazardAlertsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        lat = request.query_params.get("lat")
+        lng = request.query_params.get("lng")
+
+        if not lat or not lng:
+            return Response(
+                {"detail": "lat and lng are required."},
+                status=400
+            )
+
+        try:
+            user_lat = float(lat)
+            user_lng = float(lng)
+            radius_km = float(request.query_params.get("radius_km", 3))
+            recent_hours = int(request.query_params.get("recent_hours", 24))
+        except ValueError:
+            return Response(
+                {"detail": "lat, lng, radius_km, and recent_hours must be valid numbers."},
+                status=400
+            )
+
+        recent_cutoff = timezone.now() - timedelta(hours=recent_hours)
+
+        hazards = HazardReport.objects.filter(
+            latitude__isnull=False,
+            longitude__isnull=False,
+            status="APPROVED",
+            validated_at__gte=recent_cutoff,
+        )
+
+        nearby_hazards = []
+
+        for hazard in hazards:
+            distance = haversine_km(
+                user_lat,
+                user_lng,
+                hazard.latitude,
+                hazard.longitude
+            )
+
+            if distance <= radius_km:
+                hazard.distance_km = distance
+                nearby_hazards.append(hazard)
+
+        nearby_hazards.sort(key=lambda h: h.distance_km)
+
+        serializer = NearbyHazardAlertSerializer(nearby_hazards, many=True)
+        return Response(serializer.data)
 
 class SuggestNearestAvailableCenterView(APIView):
     permission_classes = [IsAuthenticated]
