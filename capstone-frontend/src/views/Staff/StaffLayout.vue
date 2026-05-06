@@ -13,8 +13,6 @@
       <HeaderBar
         :sidebar-collapsed="sidebarCollapsed"
         :is-mobile="isMobile"
-        title="Staff Dashboard"
-        subtitle="Manage assigned evacuation center tasks"
         @toggleSidebar="toggleSidebar"
       />
 

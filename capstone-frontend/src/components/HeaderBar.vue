@@ -21,15 +21,17 @@
     </div>
 
     <div class="header-right">
-      <button
-        v-if="showAdminNotifications"
-        class="notification-btn"
-        @click="goToHazardReports"
-      >
-        <div class="notification-icon">🔔</div>
-        <div class="notification-badge" v-if="notifCount > 0">
-          {{ notifCount }}
-        </div>
+      <div class="header-notifications" v-if="showAdminNotifications">
+        <button class="notification-btn" @click="toggleNotifications">
+          <div class="notification-icon">🔔</div>
+          <div class="notification-badge" v-if="notifCount > 0">
+            {{ notifCount }}
+          </div>
+        </button>
+      </div>
+
+      <button class="logout-header-btn" @click="logout">
+        Logout
       </button>
     </div>
   </header>
@@ -51,26 +53,21 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  title: {
-    type: String,
-    default: "Dashboard",
-  },
-  subtitle: {
-    type: String,
-    default: "System overview",
-  },
 });
 
 const emit = defineEmits(["toggleSidebar"]);
 
 const user = ref(JSON.parse(localStorage.getItem("userData") || "{}"));
-const notifCount = ref(0);
 
-const role = computed(() => String(user.value?.role || "").toUpperCase());
+const userType = computed(() => {
+  return String(user.value?.userType || "").toLowerCase();
+});
 
 const showAdminNotifications = computed(() => {
-  return role.value === "ADMIN" || role.value === "PROVINCIAL_ADMIN";
+  return userType.value === "admin";
 });
+
+const notifCount = ref(0);
 
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const API_BASE = RAW_BASE.replace(/\/api\/?$/, "");
@@ -88,17 +85,26 @@ const fetchNotifCount = async () => {
 
     notifCount.value = list.length;
   } catch (e) {
-    console.error("Failed to load notif count:", e);
+    console.error("Failed to load notification count:", e);
     notifCount.value = 0;
   }
 };
 
-const goToHazardReports = () => {
+const toggleNotifications = () => {
   router.push({ name: "Hazard Reports" });
 };
 
 const toggleSidebar = () => {
   emit("toggleSidebar");
+};
+
+const logout = () => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("isAuthenticated");
+  localStorage.removeItem("userData");
+
+  router.replace("/auth/login/");
 };
 
 const headerStyle = computed(() => ({
@@ -406,5 +412,21 @@ onBeforeUnmount(() => {
   .sidebar-toggle {
     padding: 0.5rem;
   }
+}
+
+.logout-header-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.logout-header-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
 }
 </style>

@@ -10,23 +10,7 @@
         </div>
 
 
-        <div class="header-actions">
-          <button class="btn-logout" @click="logout">
-            Logout
-          </button>
-        </div>
       </div>
-
-      <!-- Emergency Alert Banner -->
-      <!-- <div class="alert-banner warning" v-if="criticalCenters.length > 0">
-        <div class="alert-content">
-          <span class="alert-icon">⚠️</span>
-          <div class="alert-text">
-            <strong>Critical Alert:</strong> {{ criticalCenters.length }} evacuation center(s) are at critical capacity
-          </div>
-          <button class="alert-action" @click="showCriticalCenters">View Details</button>
-        </div>
-      </div> -->
 
       <!-- Key Metrics -->
       <div class="metrics-grid">
@@ -60,7 +44,7 @@
           <div class="metric-trend negative">-3</div>
         </div> -->
 
-        <div class="metric-card">
+        <!-- <div class="metric-card">
           <div class="metric-icon critical">📊</div>
           <div class="metric-content">
             <h3>Risk Level</h3>
@@ -68,7 +52,7 @@
             <p class="metric-label">48h forecast</p>
           </div>
           <div class="risk-indicator" :class="riskLevel"></div>
-        </div>
+        </div> -->
       </div>
 
       <!-- Main Content Grid -->
@@ -443,14 +427,6 @@ const riskLevel = computed(() =>
 )
 
 const sortedCenters = computed(() => statusCenters.value)
-
-const logout = () => {
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('refresh_token')
-  localStorage.removeItem('isAuthenticated')
-  localStorage.removeItem('userData')
-  router.push('/auth/login')
-}
 
 const selectCenter = (center) => {
   console.log('Selected center:', center)

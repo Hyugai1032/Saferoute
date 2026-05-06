@@ -10,7 +10,6 @@
       <div class="top-actions">
         <button class="btn ghost" @click="goLogs">Evacuation Logs</button>
         <button class="btn ghost" @click="goMap">GIS Map</button>
-<button class="btn-logout" @click="logout">Logout</button>
       </div>
     </div>
 
@@ -177,13 +176,6 @@ function goMap() {
   router.push("/staff/map"); // change if your route is different
 }
 
-function logout() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("isAuthenticated");
-  localStorage.removeItem("userData");
-  router.replace("/auth/login");
-}
 onMounted(async () => {
   try {
     await fetchMe();
