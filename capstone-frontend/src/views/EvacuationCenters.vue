@@ -2,7 +2,7 @@
   <div class="evac-manager">
     <h2>Evacuation Centers Manager</h2>
 
-    <section class="upload">
+    <!-- <section class="upload">
       <h3>Upload Excel / CSV</h3>
       <input type="file" ref="fileInput" @change="onFileChange" accept=".csv,.xlsx" />
       <button @click="uploadFile" :disabled="!file || uploading">
@@ -18,9 +18,9 @@
           </ul>
         </div>
       </div>
-    </section>
+    </section> -->
 
-    <section class="create">
+    <!-- <section class="create">
       <h3>Create new center</h3>
       <form @submit.prevent="createCenter">
         <div class="form-group">
@@ -123,21 +123,38 @@
           </div>
         </div>
 
-<div class="form-group full-width">
-  <label>Remarks</label>
-  <textarea
-    v-model="form.remarks"
-    placeholder="Additional notes"
-    rows="4"
-  ></textarea>
-</div>
+        <div class="form-group full-width">
+          <label>Remarks</label>
+          <textarea
+            v-model="form.remarks"
+            placeholder="Additional notes"
+            rows="4"
+          ></textarea>
+        </div>
 
         <button type="submit" class="btn-primary">Create Center</button>
       </form>
-    </section>
+    </section> -->
 
     <section class="list">
-      <h3>Evacuation Centers ({{ centers.length }})</h3>
+      <div class="list-header">
+        <div>
+          <h3>Evacuation Centers ({{ centers.length }})</h3>
+          <p class="section-subtitle">Manage evacuation centers, upload records, and update center information.</p>
+        </div>
+
+        <div class="list-actions">
+          <button class="btn-secondary" @click="showUploadModal = true">
+            Upload Excel / CSV
+          </button>
+
+          <button class="btn-primary" @click="showCreateModal = true">
+            Add Center
+          </button>
+        </div>
+      </div>
+
+
       <section class="filters">
         <h3>Filter Centers</h3>
 
@@ -291,6 +308,175 @@
       </div>
     </section>
 
+    <!-- Upload Modal -->
+    <div v-if="showUploadModal" class="modal" @click.self="showUploadModal = false">
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h3>Upload Excel / CSV</h3>
+          <button type="button" class="modal-close" @click="showUploadModal = false">×</button>
+        </div>
+
+        <section class="upload modal-section">
+          <input
+            type="file"
+            ref="fileInput"
+            @change="onFileChange"
+            accept=".csv,.xlsx"
+          />
+
+          <button @click="uploadFile" :disabled="!file || uploading" class="btn-primary">
+            {{ uploading ? 'Uploading...' : 'Upload & Import' }}
+          </button>
+
+          <div v-if="uploadResult" class="upload-result">
+            <p><strong>✅ Upload Complete!</strong></p>
+            <p>
+              Inserted: {{ uploadResult.inserted }} |
+              Updated: {{ uploadResult.updated }} |
+              Skipped: {{ uploadResult.skipped || 0 }}
+            </p>
+
+            <div v-if="uploadResult.errors && uploadResult.errors.length > 0">
+              <p><strong>Errors ({{ uploadResult.total_errors || uploadResult.errors.length }}):</strong></p>
+              <ul>
+                <li v-for="(err, idx) in uploadResult.errors" :key="idx">
+                  {{ err }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Create Center Modal -->
+    <div v-if="showCreateModal" class="modal" @click.self="closeCreateModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Create New Center</h3>
+          <button type="button" class="modal-close" @click="closeCreateModal">×</button>
+        </div>
+
+        <form @submit.prevent="createCenter">
+          <div class="form-group">
+            <label>Name *</label>
+            <input v-model="form.name" placeholder="Facility Name" required/>
+          </div>
+
+          <div class="form-group">
+            <label>Municipality *</label>
+            <select v-model="form.municipality" required>
+              <option value="">-- Select Municipality --</option>
+              <option v-for="mun in municipalities" :key="mun.id" :value="mun.id">
+                {{ mun.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Barangay</label>
+            <select v-model="form.barangay">
+              <option value="">-- Select Barangay --</option>
+              <option v-for="brgy in formFilteredBarangays" :key="brgy.id" :value="brgy.id">
+                {{ brgy.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Fund Source</label>
+            <input v-model="form.fund_source" placeholder="BARANGAY, NATIONAL, etc."/>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Family Capacity</label>
+              <input v-model.number="form.family_capacity_max" placeholder="0" type="number" min="0"/>
+            </div>
+
+            <div class="form-group">
+              <label>Individual Capacity</label>
+              <input v-model.number="form.individual_capacity_max" placeholder="0" type="number" min="0"/>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Latitude</label>
+              <input v-model.number="form.latitude" placeholder="13.4117" type="number" step="0.000001"/>
+            </div>
+
+            <div class="form-group">
+              <label>Longitude</label>
+              <input v-model.number="form.longitude" placeholder="121.1803" type="number" step="0.000001"/>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Flood Susceptibility</label>
+              <select v-model="form.flood_susceptibility">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Landslide Susceptibility</label>
+              <select v-model="form.landslide_susceptibility">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Status</label>
+              <select v-model="form.status">
+                <option value="PERMANENT">Permanent</option>
+                <option value="TEMPORARY">Temporary</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Shelter Category</label>
+              <select v-model="form.shelter_category">
+                <option value="INSIDE_EC">Inside Evacuation Center</option>
+                <option value="OUTSIDE_EC">Outside Evacuation Center</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Used for COVID?</label>
+              <select v-model="form.used_for_covid">
+                <option :value="false">No</option>
+                <option :value="true">Yes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group full-width">
+            <label>Remarks</label>
+            <textarea
+              v-model="form.remarks"
+              placeholder="Additional notes"
+              rows="4"
+            ></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn-primary">Create Center</button>
+            <button type="button" class="btn-secondary" @click="closeCreateModal">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Edit Modal -->
     <div v-if="editing && editForm" class="modal" @click.self="cancelEdit">
       <div class="modal-content">
@@ -401,6 +587,8 @@ export default {
   name: 'EvacManager',
   data() {
     return {
+      showCreateModal: false,
+      showUploadModal: false,
       file: null,
       uploading: false,
       uploadResult: null,
@@ -496,6 +684,14 @@ export default {
   },
 
   methods: {
+    closeCreateModal() {
+      this.showCreateModal = false;
+    },
+
+    closeUploadModal() {
+      this.showUploadModal = false;
+    },
+
     async fetchMunicipalities() {
       try {
         console.log("Fetching municipalities from:", `${API_BASE}municipalities/?page_size=9999`);
@@ -750,8 +946,7 @@ export default {
         }
 
         alert('Center created successfully!');
-        
-        // Reset form
+
         this.form = {
           name: '',
           municipality: '',
@@ -764,9 +959,13 @@ export default {
           flood_susceptibility: 'LOW',
           landslide_susceptibility: 'LOW',
           status: 'TEMPORARY',
+          shelter_category: 'INSIDE_EC',
           used_for_covid: false,
           remarks: '',
         };
+
+        this.formBarangays = [];
+        this.showCreateModal = false;
 
         await this.fetchCenters();
       } catch (err) {
@@ -1410,5 +1609,148 @@ textarea::placeholder {
 .evac-manager textarea::placeholder,
 .evac-manager input::placeholder {
   color: rgba(203, 213, 225, 0.55);
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.list-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.section-subtitle {
+  margin: 0.25rem 0 0;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.65);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.modal-content {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+
+  background: #1f2033;
+  border-radius: 18px;
+  padding: 1.5rem;
+
+  box-sizing: border-box;
+}
+
+.modal-sm {
+  width: min(520px, 100%);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 1.75rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-content .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-actions {
+  position: sticky;
+  bottom: 0;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+
+  background: #1f2033;
+}
+
+@media (max-width: 768px) {
+  .list-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .list-actions {
+    width: 100%;
+  }
+
+  .list-actions button {
+    flex: 1;
+  }
+
+  .modal {
+    align-items: flex-start;
+    padding: 0.75rem;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    padding: 1rem;
+    border-radius: 14px;
+  }
+
+  .modal-content .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
 }
 </style>
