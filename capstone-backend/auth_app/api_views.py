@@ -231,6 +231,7 @@ class BarangayViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Barangay.objects.all().order_by('name')
     serializer_class = BarangaySerializer
     permission_classes = [AllowAny]
+    pagination_class = None
     
     def get_queryset(self):
         queryset = Barangay.objects.all().order_by('name')
