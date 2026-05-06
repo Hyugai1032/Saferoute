@@ -1,17 +1,5 @@
 <template>
   <div class="user-dashboard">
-    <div class="dashboard-grid">
-      <!-- Emergency Status Card -->
-      <div class="status-card critical">
-        <div class="status-icon">
-          <i class="icon-warning"></i>
-        </div>
-        <div class="status-content">
-          <h3>Emergency Alert</h3>
-          <p>Typhoon Ruby approaching your area</p>
-          <span class="status-time">Updated 5 min ago</span>
-        </div>
-      </div>
       
       <!-- Evacuation Centers Card -->
       <div class="status-card">
@@ -20,8 +8,18 @@
         </div>
         <div class="status-content">
           <h3>Open Shelters</h3>
-          <p>{{ openShelters }} centers available</p>
-          <span class="status-time">Nearest: 2.3km away</span>
+
+          <p v-if="loadingShelters">Loading shelters...</p>
+          <p v-else>{{ openShelters }} centers available</p>
+
+          <span class="status-time">
+            <template v-if="nearestShelterDistance !== null">
+              Nearest: {{ nearestShelterDistance.toFixed(1) }}km away
+            </template>
+            <template v-else>
+              No nearby shelter location available
+            </template>
+          </span>
         </div>
       </div>
       
@@ -112,7 +110,11 @@ const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const API_BASE = RAW_BASE.replace(/\/api\/?$/, "");
 const NEARBY_ALERTS_URL = `${API_BASE}/api/user/nearby-hazard-alerts/`;
 
-const openShelters = ref(8);
+const MAP_OVERVIEW_URL = `${API_BASE}/api/map/overview/`;
+
+const openShelters = ref(0);
+const nearestShelterDistance = ref(null);
+const loadingShelters = ref(false);
 const activeHazards = ref(0);
 const recentHazards = ref([]);
 const loadingHazards = ref(false);
@@ -164,6 +166,20 @@ function mapHazardToDashboardItem(h) {
   };
 }
 
+function getDistanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 async function getCurrentLocation() {
   const saved = localStorage.getItem("alerts_userLoc");
 
@@ -189,6 +205,74 @@ async function getCurrentLocation() {
   };
 
   localStorage.setItem("alerts_userLoc", JSON.stringify(userLoc.value));
+}
+
+async function fetchOpenShelters() {
+  loadingShelters.value = true;
+
+  try {
+    await getCurrentLocation();
+
+    const token = localStorage.getItem("access_token");
+
+    const headers = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+
+    const res = await axios.get(MAP_OVERVIEW_URL, {
+      headers,
+      params: {
+        recent_hours: 48,
+        prediction_window: 60,
+        prediction_horizon: 60,
+      },
+    });
+
+    const centers = Array.isArray(res.data?.centers)
+      ? res.data.centers
+      : [];
+
+    const availableCenters = centers.filter((center) => {
+      const familyCap = Number(center.family_capacity_max || 0);
+      const individualCap = Number(center.individual_capacity_max || 0);
+      const totalCap = familyCap + individualCap;
+
+      const predictedStatus = center.predicted_status;
+
+      return (
+        totalCap > 0 &&
+        predictedStatus !== "LIKELY_FULL" &&
+        predictedStatus !== "UNAVAILABLE"
+      );
+    });
+
+    openShelters.value = availableCenters.length;
+
+    if (userLoc.value?.lat && userLoc.value?.lng) {
+      const centersWithDistance = availableCenters
+        .filter((c) => c.latitude && c.longitude)
+        .map((c) => ({
+          ...c,
+          distanceKm: getDistanceKm(
+            Number(userLoc.value.lat),
+            Number(userLoc.value.lng),
+            Number(c.latitude),
+            Number(c.longitude)
+          ),
+        }))
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+
+      nearestShelterDistance.value = centersWithDistance.length
+        ? centersWithDistance[0].distanceKm
+        : null;
+    }
+  } catch (err) {
+    console.error("Failed to load open shelters:", err);
+    openShelters.value = 0;
+    nearestShelterDistance.value = null;
+  } finally {
+    loadingShelters.value = false;
+  }
 }
 
 async function fetchNearbyHazards() {
@@ -236,6 +320,7 @@ async function fetchNearbyHazards() {
 
 onMounted(() => {
   fetchNearbyHazards();
+  fetchOpenShelters();
 });
 </script>
 
