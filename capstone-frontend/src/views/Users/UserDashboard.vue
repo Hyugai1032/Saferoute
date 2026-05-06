@@ -1,6 +1,6 @@
 <template>
   <div class="user-dashboard">
-      
+      <div class="dashboard-grid">
       <!-- Evacuation Centers Card -->
       <div class="status-card">
         <div class="status-icon">
@@ -34,6 +34,7 @@
           <span class="status-time">{{ activeHazards }} verified nearby today</span>
         </div>
       </div>
+    </div>
     </div>
     
     <div class="dashboard-content">
