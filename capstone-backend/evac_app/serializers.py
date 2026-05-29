@@ -80,6 +80,9 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "center", "center_name",
             "reporting_staff", "reporting_staff_name",
             "date_recorded",
+            
+            "disaster_cause",
+
             "families_in", "individuals_in",
             "families_out", "individuals_out",
             

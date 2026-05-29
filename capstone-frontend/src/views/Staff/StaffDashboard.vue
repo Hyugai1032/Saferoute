@@ -34,6 +34,20 @@
         <div class="muted small">Current evacuees (latest log)</div>
         <div class="muted xs">Last update: {{ lastUpdatedText }}</div>
       </div>
+
+      <div class="banner-right">
+        <div class="big">
+          {{ latest.total_current ?? 0 }}
+        </div>
+        <div class="muted small">Current evacuees</div>
+
+        <div class="big" style="margin-top: 10px;">
+          {{ latest.total_current_families ?? 0 }}
+        </div>
+        <div class="muted small">Current families</div>
+
+        <div class="muted xs">Last update: {{ lastUpdatedText }}</div>
+      </div>
     </div>
 
     <!-- quick stats -->
@@ -117,7 +131,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 const me = reactive({});
-const latest = reactive({ total_current: 0, date_recorded: null });
+const latest = reactive({ total_current: 0, total_current_families: 0, date_recorded: null });
 const summary = ref(null); // ✅ add this
 
 const isStaff = computed(() => me.role === "EVAC_CENTER_STAFF");
@@ -155,9 +169,9 @@ async function fetchMe() {
 
 async function fetchLatest() {
   if (!me.assigned_center_id) {
-    latest.total_current = 0;
-    latest.date_recorded = null;
-    summary.value = null;
+    latest.total_current = summary.value?.total_current ?? 0;
+    latest.total_current_families = summary.value?.total_current_families ?? 0;
+    latest.date_recorded = summary.value?.latest?.date_recorded ?? null;
     return;
   }
 

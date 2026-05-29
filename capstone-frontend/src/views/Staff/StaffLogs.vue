@@ -82,6 +82,7 @@
             <tr>
               <th>Date</th>
               <th>Center</th>
+              <th>Cause</th>
               <th>In (Ind)</th>
               <th>Out (Ind)</th>
               <th>Vulnerable</th>
@@ -95,6 +96,7 @@
             <tr v-for="log in logs" :key="log.id">
               <td>{{ formatDate(log.date_recorded) }}</td>
               <td>{{ log.center_name || log.center }}</td>
+              <td>{{ log.disaster_cause || "-" }}</td>
               <td>{{ log.individuals_in }}</td>
               <td>{{ log.individuals_out }}</td>
               <td>{{ log.vulnerable_individuals }}</td>
@@ -150,6 +152,19 @@
               <option v-for="c in centers" :key="c.id" :value="c.id">
                 {{ c.name }} ({{ c.municipality_name }})
               </option>
+            </select>
+          </label>
+
+          <label>
+            Disaster Cause
+            <select v-model="modal.form.disaster_cause">
+              <option value="TYPHOON">Typhoon</option>
+              <option value="FLOOD">Flood</option>
+              <option value="LANDSLIDE">Landslide</option>
+              <option value="EARTHQUAKE">Earthquake</option>
+              <option value="FIRE">Fire</option>
+              <option value="VOLCANIC_ACTIVITY">Volcanic Activity</option>
+              <option value="OTHER">Other</option>
             </select>
           </label>
 
@@ -268,6 +283,7 @@ export default {
         id: null,
         form: {
           center: null,
+          disaster_cause: "OTHER",
           families_in: 0,
           individuals_in: 0,
           families_out: 0,
@@ -432,6 +448,7 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     this.modal.form = {
       center: this.isStaff ? (this.me.assigned_center_id || null) : null,
+      disaster_cause: "OTHER",
       families_in: 0,
       individuals_in: 0,
       families_out: 0,
@@ -454,6 +471,7 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     this.modal.form = {
       center: log.center || null,
+      disaster_cause: log.disaster_cause || "OTHER",
       families_in: log.families_in ?? 0,
       individuals_in: log.individuals_in ?? 0,
       families_out: log.families_out ?? 0,
@@ -507,6 +525,7 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     const payload = {
       center: this.modal.form.center,
+      disaster_cause: this.modal.form.disaster_cause || "OTHER",
       families_in: this.modal.form.families_in ?? 0,
       individuals_in: this.modal.form.individuals_in ?? 0,
       families_out: this.modal.form.families_out ?? 0,

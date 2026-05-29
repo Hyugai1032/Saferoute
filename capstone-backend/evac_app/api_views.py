@@ -409,6 +409,8 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         agg = allowed_logs.aggregate(
             ind_in=Sum("individuals_in"),
             ind_out=Sum("individuals_out"),
+            fam_in=Sum("families_in"),
+            fam_out=Sum("families_out"),
             children=Sum("children_count"),
             seniors=Sum("senior_count"),
             pwd=Sum("pwd_count"),
@@ -421,11 +423,16 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         if total_current < 0:
             total_current = 0
 
+        total_current_families = (agg["fam_in"] or 0) - (agg["fam_out"] or 0)
+        if total_current_families < 0:
+            total_current_families = 0
+
         return Response({
             "center": int(center_id),
             "latest": {
                 "date_recorded": agg["last"],
                 "total_current": total_current,
+                "total_current_families": total_current_families,
             },
             "breakdown": {
                 "children_count": agg["children"] or 0,
@@ -435,7 +442,8 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
                 "lactating_count": agg["lactating"] or 0,
             },
             "total_current": total_current,
-        })    
+            "total_current_families": total_current_families,
+        })
     
     
 class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):

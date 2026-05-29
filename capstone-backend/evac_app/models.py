@@ -71,6 +71,22 @@ class EvacuationLog(models.Model):
     total_current = models.IntegerField(default=0)
     total_current_families = models.IntegerField(default=0)
 
+    DISASTER_CAUSE_CHOICES = [
+        ("TYPHOON", "Typhoon"),
+        ("FLOOD", "Flood"),
+        ("LANDSLIDE", "Landslide"),
+        ("EARTHQUAKE", "Earthquake"),
+        ("FIRE", "Fire"),
+        ("VOLCANIC_ACTIVITY", "Volcanic Activity"),
+        ("OTHER", "Other"),
+    ]
+
+    disaster_cause = models.CharField(
+        max_length=50,
+        choices=DISASTER_CAUSE_CHOICES,
+        default="OTHER"
+    )
+
     remarks = models.TextField(null=True, blank=True)
 
     class Meta:
