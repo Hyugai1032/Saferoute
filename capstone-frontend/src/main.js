@@ -7,7 +7,7 @@ import axios from 'axios'
 import { logout } from '@/services/authService'
 import './style.css'
 
-const API_URL = 'http://127.0.0.1:8000/api/'
+const API_URL = import.meta.env.VITE_API_BASE_URL
 
 const app = createApp(App)
 
@@ -38,7 +38,7 @@ axios.interceptors.response.use(
 
       } catch (refreshError) {
         logout()
-        router.push('/login')
+        router.push('/auth/login')
       }
     }
 
