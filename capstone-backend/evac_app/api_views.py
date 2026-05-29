@@ -9,8 +9,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Sum, Max
-from .models import EvacuationCenter, EvacuationLog
-from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer
+from .models import EvacuationCenter, EvacuationLog, Evacuee
+from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
 from django.db import transaction
 from auth_app.models import Municipality, Barangay
@@ -469,3 +469,44 @@ class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
 
         return qs
 
+
+class EvacueeViewSet(viewsets.ModelViewSet):
+    serializer_class = EvacueeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["center", "is_active", "sex", "is_child", "is_senior", "is_pwd", "is_pregnant", "is_lactating"]
+    search_fields = ["first_name", "middle_name", "last_name", "family_head_name", "family_number", "address"]
+    ordering_fields = ["date_registered", "last_name", "age"]
+    ordering = ["-date_registered"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Evacuee.objects.select_related("center", "log").all()
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(center_id=user.assigned_center_id)
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(center__municipality_id=user.municipality_id)
+
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                raise PermissionDenied("Staff has no assigned center.")
+            if center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only register evacuees for your assigned center.")
+
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only register evacuees in your municipality.")
+
+        serializer.save()

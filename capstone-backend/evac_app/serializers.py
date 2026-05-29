@@ -1,6 +1,6 @@
 # capstone-backend/evac_app/serializers.py
 from rest_framework import serializers
-from .models import EvacuationCenter, EvacuationLog
+from .models import EvacuationCenter, EvacuationLog, Evacuee
 
 class EvacuationCenterSerializer(serializers.ModelSerializer):
     municipality_name = serializers.CharField(
@@ -127,3 +127,33 @@ class EvacCenterDropdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = EvacuationCenter
         fields = ["id", "name", "municipality", "municipality_name"]
+
+class EvacueeSerializer(serializers.ModelSerializer):
+    center_name = serializers.CharField(source="center.name", read_only=True)
+
+    class Meta:
+        model = Evacuee
+        fields = [
+            "id",
+            "center",
+            "center_name",
+            "log",
+            "first_name",
+            "middle_name",
+            "last_name",
+            "age",
+            "sex",
+            "contact_number",
+            "address",
+            "family_head_name",
+            "is_family_head",
+            "is_child",
+            "is_senior",
+            "is_pwd",
+            "is_pregnant",
+            "is_lactating",
+            "date_registered",
+            "is_active",
+            "remarks",
+        ]
+        read_only_fields = ["date_registered"]

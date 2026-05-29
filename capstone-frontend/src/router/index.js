@@ -27,6 +27,7 @@ import UserProfile from '../views/Users/UserProfile.vue'
 import StaffLayout from "../views/Staff/StaffLayout.vue";
 import StaffDashboard from "../views/Staff/StaffDashboard.vue";
 import StaffLogs from "../views/Staff/StaffLogs.vue";
+import StaffEvacuees from '../views/Staff/StaffEvacuees.vue'
 
 //Profile
 // import UserProfile from "@/views/Profile/UserProfile.vue";
@@ -95,8 +96,8 @@ const routes = [
     children: [
       { path: "", redirect: "/staff/dashboard" }, 
       { path: "dashboard", name: "StaffDashboard", component: StaffDashboard },
-      { path: "centers", name: "StaffCenters", component: EvacuationCenters },
       { path: "logs", name: "StaffLogs", component: StaffLogs },
+      { path: "evacuees", name: "StaffEvacuees", component: StaffEvacuees },
       { path: "map", name: "StaffMap", component: GISMap },
       { path: "profile", name: "StaffProfile", component: UserProfile },
     ],

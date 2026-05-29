@@ -132,3 +132,50 @@ class EvacuationLog(models.Model):
         self.total_current_families = new_fam
 
         return super().save(*args, **kwargs)
+    
+class Evacuee(models.Model):
+    SEX_CHOICES = [
+        ("MALE", "Male"),
+        ("FEMALE", "Female"),
+        ("OTHER", "Other"),
+    ]
+
+    center = models.ForeignKey(
+        EvacuationCenter,
+        on_delete=models.CASCADE,
+        related_name="evacuees"
+    )
+
+    log = models.ForeignKey(
+        EvacuationLog,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evacuees"
+    )
+
+    first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100)
+    age = models.PositiveIntegerField(default=0)
+    sex = models.CharField(max_length=10, choices=SEX_CHOICES)
+
+    contact_number = models.CharField(max_length=20, blank=True)
+    address = models.TextField(blank=True)
+
+    family_head_name = models.CharField(max_length=150, blank=True)
+    is_family_head = models.BooleanField(default=False)
+
+    is_child = models.BooleanField(default=False)
+    is_senior = models.BooleanField(default=False)
+    is_pwd = models.BooleanField(default=False)
+    is_pregnant = models.BooleanField(default=False)
+    is_lactating = models.BooleanField(default=False)
+
+    date_registered = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    remarks = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.last_name}, {self.first_name}"

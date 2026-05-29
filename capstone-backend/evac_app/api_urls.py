@@ -1,12 +1,13 @@
 # capstone-backend/evac_app/api_urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .api_views import EvacUploadAPIView, EvacuationCenterViewSet, EvacuationLogViewSet, EvacuationCenterListViewSet
+from .api_views import EvacUploadAPIView, EvacuationCenterViewSet, EvacuationLogViewSet, EvacuationCenterListViewSet, EvacueeViewSet
 
 router = DefaultRouter()
 router.register(r'evac-centers', EvacuationCenterViewSet, basename='evac-center')
 router.register(r"evacuation-centers", EvacuationCenterListViewSet, basename="evacuation-centers")
 router.register(r"evacuation-logs", EvacuationLogViewSet, basename="evacuation-logs")
+router.register(r"evacuees", EvacueeViewSet, basename="evacuees")
 
 urlpatterns = [
     # custom routes FIRST

@@ -75,6 +75,7 @@ const user = ref(JSON.parse(localStorage.getItem("userData") || "{}"));
 const navItems = [
   { to: "/staff/dashboard", name: "Dashboard", icon: "📊" },
   { to: "/staff/logs", name: "Evacuation Logs", icon: "📥" },
+  { to: '/staff/evacuees', name: 'Evacuees', icon: '👥' },
   { to: "/staff/map", name: "GIS Map", icon: "🗺️" },                 // optional
   { to: '/staff/profile', name: 'Profile', icon: '👤' },
 ];
