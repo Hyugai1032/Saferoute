@@ -2069,3 +2069,447 @@ html:not([data-theme="light"]) .evacuees-page .ghost-btn {
   color: #e5e7eb !important;
   border: 1px solid rgba(148, 163, 184, 0.2) !important;
 }
+
+/* =========================================================
+   PUBLIC PAGES LIGHT MODE POLISH
+   Covers:
+   - LandingPage.vue
+   - Users/UserLogin.vue
+
+   Put this at the VERY BOTTOM of theme.css.
+========================================================= */
+
+
+/* =========================
+   LANDING PAGE - LIGHT MODE
+========================= */
+
+html[data-theme="light"] .landing-page {
+  color: #0f172a !important;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(59, 130, 246, 0.13), transparent 28%),
+    radial-gradient(circle at 92% 18%, rgba(34, 211, 238, 0.16), transparent 26%),
+    radial-gradient(circle at 75% 85%, rgba(59, 130, 246, 0.10), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #eef7ff 46%, #f8fbff 100%) !important;
+}
+
+html[data-theme="light"] .landing-page .grid-overlay {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px) !important;
+  opacity: 0.9 !important;
+}
+
+html[data-theme="light"] .landing-page .landing-header {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+html[data-theme="light"] .landing-page .brand h1 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .landing-page .brand p {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .landing-page .nav-links button,
+html[data-theme="light"] .landing-page .footer-links button {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .landing-page .nav-links button:hover,
+html[data-theme="light"] .landing-page .footer-links button:hover {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .landing-page .eyebrow,
+html[data-theme="light"] .landing-page .section-tag,
+html[data-theme="light"] .landing-page .step-number {
+  background: rgba(37, 99, 235, 0.10) !important;
+  border: 1px solid rgba(37, 99, 235, 0.18) !important;
+  color: #2563eb !important;
+}
+
+html[data-theme="light"] .landing-page .hero-content h2,
+html[data-theme="light"] .landing-page .section-heading h2,
+html[data-theme="light"] .landing-page .contact-intro h2,
+html[data-theme="light"] .landing-page .landing-footer h3 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .landing-page .hero-text,
+html[data-theme="light"] .landing-page .section-heading p,
+html[data-theme="light"] .landing-page .landing-footer p,
+html[data-theme="light"] .landing-page .contact-card p,
+html[data-theme="light"] .landing-page .contact-card li,
+html[data-theme="light"] .landing-page .feature-card p,
+html[data-theme="light"] .landing-page .step-card p,
+html[data-theme="light"] .landing-page .role-card p {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .landing-page .feature-chip,
+html[data-theme="light"] .landing-page .feature-card,
+html[data-theme="light"] .landing-page .step-card,
+html[data-theme="light"] .landing-page .role-card,
+html[data-theme="light"] .landing-page .contact-card {
+  background: rgba(255, 255, 255, 0.86) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .landing-page .feature-chip strong,
+html[data-theme="light"] .landing-page .feature-card h3,
+html[data-theme="light"] .landing-page .role-card h3,
+html[data-theme="light"] .landing-page .step-card h3,
+html[data-theme="light"] .landing-page .contact-card h3,
+html[data-theme="light"] .landing-page .contact-card strong {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .landing-page .feature-chip p {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .landing-page .alt-bg {
+  background: rgba(219, 234, 254, 0.32) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-shell {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme="light"] .landing-page .feature-contact {
+  background: linear-gradient(180deg, #ffffff, #f1f8ff) !important;
+}
+
+html[data-theme="light"] .landing-page .landing-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.22) !important;
+}
+
+/* Keep the preview card dark but fix its text/readability */
+html[data-theme="light"] .landing-page .glass-card {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+  box-shadow: 0 34px 70px rgba(15, 23, 42, 0.24) !important;
+}
+
+html[data-theme="light"] .landing-page .glass-card .mini-label,
+html[data-theme="light"] .landing-page .glass-card .activity-header span {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] .landing-page .glass-card h3,
+html[data-theme="light"] .landing-page .glass-card h4,
+html[data-theme="light"] .landing-page .glass-card strong,
+html[data-theme="light"] .landing-page .activity-item strong {
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] .landing-page .glass-card p,
+html[data-theme="light"] .landing-page .activity-item p {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] .landing-page .stat-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(203, 213, 225, 0.75) !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme="light"] .landing-page .stat-card h4 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .landing-page .stat-card p {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .landing-page .activity-panel {
+  background: rgba(15, 23, 42, 0.94) !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+}
+
+
+/* =========================
+   LOGIN PAGE - LIGHT MODE
+========================= */
+
+html[data-theme="light"] .auth-layout {
+  background:
+    radial-gradient(circle at 20% 12%, rgba(59, 130, 246, 0.16), transparent 28%),
+    radial-gradient(circle at 80% 75%, rgba(34, 211, 238, 0.16), transparent 28%),
+    linear-gradient(135deg, #f8fbff 0%, #eaf6ff 52%, #f8fbff 100%) !important;
+}
+
+html[data-theme="light"] .auth-layout .login-card {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.26) !important;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.16) !important;
+}
+
+html[data-theme="light"] .auth-layout .login-left {
+  background:
+    radial-gradient(circle at 20% 12%, rgba(56, 189, 248, 0.18), transparent 28%),
+    linear-gradient(135deg, #1e3a5f 0%, #172554 55%, #0f172a 100%) !important;
+}
+
+html[data-theme="light"] .auth-layout .logo-title {
+  background: linear-gradient(135deg, #38bdf8 0%, #22d3ee 45%, #60a5fa 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme="light"] .auth-layout .logo-subtitle,
+html[data-theme="light"] .auth-layout .feature-content p {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] .auth-layout .feature-item {
+  background: rgba(255, 255, 255, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+html[data-theme="light"] .auth-layout .feature-item:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(125, 211, 252, 0.32) !important;
+}
+
+html[data-theme="light"] .auth-layout .feature-content h3 {
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] .auth-layout .login-right {
+  background:
+    radial-gradient(circle at 70% 70%, rgba(34, 211, 238, 0.13), transparent 28%),
+    rgba(255, 255, 255, 0.84) !important;
+}
+
+html[data-theme="light"] .auth-layout .form-title {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .auth-layout .form-subtitle,
+html[data-theme="light"] .auth-layout .checkbox-label,
+html[data-theme="light"] .auth-layout .login-form p {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .auth-layout .form-label {
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .auth-layout .input-group {
+  background: transparent !important;
+}
+
+html[data-theme="light"] .auth-layout .form-input {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(148, 163, 184, 0.38) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .auth-layout .form-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] .auth-layout .form-input:focus {
+  background: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16) !important;
+}
+
+html[data-theme="light"] .auth-layout .input-icon,
+html[data-theme="light"] .auth-layout .password-toggle {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .auth-layout .checkmark {
+  background: #ffffff !important;
+  border: 2px solid rgba(148, 163, 184, 0.55) !important;
+}
+
+html[data-theme="light"] .auth-layout .checkbox-label input:checked + .checkmark {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+html[data-theme="light"] .auth-layout .forgot-password {
+  color: #2563eb !important;
+}
+
+html[data-theme="light"] .auth-layout .forgot-password:hover {
+  color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .auth-layout .login-btn {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.28) !important;
+}
+
+html[data-theme="light"] .auth-layout .floating-shape {
+  opacity: 0.16 !important;
+}
+
+/* =========================
+   CTA BANNER FIX
+========================= */
+
+html[data-theme="light"] .landing-page .cta-card {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #0ea5e9 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 28px 60px rgba(37, 99, 235, 0.28) !important;
+}
+
+html[data-theme="light"] .landing-page .cta-card h2 {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .landing-page .cta-card p {
+  color: rgba(239, 246, 255, 0.92) !important;
+}
+
+html[data-theme="light"] .landing-page .cta-card .section-tag.light {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #dbeafe !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+}
+
+html[data-theme="light"] .landing-page .cta-card .btn.light {
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+}
+
+html[data-theme="light"] .landing-page .cta-card .btn.outline-light {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.38) !important;
+}
+
+html[data-theme="light"] .landing-page .cta-card .btn.light:hover,
+html[data-theme="light"] .landing-page .cta-card .btn.outline-light:hover {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.03) !important;
+}
+
+
+/* =========================
+   CONTACT SECTION FIX
+========================= */
+
+html[data-theme="light"] .landing-page .contact-section {
+  background: transparent !important;
+}
+
+html[data-theme="light"] .landing-page .contact-shell {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-intro .section-tag {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+  border: 1px solid rgba(37, 99, 235, 0.20) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-intro h2 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .landing-page .contact-intro p {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .landing-page .contact-card,
+html[data-theme="light"] .landing-page .primary-contact-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-card:hover,
+html[data-theme="light"] .landing-page .primary-contact-card:hover {
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  box-shadow: 0 24px 50px rgba(37, 99, 235, 0.12) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-kicker {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .landing-page .contact-card h3,
+html[data-theme="light"] .landing-page .contact-card strong {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .landing-page .contact-summary,
+html[data-theme="light"] .landing-page .contact-note-list p {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .landing-page .contact-badge {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #1d4ed8 !important;
+  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-line {
+  background: #f8fafc !important;
+  border: 1px solid rgba(148, 163, 184, 0.20) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-icon {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(14, 165, 233, 0.14)) !important;
+  color: #2563eb !important;
+}
+
+html[data-theme="light"] .landing-page .contact-line label {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .landing-page .contact-line a {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="light"] .landing-page .contact-line a:hover {
+  color: #2563eb !important;
+}
+
+html[data-theme="light"] .landing-page .contact-line p {
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .landing-page .contact-actions .btn.light,
+html[data-theme="light"] .landing-page .contact-btn.btn.light {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(37, 99, 235, 0.25) !important;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-actions .btn.outline-light,
+html[data-theme="light"] .landing-page .contact-btn.outline-light,
+html[data-theme="light"] .landing-page .dark-outline {
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid rgba(37, 99, 235, 0.28) !important;
+}
+
+html[data-theme="light"] .landing-page .contact-actions .btn.light:hover,
+html[data-theme="light"] .landing-page .contact-actions .btn.outline-light:hover,
+html[data-theme="light"] .landing-page .contact-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.18) !important;
+}

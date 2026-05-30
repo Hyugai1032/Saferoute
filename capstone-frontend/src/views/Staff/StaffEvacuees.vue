@@ -457,6 +457,14 @@ export default {
       this.fetchEvacuees();
     },
 
+    handleSearchInput() {
+      clearTimeout(this.searchTimer);
+
+      this.searchTimer = setTimeout(() => {
+        this.fetchEvacuees();
+      }, 400);
+    },
+
     openCreateModal() {
         this.modalError = "";
 
