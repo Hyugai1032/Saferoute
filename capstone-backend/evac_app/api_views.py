@@ -473,10 +473,43 @@ class EvacuationCenterListViewSet(viewsets.ReadOnlyModelViewSet):
 class EvacueeViewSet(viewsets.ModelViewSet):
     serializer_class = EvacueeSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["center", "is_active", "sex", "is_child", "is_senior", "is_pwd", "is_pregnant", "is_lactating"]
-    search_fields = ["first_name", "middle_name", "last_name", "family_head_name", "family_number", "address"]
-    ordering_fields = ["date_registered", "last_name", "age"]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter,
+    ]
+
+    filterset_fields = [
+        "center",
+        "is_active",
+        "sex",
+        "is_family_head",
+        "is_child",
+        "is_senior",
+        "is_pwd",
+        "is_pregnant",
+        "is_lactating",
+    ]
+
+    search_fields = [
+        "first_name",
+        "middle_name",
+        "last_name",
+        "contact_number",
+        "address",
+        "family_head_name",
+        "remarks",
+        "center__name",
+    ]
+
+    ordering_fields = [
+        "date_registered",
+        "last_name",
+        "first_name",
+        "age",
+    ]
+
     ordering = ["-date_registered"]
 
     def get_queryset(self):

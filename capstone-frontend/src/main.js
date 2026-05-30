@@ -6,8 +6,12 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import { logout } from '@/services/authService'
 import './style.css'
+import './assets/theme.css'
+import { initTheme } from './composables/useTheme'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
+
+initTheme()
 
 const app = createApp(App)
 

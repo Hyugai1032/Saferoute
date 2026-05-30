@@ -302,6 +302,27 @@ let riskChart
 
 Chart.register(...registerables)
 
+function cssVar(name, fallback) {
+  if (typeof window === 'undefined') return fallback
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+}
+
+function chartTheme() {
+  return {
+    text: cssVar('--text-primary', '#e5e7eb'),
+    muted: cssVar('--text-muted', '#9ca3af'),
+    grid: cssVar('--border-light', 'rgba(255,255,255,0.08)'),
+    tooltipBg: cssVar('--surface-elevated', '#1e293b'),
+    accent: cssVar('--brand-blue', '#00b4ff')
+  }
+}
+
+function rebuildThemeCharts() {
+  initRiskDistributionChart()
+  initTopRiskChart()
+  initSelectedCenterChart()
+}
+
 const currentPage = ref(1)
 const rowsPerPage = ref(10)
 
@@ -501,7 +522,7 @@ function initRiskDistributionChart() {
       responsive: true,
       plugins: {
         legend: {
-          labels: { color: '#e5e7eb' }
+          labels: { color: chartTheme().text }
         }
       }
     }
@@ -591,10 +612,12 @@ onMounted(async () => {
     await refreshCongestion()
   }, 60000)
 
+  window.addEventListener('saferoute:theme-change', rebuildThemeCharts)
 })
 
 onUnmounted(() => {
   clearInterval(refreshTimer)
+  window.removeEventListener('saferoute:theme-change', rebuildThemeCharts)
 })
 
 function exportToCSV() {
@@ -655,14 +678,16 @@ function initTopRiskChart() {
       maintainAspectRatio: false,
       responsive: true,
       plugins: {
-        legend: { labels: { color: '#e5e7eb' } }
+        legend: { labels: { color: chartTheme().text } }
       },
       scales: {
         x: {
-          ticks: { color: '#9ca3af' }
+          ticks: { color: chartTheme().muted },
+          grid: { color: chartTheme().grid }
         },
         y: {
-          ticks: { color: '#9ca3af' }
+          ticks: { color: chartTheme().muted },
+          grid: { color: chartTheme().grid }
         }
       }
     }
@@ -701,7 +726,7 @@ function initSelectedCenterChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#e5e7eb' } }
+        legend: { labels: { color: chartTheme().text } }
       }
     }
   })
@@ -725,25 +750,25 @@ function chartOptions() {
     animation: { duration: 1200, easing: 'easeOutQuart' },
     plugins: {
       legend: {
-        labels: { color: '#9ca3af', font: { size: 13 } }
+        labels: { color: chartTheme().muted, font: { size: 13 } }
       },
       tooltip: {
-        backgroundColor: '#1e293b',
-        titleColor: '#00b4ff',
-        bodyColor: '#fff',
+        backgroundColor: chartTheme().tooltipBg,
+        titleColor: chartTheme().accent,
+        bodyColor: chartTheme().text,
         borderWidth: 1,
-        borderColor: '#00b4ff',
+        borderColor: chartTheme().accent,
         padding: 10
       }
     },
     scales: {
       x: {
-        ticks: { color: '#9ca3af' },
-        grid: { color: 'rgba(255,255,255,0.05)' }
+        ticks: { color: chartTheme().muted },
+        grid: { color: chartTheme().grid }
       },
       y: {
-        ticks: { color: '#9ca3af' },
-        grid: { color: 'rgba(255,255,255,0.05)' }
+        ticks: { color: chartTheme().muted },
+        grid: { color: chartTheme().grid }
       }
     }
   }

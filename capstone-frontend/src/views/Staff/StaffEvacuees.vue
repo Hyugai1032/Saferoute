@@ -20,8 +20,8 @@
         <input
           v-model="filters.search"
           type="text"
-          placeholder="Search name, family no., address..."
-          @keyup.enter="fetchEvacuees"
+          placeholder="Search name, family head, contact, address..."
+          @input="fetchEvacuees"
         />
       </div>
 

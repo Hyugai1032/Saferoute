@@ -21,6 +21,8 @@
     </div>
 
     <div class="header-right">
+      <ThemeToggle />
+
       <div class="header-notifications" v-if="showAdminNotifications">
         <button class="notification-btn" @click="toggleNotifications">
           <div class="notification-icon">🔔</div>
@@ -41,6 +43,7 @@
 import axios from "axios";
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
+import ThemeToggle from "@/components/ThemeToggle.vue";
 
 const router = useRouter();
 

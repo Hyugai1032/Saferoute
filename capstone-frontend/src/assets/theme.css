@@ -1,0 +1,2071 @@
+/* src/assets/theme.css
+   SafeRoute+ universal dark/light theme layer.
+   Import this AFTER your existing styles so it can control every panel. */
+
+:root,
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand-navy: #0b1220;
+  --brand-blue: #0ea5ff;
+  --brand-cyan: #22d3ee;
+  --brand-teal: #14b8a6;
+
+  --primary: #1d4ed8;
+  --secondary: #334155;
+  --accent: #0ea5ff;
+  --accent-color: #22d3ee;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --critical: #ef4444;
+
+  --bg-primary: #07111f;
+  --bg-secondary: #0b1727;
+  --bg-tertiary: #111f33;
+  --bg-card: rgba(15, 23, 42, 0.72);
+  --bg-card-solid: #0f1d31;
+  --background: #07111f;
+  --light: #111827;
+  --dark: #f8fafc;
+
+  --surface: rgba(15, 23, 42, 0.74);
+  --surface-solid: #0f1d31;
+  --surface-elevated: rgba(15, 23, 42, 0.92);
+  --surface-hover: rgba(30, 41, 59, 0.9);
+  --surface-soft: rgba(255, 255, 255, 0.055);
+
+  --text: #f8fafc;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-light: #94a3b8;
+  --muted: #94a3b8;
+
+  --border-light: rgba(148, 163, 184, 0.16);
+  --border-medium: rgba(148, 163, 184, 0.28);
+  --input-bg: rgba(15, 23, 42, 0.84);
+  --input-border: rgba(148, 163, 184, 0.22);
+
+  --sidebar-bg: linear-gradient(180deg, rgba(7, 17, 31, 0.98) 0%, rgba(12, 28, 49, 0.97) 100%);
+  --sidebar-border: rgba(34, 211, 238, 0.12);
+  --header-bg: rgba(7, 17, 31, 0.78);
+  --page-bg:
+    radial-gradient(circle at top left, rgba(14, 165, 255, 0.18), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.12), transparent 30rem),
+    linear-gradient(135deg, #07111f 0%, #0b1727 100%);
+
+  --shadow-soft: 0 18px 50px rgba(0, 0, 0, 0.26);
+  --shadow-card: 0 20px 60px rgba(0, 0, 0, 0.34);
+  --shadow-global: 0 20px 40px rgba(0, 0, 0, 0.30);
+  --shadow-glow: 0 0 0 1px rgba(34, 211, 238, 0.16), 0 16px 36px rgba(14, 165, 255, 0.16);
+
+  --radius-small: 8px;
+  --radius-medium: 12px;
+  --radius-large: 18px;
+
+  --toggle-track: linear-gradient(135deg, #0f172a, #1e293b);
+  --toggle-thumb: linear-gradient(135deg, #22d3ee, #0ea5ff);
+  --toggle-x: 0px;
+
+  --map-filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(1.08) saturate(0.9);
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+
+  --brand-navy: #0f3c75;
+  --brand-blue: #0b82f0;
+  --brand-cyan: #06b6d4;
+  --brand-teal: #0f766e;
+
+  --primary: #0b82f0;
+  --secondary: #475569;
+  --accent: #0284c7;
+  --accent-color: #0ea5ff;
+  --danger: #dc2626;
+  --success: #059669;
+  --warning: #d97706;
+  --critical: #dc2626;
+
+  --bg-primary: #f6f9ff;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eff6ff;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-solid: #ffffff;
+  --background: #f6f9ff;
+  --light: #f8fafc;
+  --dark: #0f172a;
+
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-solid: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-hover: #f1f7ff;
+  --surface-soft: rgba(14, 130, 240, 0.075);
+
+  --text: #0f172a;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-light: #64748b;
+  --muted: #64748b;
+
+  --border-light: rgba(15, 23, 42, 0.10);
+  --border-medium: rgba(15, 23, 42, 0.16);
+  --input-bg: rgba(255, 255, 255, 0.96);
+  --input-border: rgba(15, 23, 42, 0.14);
+
+  --sidebar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(238, 247, 255, 0.98) 100%);
+  --sidebar-border: rgba(14, 130, 240, 0.14);
+  --header-bg: rgba(255, 255, 255, 0.82);
+  --page-bg:
+    radial-gradient(circle at top left, rgba(14, 165, 255, 0.16), transparent 33rem),
+    radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.14), transparent 31rem),
+    linear-gradient(135deg, #f6f9ff 0%, #edf6ff 100%);
+
+  --shadow-soft: 0 14px 38px rgba(15, 23, 42, 0.07);
+  --shadow-card: 0 18px 55px rgba(15, 23, 42, 0.09);
+  --shadow-global: 0 20px 40px rgba(15, 23, 42, 0.08);
+  --shadow-glow: 0 0 0 1px rgba(14, 130, 240, 0.12), 0 14px 30px rgba(14, 130, 240, 0.12);
+
+  --toggle-track: linear-gradient(135deg, #dbeafe, #cffafe);
+  --toggle-thumb: linear-gradient(135deg, #ffffff, #f8fafc);
+  --toggle-x: 22px;
+
+  --map-filter: none;
+}
+
+/* Global foundation */
+html,
+body,
+#app {
+  min-height: 100%;
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+* {
+  scrollbar-color: var(--border-medium) transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium) !important;
+}
+
+/* Base readable text */
+h1, h2, h3, h4, h5, h6,
+.title,
+.page-title,
+.card-title,
+.section-title,
+.panel-header h3,
+.header-info h1,
+.center-header h4,
+.metric-value,
+.value,
+.big,
+.app-name,
+.user-name {
+  color: var(--text-primary) !important;
+}
+
+p,
+small,
+.sub,
+.subtitle,
+.page-subtitle,
+.section-subtitle,
+.metric-label,
+.center-location,
+.muted,
+.meta,
+.label,
+.user-role,
+.app-tagline,
+.header-info p,
+.user-info p {
+  color: var(--text-muted) !important;
+}
+
+/* App shells */
+.app,
+.admin-layout,
+.staff-layout,
+.dashboard-container,
+.map-container,
+.evac-manager,
+.hazard-page,
+.hazard-reports,
+.user-dashboard,
+.user-map,
+.user-alerts,
+.user-profile,
+.dash,
+.analytics-page,
+.report-page,
+.logs-page,
+.staff-evacuees {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+.main-content {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+/* Universal glass cards and panels */
+.metric-card,
+.content-panel,
+.card,
+.status-card,
+.recent-section,
+.contacts-section,
+.banner,
+.breakdown,
+.pillcard,
+.list,
+.filters,
+.filter-panel,
+.tableWrap,
+.table-wrap,
+.table-card,
+.report-card,
+.report-item,
+.hazard-item,
+.hazard-card,
+.center-item,
+.map-sidebar,
+.sidebar-content,
+.center-details,
+.metrics-section,
+.legend,
+.modal,
+.form-card,
+.profile-card,
+.info-card,
+.stat-card,
+.quick-card,
+.map-card,
+.notification-card,
+.alert-card,
+.data-card,
+.panel,
+.widget,
+.summary-card,
+.kpi-card,
+.analytics-card,
+.chart-card,
+.chart-box,
+.upload-card,
+.preview-card,
+.table-container,
+.form-section,
+.details-panel,
+.controls-panel,
+.quick-actions,
+.dashboard-content,
+.hazards-list,
+.contacts-grid,
+.contact-item,
+.evacuee-card,
+.log-card,
+.population-card {
+  background: var(--surface) !important;
+  border-color: var(--border-light) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+  backdrop-filter: blur(18px);
+}
+
+.metric-card,
+.content-panel,
+.card,
+.status-card,
+.recent-section,
+.contacts-section,
+.banner,
+.breakdown,
+.pillcard,
+.list,
+.filters,
+.report-card,
+.center-item,
+.map-sidebar,
+.modal,
+.profile-card,
+.info-card,
+.stat-card,
+.quick-card,
+.analytics-card,
+.chart-card {
+  border: 1px solid var(--border-light) !important;
+}
+
+.metric-card:hover,
+.content-panel:hover,
+.status-card:hover,
+.center-item:hover,
+.report-card:hover,
+.card:hover {
+  border-color: rgba(14, 130, 240, 0.28) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* Header bars */
+.header-bar,
+.user-header,
+.top-header,
+.navbar,
+.app-header {
+  background: var(--header-bg) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  box-shadow: var(--shadow-soft) !important;
+  backdrop-filter: blur(20px);
+}
+
+.header-right,
+.header-actions,
+.top-actions {
+  color: var(--text-primary) !important;
+}
+
+/* Sidebars */
+.sidebar,
+aside.sidebar,
+.sidebar > .sidebar {
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.logo-section {
+  border-bottom-color: var(--border-light) !important;
+}
+
+.logo-inner {
+  background: linear-gradient(135deg, rgba(14, 130, 240, 0.18), rgba(34, 211, 238, 0.18)) !important;
+  border: 1px solid rgba(14, 130, 240, 0.18) !important;
+}
+
+.logo-pulse {
+  opacity: 0.34 !important;
+}
+
+.nav-item,
+.sidebar-toggle,
+.collapse-btn,
+.notification-btn,
+.alert-btn,
+.btn-icon,
+.control-btn,
+.close-sidebar,
+.toggle-btn,
+.action-btn {
+  color: var(--text-secondary) !important;
+  border-color: var(--border-light) !important;
+}
+
+.nav-item:hover,
+.nav-item-active,
+.router-link-active.nav-item,
+.sidebar-toggle:hover,
+.collapse-btn:hover,
+.notification-btn:hover,
+.alert-btn:hover,
+.btn-icon:hover,
+.control-btn:hover,
+.toggle-btn.active,
+.action-btn:hover {
+  background: var(--surface-soft) !important;
+  color: var(--brand-blue) !important;
+  border-color: rgba(14, 130, 240, 0.25) !important;
+}
+
+.nav-text,
+.nav-icon,
+.nav-icon-wrapper,
+.toggle-text {
+  color: inherit !important;
+}
+
+.user-section {
+  background: var(--surface-soft) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+/* Form controls */
+input,
+select,
+textarea,
+.search-input,
+.search-box,
+.search-container,
+.filter-input,
+.form-input,
+.form-select,
+.form-control,
+.filter-row select,
+.filter-row input {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+
+input::placeholder,
+textarea::placeholder,
+.search-input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.search-container:focus-within,
+.form-input:focus,
+.form-select:focus {
+  border-color: rgba(14, 130, 240, 0.58) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(14, 130, 240, 0.13) !important;
+}
+
+/* Buttons */
+button,
+.btn,
+.btn-secondary,
+.view-all-btn,
+.alert-action,
+.pagination-btn,
+.page-btn,
+.cancel-btn,
+.ghost {
+  border-color: var(--border-light) !important;
+}
+
+.btn-primary,
+.primary,
+.view-details,
+.submit-btn,
+.save-btn,
+.add-btn,
+.export-btn,
+.view-all-btn:hover {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  border-color: rgba(14, 130, 240, 0.1) !important;
+  box-shadow: 0 12px 28px rgba(14, 130, 240, 0.22) !important;
+}
+
+.btn-secondary,
+.secondary,
+.ghost,
+.cancel-btn,
+.view-all-btn,
+.pagination-btn,
+.page-btn,
+.toggle-btn,
+.alert-action {
+  background: var(--surface-soft) !important;
+  color: var(--text-secondary) !important;
+}
+
+.btn-secondary:hover,
+.secondary:hover,
+.ghost:hover,
+.cancel-btn:hover,
+.pagination-btn:hover,
+.page-btn:hover,
+.alert-action:hover {
+  background: rgba(14, 130, 240, 0.12) !important;
+  color: var(--brand-blue) !important;
+}
+
+.logout-header-btn,
+.btn-logout,
+.logout-btn,
+.delete-btn,
+.danger-btn {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: var(--danger) !important;
+  border: 1px solid rgba(239, 68, 68, 0.22) !important;
+}
+
+.logout-header-btn:hover,
+.btn-logout:hover,
+.logout-btn:hover,
+.delete-btn:hover,
+.danger-btn:hover {
+  background: var(--danger) !important;
+  color: #ffffff !important;
+}
+
+/* Tables */
+table,
+.data-table,
+.centers-table,
+.logs-table {
+  color: var(--text-primary) !important;
+}
+
+thead,
+th,
+.data-table th,
+.table-header {
+  background: var(--surface-soft) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--border-light) !important;
+}
+
+td,
+.data-table td,
+.table-row,
+.list-row {
+  color: var(--text-secondary) !important;
+  border-color: var(--border-light) !important;
+}
+
+tr:hover,
+.table-row:hover,
+.list-row:hover {
+  background: var(--surface-soft) !important;
+}
+
+/* Progress/status surfaces */
+.progress-bar,
+.progress-container,
+.supply-bar,
+.occupancy-bar,
+.bar-track {
+  background: rgba(100, 116, 139, 0.18) !important;
+}
+
+.status-badge,
+.center-badge,
+.severity,
+.badge,
+.pill,
+.status-pill {
+  border: 1px solid currentColor;
+}
+
+.status-badge.low,
+.status-badge.normal,
+.status-badge.safe,
+.center-badge.normal,
+.low,
+.safe,
+.ok,
+.green {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: var(--success) !important;
+}
+
+.status-badge.warning,
+.status-badge.medium,
+.center-badge.warning,
+.warning,
+.moderate,
+.medium,
+.high:not(.metric-icon):not(.progress-fill):not(.status-indicator) {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: var(--warning) !important;
+}
+
+.status-badge.critical,
+.status-badge.high,
+.status-badge.needs-aid,
+.center-badge.critical,
+.critical:not(.metric-icon):not(.progress-fill):not(.status-indicator),
+.very-high,
+.bad,
+.danger {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: var(--danger) !important;
+}
+
+/* Leaflet and maps */
+.leaflet-container {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .leaflet-tile {
+  filter: var(--map-filter);
+}
+
+html[data-theme='light'] .leaflet-tile {
+  filter: none;
+}
+
+.leaflet-control,
+.leaflet-control a,
+.leaflet-control-layers,
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-light) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.leaflet-popup-content,
+.leaflet-popup-content strong {
+  color: var(--text-primary) !important;
+}
+
+/* Modals */
+.modalBackdrop,
+.modal-backdrop,
+.backdrop,
+.overlay {
+  background: rgba(2, 8, 23, 0.50) !important;
+  backdrop-filter: blur(4px);
+}
+
+html[data-theme='light'] .modalBackdrop,
+html[data-theme='light'] .modal-backdrop,
+html[data-theme='light'] .backdrop,
+html[data-theme='light'] .overlay {
+  background: rgba(15, 23, 42, 0.32) !important;
+}
+
+/* Page-specific polish */
+.metric-card::before,
+.content-panel::before,
+.card::before {
+  background: linear-gradient(90deg, var(--brand-blue), transparent) !important;
+}
+
+.metric-value,
+.header-info h1,
+.user-info h1,
+.text-gradient {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-cyan)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme='light'] .metric-value,
+html[data-theme='light'] .header-info h1,
+html[data-theme='light'] .user-info h1 {
+  background: linear-gradient(135deg, #0f3c75, #0b82f0) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Make images and thumbnails look premium on both modes */
+img,
+.thumb,
+.report-image,
+.hazard-image {
+  border-color: var(--border-light) !important;
+}
+
+/* Keep auth/landing readable too */
+.login-container,
+.register-container,
+.landing-page,
+.auth-container {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Light mode-specific refinements */
+html[data-theme='light'] .sidebar-glow {
+  background: linear-gradient(45deg, rgba(14, 130, 240, 0.12), transparent 56%) !important;
+}
+
+html[data-theme='light'] .app-name,
+html[data-theme='light'] .logo-text .app-name {
+  background: linear-gradient(135deg, #0f3c75, #0ea5ff) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme='light'] .logo-img {
+  filter: drop-shadow(0 8px 14px rgba(14, 130, 240, 0.12));
+}
+
+html[data-theme='light'] .alert-banner.warning {
+  background: rgba(245, 158, 11, 0.12) !important;
+}
+
+/* Dark mode-specific refinements */
+html[data-theme='dark'] .header-bar,
+html[data-theme='dark'] .user-header,
+html[data-theme='dark'] .sidebar,
+html[data-theme='dark'] .metric-card,
+html[data-theme='dark'] .content-panel,
+html[data-theme='dark'] .card,
+html[data-theme='dark'] .status-card,
+html[data-theme='dark'] .recent-section,
+html[data-theme='dark'] .contacts-section {
+  box-shadow: var(--shadow-card) !important;
+}
+
+@media (max-width: 768px) {
+  .header-bar,
+  .user-header {
+    padding: 0.85rem 1rem !important;
+  }
+
+  .theme-toggle {
+    transform: scale(0.94);
+  }
+}
+
+/* =========================================================
+   SafeRoute+ Light Mode Override Patch
+   Paste this at the VERY BOTTOM of src/assets/theme.css.
+   Purpose: fixes pages/components that still use hardcoded dark
+   backgrounds/text inside scoped <style> blocks.
+   ========================================================= */
+
+html[data-theme='light'] {
+  --page-bg:
+    radial-gradient(circle at top left, rgba(14, 165, 255, 0.12), transparent 32rem),
+    radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.12), transparent 30rem),
+    linear-gradient(135deg, #f6f9ff 0%, #eef6ff 100%);
+  --surface: rgba(255, 255, 255, 0.94);
+  --surface-solid: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-soft: rgba(14, 130, 240, 0.075);
+  --surface-hover: #eef7ff;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --border-light: rgba(15, 23, 42, 0.10);
+  --border-medium: rgba(15, 23, 42, 0.16);
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.14);
+}
+
+/* Strong light-mode foundation for any missed dark containers */
+html[data-theme='light'] body,
+html[data-theme='light'] #app,
+html[data-theme='light'] .app,
+html[data-theme='light'] .main-content,
+html[data-theme='light'] .admin-layout,
+html[data-theme='light'] .staff-layout,
+html[data-theme='light'] .user-layout,
+html[data-theme='light'] .analytics-container,
+html[data-theme='light'] .evac-manager,
+html[data-theme='light'] .user-management,
+html[data-theme='light'] .dashboard-container,
+html[data-theme='light'] .map-container,
+html[data-theme='light'] .report-page,
+html[data-theme='light'] .population-report,
+html[data-theme='light'] .affected-population-report {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Generic text safety net, but avoid icons/charts/maps */
+html[data-theme='light'] :is(
+  .analytics-container,
+  .evac-manager,
+  .user-management,
+  .affected-population-report,
+  .population-report,
+  .dashboard-container,
+  .map-container,
+  .user-dashboard,
+  .dash
+) :is(h1, h2, h3, h4, h5, h6, .title, .page-title, .section-title, .modal-title, .table-title .title, .user-name, .name-main, .big-metric, .stat-number, .metric-value, .value) {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] :is(
+  .analytics-container,
+  .evac-manager,
+  .user-management,
+  .affected-population-report,
+  .population-report,
+  .dashboard-container,
+  .map-container,
+  .user-dashboard,
+  .dash
+) :is(p, small, label, .sub, .subtitle, .section-subtitle, .muted, .text-muted, .muted-sm, .control-label, .pagination-info, .stat-label, .stat-hint, .risk-card-title, .user-email, .user-contact, .modal-sub, .empty-text, .name-sub, .table-title .subtitle) {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* Universal missed panels/cards in light mode */
+html[data-theme='light'] :is(
+  .panel,
+  .card,
+  .card-section,
+  .stat-card,
+  .stats-card,
+  .chart-card,
+  .weather-section,
+  .weather-summary-card,
+  .risk-card,
+  .filters,
+  .filter-panel,
+  .list,
+  .upload,
+  .create,
+  .table-shell,
+  .table-container,
+  .table-wrap,
+  .weather-table-container,
+  .modal,
+  .modal-content,
+  .modal-head,
+  .modal-body,
+  .modal-actions,
+  .empty-box,
+  .me-pill,
+  .search,
+  .risk-grid,
+  .congestion-charts,
+  .weather-chart-card
+) {
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-light) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] :is(.stat-card, .chart-card, .weather-summary-card, .risk-card, .card-section, .table-shell, .table-container):hover {
+  box-shadow: var(--shadow-card) !important;
+  border-color: rgba(14, 130, 240, 0.22) !important;
+}
+
+/* Forms/search/dropdowns that still stayed dark */
+html[data-theme='light'] :is(
+  input,
+  select,
+  textarea,
+  .control-input,
+  .rows-select,
+  .search input,
+  .field input,
+  .field select,
+  .evac-manager input,
+  .evac-manager select,
+  .evac-manager textarea
+) {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border) !important;
+  box-shadow: none !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] :is(input, textarea, .search input)::placeholder,
+html[data-theme='light'] .evac-manager :is(input, textarea)::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+html[data-theme='light'] :is(input, select, textarea, .control-input, .rows-select):focus {
+  border-color: rgba(14, 130, 240, 0.48) !important;
+  box-shadow: 0 0 0 4px rgba(14, 130, 240, 0.12) !important;
+}
+
+/* Analytics page: fixes dark block, table, filter row, and chart cards */
+html[data-theme='light'] .analytics-container {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .analytics-container .page-title,
+html[data-theme='light'] .analytics-container .weather-title,
+html[data-theme='light'] .analytics-container .section-title,
+html[data-theme='light'] .analytics-container .chart-header h4,
+html[data-theme='light'] .analytics-container .weather-summary-card h4,
+html[data-theme='light'] .analytics-container .stat-card h3 {
+  color: var(--brand-blue) !important;
+  text-shadow: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .analytics-container :is(.chart-controls button, .btn-refresh, .btn-mini, .page-btn) {
+  background: var(--surface-soft) !important;
+  color: var(--brand-blue) !important;
+  border-color: rgba(14, 130, 240, 0.18) !important;
+}
+
+html[data-theme='light'] .analytics-container :is(.chart-controls button.active, .chart-controls .active) {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+html[data-theme='light'] .analytics-container .dark-table,
+html[data-theme='light'] .analytics-container table {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-collapse: collapse !important;
+}
+
+html[data-theme='light'] .analytics-container :is(.dark-table th, th) {
+  background: #eaf4ff !important;
+  color: #475569 !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .analytics-container :is(.dark-table td, td) {
+  background: #ffffff !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light'] .analytics-container :is(.dark-table tr:hover td, tr:hover td) {
+  background: #f1f7ff !important;
+}
+
+html[data-theme='light'] .analytics-container .progress,
+html[data-theme='light'] .analytics-container .progress-bar:not(.warn) {
+  background-color: rgba(14, 130, 240, 0.16) !important;
+}
+
+html[data-theme='light'] .analytics-container canvas {
+  background: transparent !important;
+}
+
+/* Evacuation Centers Manager: fixes pale/faint table text */
+html[data-theme='light'] .evac-manager .list,
+html[data-theme='light'] .evac-manager .filters,
+html[data-theme='light'] .evac-manager .table-shell,
+html[data-theme='light'] .evac-manager .modal-content,
+html[data-theme='light'] .evac-manager .modal-actions {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-light) !important;
+}
+
+html[data-theme='light'] .evac-manager :is(.list h3, .upload h3, .create h3, .modal-content h3, .modal-header h3, .table-title .title, .name-cell .name-main) {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .evac-manager :is(.list th, .centers-table thead th) {
+  background: #eaf4ff !important;
+  color: #475569 !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .evac-manager :is(.list td, .centers-table tbody td, .name-cell .name-sub, .muted, .text-muted) {
+  color: var(--text-secondary) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light'] .evac-manager :is(.list tr:hover, .centers-table tbody tr:hover) {
+  background: #f1f7ff !important;
+}
+
+html[data-theme='light'] .evac-manager .coords {
+  background: rgba(14, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.20) !important;
+}
+
+html[data-theme='light'] .evac-manager .btn-ghost,
+html[data-theme='light'] .evac-manager .modal-content button[type='button'] {
+  background: #f1f7ff !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-light) !important;
+}
+
+html[data-theme='light'] .evac-manager .modal-close {
+  color: var(--text-primary) !important;
+}
+
+/* User Management page uses local CSS variables, so override them here */
+html[data-theme='light'] .user-management {
+  --bg: #f6f9ff;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel2: #ffffff;
+  --border: rgba(14, 130, 240, 0.18);
+  --border2: rgba(15, 23, 42, 0.10);
+  --text: #0f172a;
+  --muted: #64748b;
+  --blue: #0b82f0;
+  --blue2: #2563eb;
+  --green: #059669;
+  --red: #dc2626;
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .user-management :is(.stat-card, .filters, .table-container, .modal, .empty-box, .me-pill, .search) {
+  background: var(--surface) !important;
+  border-color: var(--border-light) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] .user-management :is(.title-wrap h1, .users-table h3, .user-name, .modal-title, .empty-title, .me-email, .stat-number) {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .user-management :is(.title-wrap p, .stat-label, .stat-hint, .user-email, .user-contact, .me-role, .modal-sub, .field label, .empty-text, .muted) {
+  color: var(--text-muted) !important;
+}
+
+html[data-theme='light'] .user-management table {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .user-management th {
+  background: #eaf4ff !important;
+  color: #475569 !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .user-management td {
+  background: #ffffff !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light'] .user-management tbody tr:hover td,
+html[data-theme='light'] .user-management tbody tr:hover {
+  background: #f1f7ff !important;
+}
+
+html[data-theme='light'] .user-management .table-sub .chip {
+  background: rgba(14, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.18) !important;
+}
+
+html[data-theme='light'] .user-management .a-btn {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.20) !important;
+}
+
+html[data-theme='light'] .user-management .a-btn.danger {
+  background: rgba(220, 38, 38, 0.10) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.20) !important;
+}
+
+html[data-theme='light'] .user-management .btn.ghost {
+  background: #f1f7ff !important;
+  color: var(--brand-blue) !important;
+}
+
+/* Status/role pills tuned for light surfaces */
+html[data-theme='light'] .pill.status.active,
+html[data-theme='light'] .status-badge.active {
+  background: rgba(5, 150, 105, 0.12) !important;
+  color: #059669 !important;
+  border-color: rgba(5, 150, 105, 0.24) !important;
+}
+
+html[data-theme='light'] .pill.status.inactive,
+html[data-theme='light'] .status-badge.inactive {
+  background: rgba(220, 38, 38, 0.10) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.20) !important;
+}
+
+html[data-theme='light'] .pill.role,
+html[data-theme='light'] .pill.role.muni {
+  background: rgba(14, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.22) !important;
+}
+
+html[data-theme='light'] .pill.role.prov {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+}
+
+html[data-theme='light'] .pill.role.evac {
+  background: rgba(5, 150, 105, 0.11) !important;
+  color: #047857 !important;
+  border-color: rgba(5, 150, 105, 0.22) !important;
+}
+
+html[data-theme='light'] .pill.role.resp,
+html[data-theme='light'] .badge-temporary,
+html[data-theme='light'] .moderate,
+html[data-theme='light'] .risk-pill.moderate,
+html[data-theme='light'] .risk-badge.moderate {
+  background: rgba(217, 119, 6, 0.12) !important;
+  color: #b45309 !important;
+  border-color: rgba(217, 119, 6, 0.24) !important;
+}
+
+html[data-theme='light'] .pill.role.cit {
+  background: rgba(100, 116, 139, 0.10) !important;
+  color: #475569 !important;
+  border-color: rgba(100, 116, 139, 0.20) !important;
+}
+
+html[data-theme='light'] .low,
+html[data-theme='light'] .risk-pill.low,
+html[data-theme='light'] .risk-badge.low,
+html[data-theme='light'] .badge-permanent {
+  background: rgba(5, 150, 105, 0.12) !important;
+  color: #047857 !important;
+  border-color: rgba(5, 150, 105, 0.24) !important;
+}
+
+html[data-theme='light'] .high,
+html[data-theme='light'] .full,
+html[data-theme='light'] .risk-pill.high,
+html[data-theme='light'] .risk-badge.high,
+html[data-theme='light'] .risk-pill.full,
+html[data-theme='light'] .risk-badge.full {
+  background: rgba(220, 38, 38, 0.10) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.22) !important;
+}
+
+/* Disabled buttons were too pale in light mode */
+html[data-theme='light'] button:disabled,
+html[data-theme='light'] .a-btn:disabled,
+html[data-theme='light'] .btn:disabled {
+  opacity: 0.58 !important;
+  background: #eaf0f8 !important;
+  color: #94a3b8 !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+/* Keep primary/danger buttons readable after broad overrides */
+html[data-theme='light'] :is(.btn-primary, .btn.primary, .primary, .submit-btn, .save-btn, .add-btn, .export-btn, button[type='submit']) {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html[data-theme='light'] :is(.btn-danger, .delete-btn, .danger-btn, .a-btn.danger) {
+  background: rgba(220, 38, 38, 0.10) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.20) !important;
+}
+
+/* Optional: make any old white-on-white table text recover automatically */
+html[data-theme='light'] :is(table, thead, tbody, tr, th, td) {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* ========================================================================== 
+   SafeRoute+ Theme Patch v2
+   Extra light-mode coverage for GISMap.vue and UserProfile.vue
+   Keep this at the END of src/assets/theme.css
+   ========================================================================== */
+
+/* ----------------------------- GISMap.vue ----------------------------- */
+html[data-theme='light'] .map-container {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .map-container .map-header {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light'] .map-container .page-title,
+html[data-theme='light'] .map-container .center-header h3,
+html[data-theme='light'] .map-container .metrics-section h4,
+html[data-theme='light'] .map-container .placeholder-content h3 {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .map-container .page-subtitle,
+html[data-theme='light'] .map-container .legend-item,
+html[data-theme='light'] .map-container .filter-item,
+html[data-theme='light'] .map-container .info-label,
+html[data-theme='light'] .map-container .placeholder-content,
+html[data-theme='light'] .map-container .placeholder-content p {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .map-container .info-value,
+html[data-theme='light'] .map-container .progress-text,
+html[data-theme='light'] .map-container .supply-name {
+  color: var(--text-secondary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .map-container .legend,
+html[data-theme='light'] .map-container .building-filter {
+  background: rgba(255, 255, 255, 0.84) !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07) !important;
+}
+
+html[data-theme='light'] .map-container .filter-item,
+html[data-theme='light'] .map-container .control-btn,
+html[data-theme='light'] .map-container .close-sidebar,
+html[data-theme='light'] .map-container .action-btn.secondary {
+  background: #f8fbff !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme='light'] .map-container .filter-item:hover,
+html[data-theme='light'] .map-container .control-btn:hover,
+html[data-theme='light'] .map-container .close-sidebar:hover,
+html[data-theme='light'] .map-container .action-btn.secondary:hover {
+  background: #eef7ff !important;
+  border-color: rgba(14, 130, 240, 0.28) !important;
+  box-shadow: 0 10px 22px rgba(14, 130, 240, 0.12) !important;
+}
+
+html[data-theme='light'] .map-container .map-content {
+  background: #eef6ff !important;
+}
+
+html[data-theme='light'] .map-container .main-map {
+  background: #eaf4ff !important;
+}
+
+html[data-theme='light'] .map-container .map-sidebar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-left: 1px solid rgba(15, 23, 42, 0.12) !important;
+  box-shadow: -18px 0 45px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme='light'] .map-container .sidebar-content {
+  background: transparent !important;
+}
+
+html[data-theme='light'] .map-container .metrics-section,
+html[data-theme='light'] .map-container .supply-card {
+  background: #f8fbff !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05) !important;
+}
+
+html[data-theme='light'] .map-container .progress-bar.large,
+html[data-theme='light'] .map-container .supply-bar {
+  background: #e2e8f0 !important;
+}
+
+html[data-theme='light'] .map-container .legend-color {
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme='light'] .map-container input[type='checkbox'] {
+  accent-color: var(--brand-blue) !important;
+}
+
+html[data-theme='light'] .map-container .sidebar-placeholder {
+  background: rgba(255, 255, 255, 0.84) !important;
+}
+
+/* Leaflet controls/popups and custom marker hover badges inside GIS map */
+html[data-theme='light'] .map-container .leaflet-control,
+html[data-theme='light'] .map-container .leaflet-control a,
+html[data-theme='light'] .map-container .leaflet-control-layers,
+html[data-theme='light'] .map-container .leaflet-popup-content-wrapper,
+html[data-theme='light'] .map-container .leaflet-popup-tip {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme='light'] .map-container .leaflet-popup-content,
+html[data-theme='light'] .map-container .leaflet-popup-content * {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .marker-hover-badge {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16) !important;
+}
+
+html[data-theme='light'] .marker-popup,
+html[data-theme='light'] .marker-popup h4,
+html[data-theme='light'] .marker-popup p {
+  color: var(--text-primary) !important;
+}
+
+/* --------------------------- UserProfile.vue --------------------------- */
+html[data-theme='light'] .user-profile {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .user-profile .profile-header {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(14, 165, 255, 0.13), transparent 20rem),
+    radial-gradient(circle at 88% 12%, rgba(34, 211, 238, 0.11), transparent 22rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(238, 247, 255, 0.94)) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .user-profile .shape {
+  background: radial-gradient(circle, rgba(14, 165, 255, 0.16) 0%, transparent 70%) !important;
+}
+
+html[data-theme='light'] .user-profile .user-name {
+  background: linear-gradient(90deg, #0f3c75, #0b82f0, #06b6d4) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme='light'] .user-profile .user-email,
+html[data-theme='light'] .user-profile .summary-title,
+html[data-theme='light'] .user-profile .hint,
+html[data-theme='light'] .user-profile .toast-msg {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .user-profile .summary-value,
+html[data-theme='light'] .user-profile .input-group label,
+html[data-theme='light'] .user-profile .panel-header h3,
+html[data-theme='light'] .user-profile .toast-title {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .user-profile .chip,
+html[data-theme='light'] .user-profile .summary-item,
+html[data-theme='light'] .user-profile .tab-btn,
+html[data-theme='light'] .user-profile .info-form,
+html[data-theme='light'] .user-profile .toast {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07) !important;
+}
+
+html[data-theme='light'] .user-profile .summary-item:hover,
+html[data-theme='light'] .user-profile .tab-btn.active,
+html[data-theme='light'] .user-profile .tab-btn:hover {
+  background: #eef7ff !important;
+  border-color: rgba(14, 130, 240, 0.28) !important;
+}
+
+html[data-theme='light'] .user-profile .profile-tabs,
+html[data-theme='light'] .user-profile .panel-header {
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .user-profile .input-group input {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .user-profile .input-group input::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+html[data-theme='light'] .user-profile .input-group input.editable,
+html[data-theme='light'] .user-profile .input-group input:focus {
+  background: #f8fbff !important;
+  border-color: rgba(14, 130, 240, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(14, 130, 240, 0.14) !important;
+}
+
+html[data-theme='light'] .user-profile .input-group input.readonly {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+
+html[data-theme='light'] .user-profile .ghost-btn,
+html[data-theme='light'] .user-profile .edit-btn {
+  background: rgba(14, 130, 240, 0.09) !important;
+  color: #0369a1 !important;
+  border: 1px solid rgba(14, 130, 240, 0.24) !important;
+}
+
+html[data-theme='light'] .user-profile .ghost-btn:hover:not(:disabled),
+html[data-theme='light'] .user-profile .edit-btn:hover {
+  background: rgba(14, 130, 240, 0.14) !important;
+  border-color: rgba(14, 130, 240, 0.38) !important;
+  box-shadow: 0 12px 24px rgba(14, 130, 240, 0.14) !important;
+}
+
+html[data-theme='light'] .user-profile .primary-btn,
+html[data-theme='light'] .user-profile .avatar-edit-btn {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html[data-theme='light'] .user-profile .profile-avatar {
+  border-color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 18px 36px rgba(14, 130, 240, 0.24) !important;
+}
+
+html[data-theme='light'] .user-profile .loading-overlay {
+  background: rgba(248, 250, 252, 0.82) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Also covers the simpler admin/staff profile page at src/views/Profile/UserProfile.vue */
+html[data-theme='light'] .page .profile-top,
+html[data-theme='light'] .page .card.profile-top,
+html[data-theme='light'] .page .card.warn {
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .page .avatar {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html[data-theme='light'] .page .badge {
+  background: rgba(14, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.22) !important;
+}
+
+/* ========================================================================== 
+   SafeRoute+ Theme Patch v3
+   Extra coverage for Hazard Reports, User Hazard Report, User Alerts,
+   Staff Dashboard/Logs, and GIS legend colors.
+   Keep this at the END of src/assets/theme.css
+   ========================================================================== */
+
+/* --------------------------- GIS legend color recovery --------------------------- */
+html[data-theme='light'] .map-container .legend-color.normal,
+html[data-theme='light'] .map-container .legend-color.available {
+  background: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12) !important;
+}
+
+html[data-theme='light'] .map-container .legend-color.warning,
+html[data-theme='light'] .map-container .legend-color.nearly-full {
+  background: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.38) !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14) !important;
+}
+
+html[data-theme='light'] .map-container .legend-color.critical,
+html[data-theme='light'] .map-container .legend-color.full {
+  background: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.38) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14) !important;
+}
+
+html[data-theme='light'] .map-container .legend-item .warning,
+html[data-theme='light'] .map-container .legend-item .critical {
+  color: inherit !important;
+}
+
+.legend .legend-color.normal,
+.map-controls .legend-color.normal,
+.legend-color.normal {
+  background: #22c55e !important;
+  border: 1px solid rgba(34, 197, 94, 0.95) !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16) !important;
+}
+
+.legend .legend-color.warning,
+.map-controls .legend-color.warning,
+.legend-color.warning {
+  background: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.95) !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16) !important;
+}
+
+.legend .legend-color.critical,
+.map-controls .legend-color.critical,
+.legend-color.critical {
+  background: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.95) !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.16) !important;
+}
+
+/* Keeps the dots clean and round */
+.legend-color {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  border-radius: 999px !important;
+  display: inline-block !important;
+  opacity: 1 !important;
+}
+
+/* --------------------------- Admin HazardReport.vue --------------------------- */
+html[data-theme='light'] .hazard-admin {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .hazard-admin .page-header h1,
+html[data-theme='light'] .hazard-admin .title,
+html[data-theme='light'] .hazard-admin .drawer-title,
+html[data-theme='light'] .hazard-admin .panel-title {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+  text-shadow: none !important;
+}
+
+html[data-theme='light'] .hazard-admin .page-header p,
+html[data-theme='light'] .hazard-admin .sub,
+html[data-theme='light'] .hazard-admin .drawer-sub,
+html[data-theme='light'] .hazard-admin .drawer-kicker,
+html[data-theme='light'] .hazard-admin .label,
+html[data-theme='light'] .hazard-admin .k,
+html[data-theme='light'] .hazard-admin .muted,
+html[data-theme='light'] .hazard-admin .meta-mini,
+html[data-theme='light'] .hazard-admin .peek-hint,
+html[data-theme='light'] .hazard-admin .empty-photos {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .hazard-admin .description,
+html[data-theme='light'] .hazard-admin .value,
+html[data-theme='light'] .hazard-admin .v,
+html[data-theme='light'] .hazard-admin .pre,
+html[data-theme='light'] .hazard-admin .kv {
+  color: var(--text-secondary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .hazard-admin .badge,
+html[data-theme='light'] .hazard-admin .filters,
+html[data-theme='light'] .hazard-admin .state,
+html[data-theme='light'] .hazard-admin .report-card,
+html[data-theme='light'] .hazard-admin .drawer,
+html[data-theme='light'] .hazard-admin .panel,
+html[data-theme='light'] .hazard-admin .photo,
+html[data-theme='light'] .hazard-admin .empty-photos,
+html[data-theme='light'] .hazard-admin .thumb {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] .hazard-admin .report-card:hover,
+html[data-theme='light'] .hazard-admin .drawer,
+html[data-theme='light'] .hazard-admin .panel:hover {
+  border-color: rgba(14, 130, 240, 0.24) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+html[data-theme='light'] .hazard-admin .filters {
+  padding: 16px !important;
+  border-radius: 18px !important;
+}
+
+html[data-theme='light'] .hazard-admin .filter-group label {
+  color: var(--text-muted) !important;
+}
+
+html[data-theme='light'] .hazard-admin .filter-group select {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+html[data-theme='light'] .hazard-admin .peek {
+  border-top-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme='light'] .hazard-admin .glow {
+  background: radial-gradient(500px 220px at 25% 0%, rgba(14, 130, 240, 0.12), transparent 58%) !important;
+}
+
+html[data-theme='light'] .hazard-admin .chip,
+html[data-theme='light'] .hazard-admin .type {
+  background: rgba(14, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.22) !important;
+}
+
+html[data-theme='light'] .hazard-admin .icon-btn {
+  background: #f8fbff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme='light'] .hazard-admin .overlay {
+  background: rgba(15, 23, 42, 0.34) !important;
+}
+
+html[data-theme='light'] .hazard-admin .severity.low {
+  background: rgba(5, 150, 105, 0.12) !important;
+  color: #047857 !important;
+  border-color: rgba(5, 150, 105, 0.24) !important;
+}
+
+html[data-theme='light'] .hazard-admin .severity.medium {
+  background: rgba(217, 119, 6, 0.13) !important;
+  color: #b45309 !important;
+  border-color: rgba(217, 119, 6, 0.25) !important;
+}
+
+html[data-theme='light'] .hazard-admin .severity.high {
+  background: rgba(234, 88, 12, 0.12) !important;
+  color: #c2410c !important;
+  border-color: rgba(234, 88, 12, 0.25) !important;
+}
+
+html[data-theme='light'] .hazard-admin .severity.critical {
+  background: rgba(220, 38, 38, 0.11) !important;
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.24) !important;
+}
+
+html[data-theme='light'] .hazard-admin .btn.approve {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html[data-theme='light'] .hazard-admin .btn.dismiss {
+  background: rgba(220, 38, 38, 0.10) !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(220, 38, 38, 0.22) !important;
+}
+
+html[data-theme='light'] .hazard-admin .pending-btn {
+  background: #facc15 !important;
+  color: #422006 !important;
+}
+
+/* --------------------------- Users/UserHazardReport.vue --------------------------- */
+html[data-theme='light'] .hazard-report {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .hazard-report .report-header h1 {
+  background: linear-gradient(90deg, #0f3c75, var(--brand-blue), var(--brand-cyan)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+html[data-theme='light'] .hazard-report .report-header p,
+html[data-theme='light'] .hazard-report .char-count,
+html[data-theme='light'] .hazard-report .photos-count,
+html[data-theme='light'] .hazard-report .preview-location,
+html[data-theme='light'] .hazard-report .preview-content p {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .hazard-report .report-form,
+html[data-theme='light'] .hazard-report .form-section,
+html[data-theme='light'] .hazard-report .report-preview,
+html[data-theme='light'] .hazard-report .preview-card,
+html[data-theme='light'] .hazard-report .preview-header,
+html[data-theme='light'] .hazard-report .preview-footer,
+html[data-theme='light'] .hazard-report .photo-upload,
+html[data-theme='light'] .hazard-report .upload-area,
+html[data-theme='light'] .hazard-report .location-status,
+html[data-theme='light'] .hazard-report .map-placeholder {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] .hazard-report .form-section h3,
+html[data-theme='light'] .hazard-report .report-preview h3,
+html[data-theme='light'] .hazard-report .preview-content h4,
+html[data-theme='light'] .hazard-report .input-group label,
+html[data-theme='light'] .hazard-report .severity-level span {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .hazard-report .hazard-type,
+html[data-theme='light'] .hazard-report .severity-level,
+html[data-theme='light'] .hazard-report .preview-content,
+html[data-theme='light'] .hazard-report .type-icon {
+  background: #f8fbff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme='light'] .hazard-report .hazard-type span,
+html[data-theme='light'] .hazard-report .severity-level small {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme='light'] .hazard-report .hazard-type.active {
+  background: rgba(14, 130, 240, 0.11) !important;
+  border-color: rgba(14, 130, 240, 0.55) !important;
+  box-shadow: 0 12px 26px rgba(14, 130, 240, 0.14) !important;
+}
+
+html[data-theme='light'] .hazard-report .hazard-type.active span,
+html[data-theme='light'] .hazard-report .hazard-type.active .type-icon {
+  color: #0369a1 !important;
+}
+
+html[data-theme='light'] .hazard-report .input-group input,
+html[data-theme='light'] .hazard-report .input-group textarea,
+html[data-theme='light'] .hazard-report select {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .hazard-report .input-group input::placeholder,
+html[data-theme='light'] .hazard-report .input-group textarea::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+html[data-theme='light'] .hazard-report .preview-header,
+html[data-theme='light'] .hazard-report .preview-footer,
+html[data-theme='light'] .hazard-report .form-actions {
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .hazard-report .hazard-badge {
+  background: rgba(14, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+}
+
+html[data-theme='light'] .hazard-report .location-btn,
+html[data-theme='light'] .hazard-report .cancel-btn {
+  background: rgba(14, 130, 240, 0.08) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.24) !important;
+}
+
+html[data-theme='light'] .hazard-report .submit-btn {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html[data-theme='light'] .hazard-report .severity-badge.low,
+html[data-theme='light'] .hazard-report .level-indicator.low { background: rgba(5, 150, 105, 0.14) !important; color: #047857 !important; border-color: rgba(5,150,105,.24) !important; }
+html[data-theme='light'] .hazard-report .severity-badge.medium,
+html[data-theme='light'] .hazard-report .level-indicator.medium { background: rgba(217, 119, 6, 0.14) !important; color: #b45309 !important; border-color: rgba(217,119,6,.25) !important; }
+html[data-theme='light'] .hazard-report .severity-badge.high,
+html[data-theme='light'] .hazard-report .level-indicator.high { background: rgba(234, 88, 12, 0.13) !important; color: #c2410c !important; border-color: rgba(234,88,12,.25) !important; }
+html[data-theme='light'] .hazard-report .severity-badge.critical,
+html[data-theme='light'] .hazard-report .level-indicator.critical { background: rgba(220, 38, 38, 0.12) !important; color: #dc2626 !important; border-color: rgba(220,38,38,.25) !important; }
+
+/* --------------------------- Users/UserAlerts.vue --------------------------- */
+html[data-theme='light'] .user-alerts {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .user-alerts .alerts-header {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(14, 165, 255, 0.13), transparent 18rem),
+    radial-gradient(circle at 82% 26%, rgba(34, 211, 238, 0.10), transparent 20rem),
+    rgba(255, 255, 255, 0.92) !important;
+  color: var(--text-primary) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light'] .user-alerts .alerts-title {
+  background: linear-gradient(90deg, #0f3c75, var(--brand-blue), var(--brand-cyan)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+html[data-theme='light'] .user-alerts .alerts-subtitle,
+html[data-theme='light'] .user-alerts .stat-label,
+html[data-theme='light'] .user-alerts .alert-time,
+html[data-theme='light'] .user-alerts .alert-message,
+html[data-theme='light'] .user-alerts .alert-meta,
+html[data-theme='light'] .user-alerts .detail-label,
+html[data-theme='light'] .user-alerts .empty-state,
+html[data-theme='light'] .user-alerts .alert-full-message p,
+html[data-theme='light'] .user-alerts .alert-instructions ul,
+html[data-theme='light'] .user-alerts .alert-instructions li {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .user-alerts .preferences-card,
+html[data-theme='light'] .user-alerts .preference-item,
+html[data-theme='light'] .user-alerts .filter-tab,
+html[data-theme='light'] .user-alerts .alert-card,
+html[data-theme='light'] .user-alerts .modal-content,
+html[data-theme='light'] .user-alerts .modal-header,
+html[data-theme='light'] .user-alerts .modal-body,
+html[data-theme='light'] .user-alerts .modal-actions,
+html[data-theme='light'] .user-alerts .emergency-btn:not(.critical) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] .user-alerts .preferences-header h3,
+html[data-theme='light'] .user-alerts .preference-item label,
+html[data-theme='light'] .user-alerts .alert-title,
+html[data-theme='light'] .user-alerts .modal-title h2,
+html[data-theme='light'] .user-alerts .alert-full-message h4,
+html[data-theme='light'] .user-alerts .alert-instructions h4,
+html[data-theme='light'] .user-alerts .affected-areas h4,
+html[data-theme='light'] .user-alerts .detail-value {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .user-alerts .filter-tab.active,
+html[data-theme='light'] .user-alerts .toggle-btn,
+html[data-theme='light'] .user-alerts .area-tag,
+html[data-theme='light'] .user-alerts .action-btn.primary {
+  background: rgba(14, 130, 240, 0.11) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.24) !important;
+}
+
+html[data-theme='light'] .user-alerts .search-input {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .user-alerts .search-input::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+html[data-theme='light'] .user-alerts .tab-count {
+  background: rgba(15, 23, 42, 0.08) !important;
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme='light'] .user-alerts .modal-backdrop {
+  background: rgba(15, 23, 42, 0.34) !important;
+}
+
+html[data-theme='light'] .user-alerts .close-btn,
+html[data-theme='light'] .user-alerts .action-btn {
+  background: #f8fbff !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .user-alerts .emergency-btn.critical {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+/* --------------------------- Staff Dashboard and Staff Logs --------------------------- */
+html[data-theme='light'] .dash,
+html[data-theme='light'] .page {
+  --bg: #f6f9ff;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel2: #ffffff;
+  --border: rgba(14, 130, 240, 0.18);
+  --border2: rgba(15, 23, 42, 0.10);
+  --text: #0f172a;
+  --muted: #64748b;
+  --blue: #0b82f0;
+  --blue2: #2563eb;
+  --green: #059669;
+  --red: #dc2626;
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .dash :is(.title, .value, .big, .break-head h2, b),
+html[data-theme='light'] .page :is(.page-header h1, .value, b, h1, h2, h3) {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .dash :is(.sub, .muted, .small, .xs, .label, .kicker, .pill-label),
+html[data-theme='light'] .page :is(.muted, .label, label, .empty) {
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .dash :is(.banner, .card, .breakdown, .pillcard),
+html[data-theme='light'] .page :is(.card, .table-card, .modal) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] .dash .banner.warn,
+html[data-theme='light'] .page .card.warn {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.13), rgba(255, 255, 255, 0.94)) !important;
+  border-color: rgba(245, 158, 11, 0.28) !important;
+}
+
+html[data-theme='light'] .dash .pill-val,
+html[data-theme='light'] .dash .big,
+html[data-theme='light'] .dash .value,
+html[data-theme='light'] .page .value {
+  color: #0f3c75 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html[data-theme='light'] .dash .btn:not(.primary),
+html[data-theme='light'] .page .btn.ghost,
+html[data-theme='light'] .page .btn:not(.primary) {
+  background: rgba(14, 130, 240, 0.08) !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 130, 240, 0.22) !important;
+}
+
+html[data-theme='light'] .dash .btn.primary,
+html[data-theme='light'] .page .btn.primary,
+html[data-theme='light'] .page .btn:not(.ghost):not(.danger) {
+  background: linear-gradient(135deg, var(--brand-blue), #2563eb) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html[data-theme='light'] .page .table th {
+  background: #eaf4ff !important;
+  color: #475569 !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+html[data-theme='light'] .page .table td {
+  background: #ffffff !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='light'] .page .table tr:hover td {
+  background: #f1f7ff !important;
+}
+
+html[data-theme='light'] .page :is(input, select, textarea, .control) {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .page .backdrop {
+  background: rgba(15, 23, 42, 0.34) !important;
+}
+
+/* --------------------------- StaffEvacuees.vue light-mode safety net --------------------------- */
+html[data-theme='light'] .evacuees-page {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .evacuees-page :is(.filters-card, .table-card, .modal) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+html[data-theme='light'] .evacuees-page :is(h1, h2, .table-header h2, b) {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .evacuees-page :is(.subtext, .small-muted, .table-header p, label) {
+  color: var(--text-muted) !important;
+}
+
+html[data-theme='light'] .evacuees-page th {
+  background: #eaf4ff !important;
+  color: #475569 !important;
+}
+
+html[data-theme='light'] .evacuees-page td {
+  color: var(--text-secondary) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* =========================================================
+   STAFF EVACUEES DARK MODE FIX
+   Fixes the white filter card/search area in StaffEvacuees.vue
+   Put this at the VERY BOTTOM of theme.css.
+========================================================= */
+
+html[data-theme="dark"] .evacuees-page .filters-card,
+html:not([data-theme="light"]) .evacuees-page .filters-card {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid rgba(56, 189, 248, 0.16) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22) !important;
+}
+
+html[data-theme="dark"] .evacuees-page .filters-card label,
+html:not([data-theme="light"]) .evacuees-page .filters-card label {
+  color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] .evacuees-page .filters-card input,
+html[data-theme="dark"] .evacuees-page .filters-card select,
+html:not([data-theme="light"]) .evacuees-page .filters-card input,
+html:not([data-theme="light"]) .evacuees-page .filters-card select {
+  background: rgba(17, 24, 39, 0.96) !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] .evacuees-page .filters-card input::placeholder,
+html:not([data-theme="light"]) .evacuees-page .filters-card input::placeholder {
+  color: #93a4b8 !important;
+}
+
+html[data-theme="dark"] .evacuees-page .filters-card select option,
+html:not([data-theme="light"]) .evacuees-page .filters-card select option {
+  background: #111827 !important;
+  color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] .evacuees-page .secondary-btn,
+html:not([data-theme="light"]) .evacuees-page .secondary-btn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .evacuees-page .ghost-btn,
+html:not([data-theme="light"]) .evacuees-page .ghost-btn {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #e5e7eb !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+}

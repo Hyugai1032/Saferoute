@@ -16,6 +16,7 @@
     </div>
     <div class="header-right">
       <div class="header-actions">
+        <ThemeToggle />
         <div class="alert-indicator">
           <div class="alert-badge" v-if="activeAlerts > 0">{{ activeAlerts }}</div>
               <router-link :to="{ name: 'UserAlerts' }" class="forgot-password">
@@ -37,6 +38,7 @@
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const handleNewReport = () => {
   // instant badge bump (optimistic)
@@ -81,12 +83,6 @@ const logout = () => {
   router.push('/auth/login')
 }
 
-onMounted(() => {
-  const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-  if (userData.name) {
-    userName.value = userData.name
-  }
-})
 
 const toggleSidebar = () => {
   emit('toggleSidebar');
