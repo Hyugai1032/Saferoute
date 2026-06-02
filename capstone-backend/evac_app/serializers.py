@@ -1,6 +1,6 @@
 # capstone-backend/evac_app/serializers.py
 from rest_framework import serializers
-from .models import EvacuationCenter, EvacuationLog, Evacuee
+from .models import EvacuationCenter, EvacuationLog, Evacuee, Donation, DonationNeed, DonationDistribution
 
 class EvacuationCenterSerializer(serializers.ModelSerializer):
     municipality_name = serializers.CharField(
@@ -157,3 +157,99 @@ class EvacueeSerializer(serializers.ModelSerializer):
             "remarks",
         ]
         read_only_fields = ["date_registered"]
+
+class DonationNeedSerializer(serializers.ModelSerializer):
+    center_name = serializers.CharField(source="center.name", read_only=True)
+    requested_by_name = serializers.CharField(source="requested_by.email", read_only=True)
+    remaining_quantity = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = DonationNeed
+        fields = [
+            "id",
+            "center",
+            "center_name",
+            "item_name",
+            "category",
+            "quantity_needed",
+            "quantity_received",
+            "remaining_quantity",
+            "unit",
+            "priority",
+            "status",
+            "remarks",
+            "requested_by",
+            "requested_by_name",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "quantity_received",
+            "requested_by",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class DonationSerializer(serializers.ModelSerializer):
+    center_name = serializers.CharField(source="center.name", read_only=True)
+    need_item_name = serializers.CharField(source="need.item_name", read_only=True)
+    received_by_name = serializers.CharField(source="received_by.email", read_only=True)
+
+    class Meta:
+        model = Donation
+        fields = [
+            "id",
+            "need",
+            "need_item_name",
+            "center",
+            "center_name",
+            "donor_name",
+            "donor_contact",
+            "donor_address",
+            "item_name",
+            "category",
+            "quantity",
+            "unit",
+            "status",
+            "received_by",
+            "received_by_name",
+            "received_at",
+            "remarks",
+            "created_at",
+        ]
+
+        read_only_fields = [
+            "received_by",
+            "received_at",
+            "created_at",
+        ]
+
+class DonationDistributionSerializer(serializers.ModelSerializer):
+    center_name = serializers.CharField(source="center.name", read_only=True)
+    donation_item_name = serializers.CharField(source="donation.item_name", read_only=True)
+    distributed_by_name = serializers.CharField(source="distributed_by.email", read_only=True)
+
+    class Meta:
+        model = DonationDistribution
+        fields = [
+            "id",
+            "donation",
+            "donation_item_name",
+            "center",
+            "center_name",
+            "item_name",
+            "quantity_distributed",
+            "unit",
+            "distributed_to",
+            "distributed_by",
+            "distributed_by_name",
+            "remarks",
+            "distributed_at",
+        ]
+
+        read_only_fields = [
+            "distributed_by",
+            "distributed_at",
+        ]

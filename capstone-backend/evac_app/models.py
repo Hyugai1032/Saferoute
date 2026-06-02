@@ -179,3 +179,179 @@ class Evacuee(models.Model):
 
     def __str__(self):
         return f"{self.last_name}, {self.first_name}"
+    
+
+class DonationNeed(models.Model):
+    CATEGORY_CHOICES = [
+        ("FOOD", "Food"),
+        ("WATER", "Water"),
+        ("CLOTHING", "Clothing"),
+        ("MEDICAL", "Medical"),
+        ("HYGIENE", "Hygiene"),
+        ("BEDDING", "Bedding"),
+        ("BABY_SUPPLIES", "Baby Supplies"),
+        ("OTHER", "Other"),
+    ]
+
+    PRIORITY_CHOICES = [
+        ("LOW", "Low"),
+        ("MEDIUM", "Medium"),
+        ("HIGH", "High"),
+        ("URGENT", "Urgent"),
+    ]
+
+    STATUS_CHOICES = [
+        ("OPEN", "Open"),
+        ("PARTIALLY_FULFILLED", "Partially Fulfilled"),
+        ("FULFILLED", "Fulfilled"),
+        ("CLOSED", "Closed"),
+    ]
+
+    center = models.ForeignKey(
+        EvacuationCenter,
+        on_delete=models.CASCADE,
+        related_name="donation_needs"
+    )
+
+    item_name = models.CharField(max_length=150)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    quantity_needed = models.PositiveIntegerField(default=0)
+    quantity_received = models.PositiveIntegerField(default=0)
+    unit = models.CharField(max_length=50, default="pcs")
+
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default="MEDIUM"
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default="OPEN"
+    )
+
+    remarks = models.TextField(blank=True)
+
+    requested_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donation_needs_requested"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def remaining_quantity(self):
+        remaining = int(self.quantity_needed or 0) - int(self.quantity_received or 0)
+        return max(remaining, 0)
+
+    def update_status(self):
+        needed = int(self.quantity_needed or 0)
+        received = int(self.quantity_received or 0)
+
+        if received <= 0:
+            self.status = "OPEN"
+        elif received < needed:
+            self.status = "PARTIALLY_FULFILLED"
+        else:
+            self.status = "FULFILLED"
+
+    def save(self, *args, **kwargs):
+        self.update_status()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.item_name} needed at {self.center.name}"
+    
+class Donation(models.Model):
+    STATUS_CHOICES = [
+        ("PLEDGED", "Pledged"),
+        ("RECEIVED", "Received"),
+        ("CANCELLED", "Cancelled"),
+    ]
+
+    need = models.ForeignKey(
+        DonationNeed,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donations"
+    )
+
+    center = models.ForeignKey(
+        EvacuationCenter,
+        on_delete=models.CASCADE,
+        related_name="donations"
+    )
+
+    donor_name = models.CharField(max_length=150)
+    donor_contact = models.CharField(max_length=50, blank=True)
+    donor_address = models.TextField(blank=True)
+
+    item_name = models.CharField(max_length=150)
+    category = models.CharField(max_length=30)
+    quantity = models.PositiveIntegerField(default=0)
+    unit = models.CharField(max_length=50, default="pcs")
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="RECEIVED"
+    )
+
+    received_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donations_received"
+    )
+
+    received_at = models.DateTimeField(null=True, blank=True)
+    remarks = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.quantity} {self.unit} {self.item_name} from {self.donor_name}"
+    
+class DonationDistribution(models.Model):
+    donation = models.ForeignKey(
+        Donation,
+        on_delete=models.CASCADE,
+        related_name="distributions"
+    )
+
+    center = models.ForeignKey(
+        EvacuationCenter,
+        on_delete=models.CASCADE,
+        related_name="donation_distributions"
+    )
+
+    item_name = models.CharField(max_length=150)
+    quantity_distributed = models.PositiveIntegerField(default=0)
+    unit = models.CharField(max_length=50, default="pcs")
+
+    distributed_to = models.CharField(
+        max_length=150,
+        blank=True,
+        help_text="Family head, evacuee name, group, or general distribution"
+    )
+
+    distributed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donation_distributions_made"
+    )
+
+    remarks = models.TextField(blank=True)
+    distributed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.quantity_distributed} {self.unit} {self.item_name} distributed"

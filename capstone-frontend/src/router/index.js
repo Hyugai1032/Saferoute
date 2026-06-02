@@ -12,6 +12,7 @@ import GISMap from '../views/GISMap.vue'
 import UserMgnt from '../views/Users/UserMgnt.vue'
 import HazardReport from '../views/HazardReport.vue'
 import AffectedPopulationReport from '../views/AffectedPopulationReport.vue'
+import AdminDonationDrive from '../views/AdminDonationDrive.vue'
 
 // User Components
 import UserLayout from '../views/Users/UserLayout.vue'
@@ -28,6 +29,7 @@ import StaffLayout from "../views/Staff/StaffLayout.vue";
 import StaffDashboard from "../views/Staff/StaffDashboard.vue";
 import StaffLogs from "../views/Staff/StaffLogs.vue";
 import StaffEvacuees from '../views/Staff/StaffEvacuees.vue'
+import StaffDonationDrive from '../views/Staff/StaffDonationDrive.vue'
 
 //Profile
 // import UserProfile from "@/views/Profile/UserProfile.vue";
@@ -84,6 +86,7 @@ const routes = [
         component: AffectedPopulationReport,
         meta: { requiresAuth: true, role: ['admin'], provincialOnly: true }
       },
+      { path: "donation-drive", name: "AdminDonationDrive", component: AdminDonationDrive },
       { path: 'profile', name: 'AdminProfile', component: UserProfile },
     ]
   },
@@ -100,6 +103,7 @@ const routes = [
       { path: "evacuees", name: "StaffEvacuees", component: StaffEvacuees },
       { path: "map", name: "StaffMap", component: GISMap },
       { path: "profile", name: "StaffProfile", component: UserProfile },
+      { path: "donation-drive", name: "StaffDonationDrive", component: StaffDonationDrive },
     ],
   },
 

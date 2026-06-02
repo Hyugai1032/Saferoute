@@ -1,5 +1,5 @@
 import re
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.decorators import action
@@ -9,8 +9,9 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Sum, Max
-from .models import EvacuationCenter, EvacuationLog, Evacuee
-from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer
+from django.utils import timezone
+from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed
+from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
 from django.db import transaction
 from auth_app.models import Municipality, Barangay
@@ -543,3 +544,226 @@ class EvacueeViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("You can only register evacuees in your municipality.")
 
         serializer.save()
+
+
+class DonationNeedViewSet(viewsets.ModelViewSet):
+    serializer_class = DonationNeedSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+
+    filterset_fields = [
+        "center",
+        "category",
+        "priority",
+        "status",
+    ]
+
+    search_fields = [
+        "item_name",
+        "remarks",
+        "center__name",
+    ]
+
+    ordering_fields = [
+        "created_at",
+        "updated_at",
+        "priority",
+        "quantity_needed",
+        "quantity_received",
+    ]
+
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = DonationNeed.objects.select_related("center", "requested_by").all()
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(center_id=user.assigned_center_id)
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(center__municipality_id=user.municipality_id)
+
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                raise PermissionDenied("Staff has no assigned center.")
+            if center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only create donation needs for your assigned center.")
+
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only create donation needs in your municipality.")
+
+        serializer.save(requested_by=user)
+
+class DonationViewSet(viewsets.ModelViewSet):
+    serializer_class = DonationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+
+    filterset_fields = [
+        "center",
+        "need",
+        "category",
+        "status",
+    ]
+
+    search_fields = [
+        "donor_name",
+        "donor_contact",
+        "donor_address",
+        "item_name",
+        "remarks",
+        "center__name",
+    ]
+
+    ordering_fields = [
+        "created_at",
+        "received_at",
+        "quantity",
+    ]
+
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Donation.objects.select_related("center", "need", "received_by").all()
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(center_id=user.assigned_center_id)
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(center__municipality_id=user.municipality_id)
+
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+        need = serializer.validated_data.get("need")
+        status_value = serializer.validated_data.get("status", "RECEIVED")
+        quantity = serializer.validated_data.get("quantity", 0)
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                raise PermissionDenied("Staff has no assigned center.")
+            if center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only record donations for your assigned center.")
+
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only record donations in your municipality.")
+
+        donation = serializer.save(
+            received_by=user if status_value == "RECEIVED" else None,
+            received_at=timezone.now() if status_value == "RECEIVED" else None,
+        )
+
+        if need and status_value == "RECEIVED":
+            need.quantity_received = int(need.quantity_received or 0) + int(quantity or 0)
+            need.save()
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_status = old_instance.status
+        old_quantity = old_instance.quantity
+        old_need = old_instance.need
+
+        donation = serializer.save()
+
+        new_status = donation.status
+        new_quantity = donation.quantity
+        new_need = donation.need
+
+        # If old received donation is edited, remove previous quantity first
+        if old_need and old_status == "RECEIVED":
+            old_need.quantity_received = max(
+                0,
+                int(old_need.quantity_received or 0) - int(old_quantity or 0)
+            )
+            old_need.save()
+
+        # Then add the new quantity if it is now received
+        if new_need and new_status == "RECEIVED":
+            new_need.quantity_received = int(new_need.quantity_received or 0) + int(new_quantity or 0)
+            new_need.save()
+
+class DonationDistributionViewSet(viewsets.ModelViewSet):
+    serializer_class = DonationDistributionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+
+    filterset_fields = [
+        "center",
+        "donation",
+    ]
+
+    search_fields = [
+        "item_name",
+        "distributed_to",
+        "remarks",
+        "center__name",
+    ]
+
+    ordering_fields = [
+        "distributed_at",
+        "quantity_distributed",
+    ]
+
+    ordering = ["-distributed_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = DonationDistribution.objects.select_related(
+            "center",
+            "donation",
+            "distributed_by"
+        ).all()
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                return qs.none()
+            return qs.filter(center_id=user.assigned_center_id)
+
+        if user.role == "MUNICIPAL_ADMIN":
+            if not user.municipality_id:
+                return qs.none()
+            return qs.filter(center__municipality_id=user.municipality_id)
+
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+        donation = serializer.validated_data.get("donation")
+
+        if donation.center_id != center.id:
+            raise serializers.ValidationError({
+                "donation": "This donation does not belong to the selected center."
+            })
+
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id:
+                raise PermissionDenied("Staff has no assigned center.")
+            if center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only distribute donations from your assigned center.")
+
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only distribute donations in your municipality.")
+
+        serializer.save(distributed_by=user)

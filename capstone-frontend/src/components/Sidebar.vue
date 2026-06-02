@@ -65,6 +65,7 @@ import { useRoute } from 'vue-router';
 import { ref } from 'vue';
 
 import saferouteLogo from '@/assets/saferoute-logo.png'
+import { icon } from 'leaflet';
 
 defineProps({ isCollapsed: Boolean })
 defineEmits(['toggle'])
@@ -91,8 +92,9 @@ const navItems = [
   ...(isProvincialAdmin ? [
     { to: '/admin/reports/affected-population', name: 'Affected Population Report', icon: '📄' }
   ] : []),
+  { to: '/admin/donation-drive', name: 'Donation Drive', icon: '📦'},
   { to: '/admin/users', name: 'User Management', icon: '👥' },
-    { to: '/admin/profile', name: 'Profile', icon: '👤' },
+  { to: '/admin/profile', name: 'Profile', icon: '👤' },
 ];
 </script>
 
