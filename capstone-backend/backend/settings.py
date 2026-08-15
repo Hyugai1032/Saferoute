@@ -203,6 +203,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://saferoute-production-319f.up.railway.app",
 ]
 
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY")
+
 # JWT settings (optional customization)
 from datetime import timedelta
 SIMPLE_JWT = {

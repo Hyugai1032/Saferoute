@@ -44,12 +44,56 @@ from analytics_app.services.congestion import compute_congestion_risk, Congestio
 EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 EvacuationLog = apps.get_model("evac_app", "EvacuationLog")
 
+
+def verify_recaptcha(token, remote_ip=None):
+    """
+    Verifies a Google reCAPTCHA v2 token against Google's siteverify endpoint.
+    Returns (True, None) on success, or (False, error_detail) on failure.
+    """
+    secret_key = getattr(settings, "RECAPTCHA_SECRET_KEY", None)
+
+    # Allow disabling captcha in local/dev environments explicitly via settings.
+    if getattr(settings, "RECAPTCHA_DISABLED", False):
+        return True, None
+
+    if not secret_key:
+        return False, "Captcha is not configured on the server."
+
+    if not token:
+        return False, "Captcha verification is required."
+
+    try:
+        resp = requests.post(
+            "https://www.google.com/recaptcha/api/siteverify",
+            data={
+                "secret": secret_key,
+                "response": token,
+                **({"remoteip": remote_ip} if remote_ip else {}),
+            },
+            timeout=10,
+        )
+        result = resp.json()
+    except requests.RequestException:
+        return False, "Could not reach captcha verification service."
+    except ValueError:
+        return False, "Unexpected response from captcha verification service."
+
+    if not result.get("success"):
+        return False, "Captcha verification failed. Please try again."
+
+    return True, None
+
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (permissions.AllowAny,)
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
+        captcha_token = request.data.get("captcha_token")
+        is_valid, error = verify_recaptcha(captcha_token, remote_ip=request.META.get("REMOTE_ADDR"))
+        if not is_valid:
+            return Response({"captcha_token": error}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()

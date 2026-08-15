@@ -137,6 +137,11 @@
                 </div>
               </div>
 
+              <div class="form-group captcha-group">
+                <div ref="captchaEl" class="g-recaptcha"></div>
+                <p v-if="captchaError" class="captcha-error">{{ captchaError }}</p>
+              </div>
+
               <button class="login-btn" type="submit" :disabled="loading">
                 <span v-if="!loading">
                   <i class="fas fa-user-plus"></i>
@@ -183,6 +188,11 @@ export default {
       loading: false,
       showPassword: false,
 
+      // reCAPTCHA
+      captchaToken: "",
+      captchaError: "",
+      captchaWidgetId: null,
+
       features: [
         {
           id: 1,
@@ -216,6 +226,8 @@ export default {
       console.error("Failed to load municipalities:", e);
     }
 
+    this.loadRecaptcha();
+
     const shapes = document.querySelectorAll(".floating-shape");
     shapes.forEach((shape, index) => {
       shape.style.animation = `float ${3 + index}s ease-in-out infinite`;
@@ -228,19 +240,84 @@ export default {
     },
 
     async handleRegister() {
+      this.captchaError = "";
+
+      if (!this.captchaToken) {
+        this.captchaError = "Please complete the captcha before registering.";
+        return;
+      }
+
       this.loading = true;
 
       try {
-        const response = await register(this.form);
+        const response = await register({
+          ...this.form,
+          captcha_token: this.captchaToken,
+        });
 
         alert("Registration successful! Please log in.");
         this.$router.push("/auth/login");
 
       } catch (error) {
         console.error("Register error:", error);
-        alert(error?.error || JSON.stringify(error) || "Registration failed.");
+        alert(error?.error || error?.captcha_token || JSON.stringify(error) || "Registration failed.");
+        // Captcha tokens are single-use; force the user to re-solve it after any failed attempt.
+        this.resetCaptcha();
       } finally {
         this.loading = false;
+      }
+    },
+
+    loadRecaptcha() {
+      const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+      if (!siteKey) {
+        console.error("VITE_RECAPTCHA_SITE_KEY is not set; captcha will not render.");
+        this.captchaError = "Captcha is unavailable right now. Please try again later.";
+        return;
+      }
+
+      const renderWidget = () => {
+        if (window.grecaptcha && this.$refs.captchaEl) {
+          this.captchaWidgetId = window.grecaptcha.render(this.$refs.captchaEl, {
+            sitekey: siteKey,
+            callback: (token) => {
+              this.captchaToken = token;
+              this.captchaError = "";
+            },
+            "expired-callback": () => {
+              this.captchaToken = "";
+            },
+            "error-callback": () => {
+              this.captchaToken = "";
+              this.captchaError = "Captcha failed to load. Please refresh and try again.";
+            },
+          });
+        }
+      };
+
+      if (window.grecaptcha && window.grecaptcha.render) {
+        renderWidget();
+        return;
+      }
+
+      const existingScript = document.getElementById("recaptcha-script");
+      if (!existingScript) {
+        window.onRecaptchaLoad = renderWidget;
+        const script = document.createElement("script");
+        script.id = "recaptcha-script";
+        script.src = "https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit";
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      } else {
+        window.onRecaptchaLoad = renderWidget;
+      }
+    },
+
+    resetCaptcha() {
+      this.captchaToken = "";
+      if (window.grecaptcha && this.captchaWidgetId !== null) {
+        window.grecaptcha.reset(this.captchaWidgetId);
       }
     },
 
@@ -729,5 +806,18 @@ export default {
 .form-input option {
   background-color: #1f2937;
   color: #f9fafb;
+}
+
+.captcha-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.captcha-error {
+  color: var(--danger, #e53e3e);
+  font-size: 0.85rem;
+  margin-top: 8px;
+  text-align: center;
 }
 </style>
