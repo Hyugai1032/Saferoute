@@ -302,9 +302,9 @@
           </div>
 
           <div class="checkbox-section">
-            <p class="section-title">Classification / Reason for Evacuation</p>
+            <p class="section-title label">Classification / Reason for Evacuation</p>
 
-            <label class="full">
+            <label class="full label">
               Reason for Evacuation
               <select v-model="modal.form.reason_for_evacuation" required>
                 <option
@@ -319,35 +319,35 @@
           </div>
 
           <div class="checkbox-section">
-            <p class="section-title">Category / Special Condition</p>
+            <p class="section-title label">Category / Special Condition</p>
 
             <div class="checkbox-grid">
-              <label class="check-label">
+              <label class="check-label label">
                 <input v-model="modal.form.is_child" type="checkbox" />
                 Child
               </label>
 
-              <label class="check-label">
+              <label class="check-label label">
                 <input v-model="modal.form.is_senior" type="checkbox" />
                 Senior Citizen
               </label>
 
-              <label class="check-label">
+              <label class="check-label label">
                 <input v-model="modal.form.is_pwd" type="checkbox" />
                 PWD
               </label>
 
-              <label class="check-label">
+              <label class="check-label label">
                 <input v-model="modal.form.is_pregnant" type="checkbox" />
                 Pregnant
               </label>
 
-              <label class="check-label">
+              <label class="check-label label">
                 <input v-model="modal.form.is_lactating" type="checkbox" />
                 Lactating
               </label>
 
-              <label class="check-label">
+              <label class="check-label label">
                 <input v-model="modal.form.is_active" type="checkbox" />
                 Active in Center
               </label>
