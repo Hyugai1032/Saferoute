@@ -166,6 +166,12 @@ class Evacuee(models.Model):
     family_head_name = models.CharField(max_length=150, blank=True)
     is_family_head = models.BooleanField(default=False)
 
+    reason_for_evacuation = models.CharField(
+        max_length=50,
+        choices=EvacuationLog.DISASTER_CAUSE_CHOICES,
+        default="OTHER",
+    )
+
     is_child = models.BooleanField(default=False)
     is_senior = models.BooleanField(default=False)
     is_pwd = models.BooleanField(default=False)

@@ -18,7 +18,7 @@
           </div>
           <div class="legend-item">
             <div class="legend-color critical"></div>
-            <span>Critical (≥ 90%)</span>
+            <span>Most Likely Full (≥ 90%)</span>
           </div>
         </div>
 
@@ -259,7 +259,7 @@ const getStatusLevel = (center) => {
 
 const getStatusText = (center) => {
   const pct = getOccupancyPercentage(center)
-  if (pct >= 90) return 'Critical'
+  if (pct >= 90) return 'Most Likely Full'
   if (pct >= 70) return 'Nearly Full'
   return 'Available'
 }

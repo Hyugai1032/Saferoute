@@ -130,6 +130,9 @@ class EvacCenterDropdownSerializer(serializers.ModelSerializer):
 
 class EvacueeSerializer(serializers.ModelSerializer):
     center_name = serializers.CharField(source="center.name", read_only=True)
+    reason_for_evacuation_display = serializers.CharField(
+        source="get_reason_for_evacuation_display", read_only=True
+    )
 
     class Meta:
         model = Evacuee
@@ -147,6 +150,8 @@ class EvacueeSerializer(serializers.ModelSerializer):
             "address",
             "family_head_name",
             "is_family_head",
+            "reason_for_evacuation",
+            "reason_for_evacuation_display",
             "is_child",
             "is_senior",
             "is_pwd",

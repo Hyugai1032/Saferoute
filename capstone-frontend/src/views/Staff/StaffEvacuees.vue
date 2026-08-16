@@ -83,6 +83,7 @@
               <th>Age/Sex</th>
               <th>Family Role</th>
               <th>Family Head</th>
+              <th>Reason for Evacuation</th>
               <th>Contact</th>
               <th>Categories</th>
               <th>Status</th>
@@ -118,6 +119,10 @@
                 <span v-else>
                     {{ evacuee.family_head_name || "-" }}
                 </span>
+              </td>
+
+              <td>
+                {{ formatReason(evacuee.reason_for_evacuation) }}
               </td>
 
               <td>
@@ -260,17 +265,56 @@
             </label>
 
             <label v-if="!modal.form.is_family_head" class="full">
-                Family Head Name
+                Family Head
+                <select
+                    v-model="modal.form.family_head_selection"
+                    @change="onFamilyHeadSelectionChange"
+                >
+                    <option value="">-- Select family head --</option>
+                    <option
+                        v-for="name in familyHeadOptions"
+                        :key="name"
+                        :value="name"
+                    >
+                        {{ name }}
+                    </option>
+                    <option value="__OTHER__">+ Not listed / New family head</option>
+                </select>
+            </label>
+
+            <label
+                v-if="!modal.form.is_family_head && modal.form.family_head_selection === '__OTHER__'"
+                class="full"
+            >
+                New Family Head Name
                 <input
                     v-model="modal.form.family_head_name"
                     type="text"
-                    placeholder="Name of family head"
+                    placeholder="Enter family head name"
+                    required
                 />
             </label>
 
             <label class="check-label full">
                 <input v-model="modal.form.is_family_head" type="checkbox" />
                 This evacuee is the family head
+            </label>
+          </div>
+
+          <div class="checkbox-section">
+            <p class="section-title">Classification / Reason for Evacuation</p>
+
+            <label class="full">
+              Reason for Evacuation
+              <select v-model="modal.form.reason_for_evacuation" required>
+                <option
+                  v-for="reason in reasonOptions"
+                  :key="reason.value"
+                  :value="reason.value"
+                >
+                  {{ reason.label }}
+                </option>
+              </select>
             </label>
           </div>
 
@@ -359,6 +403,17 @@ export default {
         category: "",
       },
 
+      // Keep in sync with EvacuationLog.DISASTER_CAUSE_CHOICES / Evacuee.REASON choices on the backend
+      reasonOptions: [
+        { value: "TYPHOON", label: "Typhoon" },
+        { value: "FLOOD", label: "Flood" },
+        { value: "LANDSLIDE", label: "Landslide" },
+        { value: "EARTHQUAKE", label: "Earthquake" },
+        { value: "FIRE", label: "Fire" },
+        { value: "VOLCANIC_ACTIVITY", label: "Volcanic Activity" },
+        { value: "OTHER", label: "Other" },
+      ],
+
       modal: {
         open: false,
         mode: "create",
@@ -377,6 +432,22 @@ export default {
     assignedCenterName() {
         return this.assignedCenter?.name || "No assigned center found";
     },
+
+    familyHeadOptions() {
+      const names = new Set();
+
+      this.evacuees.forEach((evacuee) => {
+        const name = evacuee.is_family_head
+          ? this.fullName(evacuee)
+          : evacuee.family_head_name;
+
+        if (name) {
+          names.add(name);
+        }
+      });
+
+      return Array.from(names).sort((a, b) => a.localeCompare(b));
+    },
   },
 
   methods: {
@@ -391,7 +462,9 @@ export default {
         contact_number: "",
         address: "",
         is_family_head: false,
-        family_head_name: "",   
+        family_head_name: "",
+        family_head_selection: "",
+        reason_for_evacuation: "OTHER",
         is_child: false,
         is_senior: false,
         is_pwd: false,
@@ -486,6 +559,10 @@ export default {
       this.modal.mode = "edit";
       this.modal.id = evacuee.id;
 
+      const existingFamilyHeadName = evacuee.family_head_name || "";
+      const isKnownFamilyHead =
+        existingFamilyHeadName && this.familyHeadOptions.includes(existingFamilyHeadName);
+
       this.modal.form = {
         center: evacuee.center || "",
         first_name: evacuee.first_name || "",
@@ -496,7 +573,11 @@ export default {
         contact_number: evacuee.contact_number || "",
         address: evacuee.address || "",
         is_family_head: Boolean(evacuee.is_family_head),
-        family_head_name: evacuee.family_head_name || "",
+        family_head_name: existingFamilyHeadName,
+        family_head_selection: existingFamilyHeadName
+          ? (isKnownFamilyHead ? existingFamilyHeadName : "__OTHER__")
+          : "",
+        reason_for_evacuation: evacuee.reason_for_evacuation || "OTHER",
         is_child: Boolean(evacuee.is_child),
         is_senior: Boolean(evacuee.is_senior),
         is_pwd: Boolean(evacuee.is_pwd),
@@ -514,6 +595,14 @@ export default {
       this.modalError = "";
     },
 
+    onFamilyHeadSelectionChange() {
+      if (this.modal.form.family_head_selection === "__OTHER__") {
+        this.modal.form.family_head_name = "";
+      } else {
+        this.modal.form.family_head_name = this.modal.form.family_head_selection;
+      }
+    },
+
     async saveEvacuee() {
         this.saving = true;
         this.modalError = "";
@@ -524,8 +613,10 @@ export default {
             return;
             }
 
+            const { family_head_selection, ...formData } = this.modal.form;
+
             const payload = {
-            ...this.modal.form,
+            ...formData,
             center: this.assignedCenter.id,
             age: Number(this.modal.form.age || 0),
             };
@@ -594,6 +685,13 @@ export default {
             .join(", ");
     },
 
+    formatReason(reason) {
+      if (!reason) return "-";
+ 
+      const match = this.reasonOptions.find((option) => option.value === reason);
+      return match ? match.label : reason;
+    },
+ 
     formatSex(sex) {
       if (!sex) return "-";
 

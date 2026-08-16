@@ -486,6 +486,7 @@ class EvacueeViewSet(viewsets.ModelViewSet):
         "is_active",
         "sex",
         "is_family_head",
+        "reason_for_evacuation",
         "is_child",
         "is_senior",
         "is_pwd",

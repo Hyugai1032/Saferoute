@@ -492,7 +492,7 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
     },
 
     async saveLog() {
-      alert("saveLog triggered");
+      alert("Log Saved!");
 
       console.log("[saveLog] clicked", {
       role: this.me.role,
