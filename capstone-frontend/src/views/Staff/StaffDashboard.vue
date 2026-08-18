@@ -28,26 +28,29 @@ affdashboard · VUE
         </div>
       </div>
 
-      <div class="banner-right">
-        <div class="big">
-          {{ latest.total_current ?? 0 }}
+      <div class="metrics">
+        <div class="metric primary-metric">
+          <div class="metric-icon">👥</div>
+          <div class="metric-content">
+            <div class="metric-label">Current Evacuees</div>
+            <div class="metric-value">{{ latest.total_current ?? 0 }}</div>
+            <div class="metric-caption">People currently recorded at the center</div>
+          </div>
         </div>
-        <div class="muted small">Current evacuees (latest log)</div>
-        <div class="muted xs">Last update: {{ lastUpdatedText }}</div>
-      </div>
 
-      <div class="banner-right">
-        <div class="big">
-          {{ latest.total_current ?? 0 }}
+        <div class="metric">
+          <div class="metric-icon family-icon">🏠</div>
+          <div class="metric-content">
+            <div class="metric-label">Current Families</div>
+            <div class="metric-value">{{ latest.total_current_families ?? 0 }}</div>
+            <div class="metric-caption">Families currently recorded</div>
+          </div>
         </div>
-        <div class="muted small">Current evacuees</div>
 
-        <div class="big" style="margin-top: 10px;">
-          {{ latest.total_current_families ?? 0 }}
+        <div class="last-update">
+          <span>Last update</span>
+          <strong>{{ lastUpdatedText }}</strong>
         </div>
-        <div class="muted small">Current families</div>
-
-        <div class="muted xs">Last update: {{ lastUpdatedText }}</div>
       </div>
     </div>
 
@@ -90,18 +93,6 @@ affdashboard · VUE
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-top">
-          <span class="label">What’s next</span>
-          <span class="dot green"></span>
-        </div>
-        <div class="muted small">
-          Add vulnerable breakdown (child/senior/pwd/pregnant) in logs, then show them here.
-        </div>
-        <div class="muted xs">
-          (Once backend fields are added, this dashboard will display them automatically.)
-        </div>
-      </div>
     </div>
 
     <!-- placeholder for future breakdown -->
@@ -216,7 +207,9 @@ onMounted(async () => {
   --green:#22c55e;
   --red:#ef4444;
 
-  padding: 20px;
+  padding: clamp(16px,2vw,24px);
+  max-width: 1500px;
+  margin: 0 auto;
   color: var(--text);
 }
 
@@ -266,37 +259,124 @@ onMounted(async () => {
 }
 
 .banner{
-  display:flex;
-  justify-content:space-between;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--border2);
+  display:grid;
+  grid-template-columns:minmax(230px,.9fr) minmax(0,1.7fr);
+  align-items:stretch;
+  gap:20px;
+  padding:20px;
+  border-radius:20px;
+  border:1px solid var(--border2);
   background:
     radial-gradient(1000px 420px at 15% -15%, rgba(56,189,248,.22), transparent 55%),
     linear-gradient(180deg, rgba(10,14,28,.78), rgba(6,9,18,.86));
-  box-shadow: 0 20px 48px rgba(0,0,0,.48);
+  box-shadow:0 20px 48px rgba(0,0,0,.48);
 }
 
 .banner.warn{
-  border-color: rgba(245,158,11,.35);
+  border-color:rgba(245,158,11,.35);
   background:
     radial-gradient(900px 420px at 15% -15%, rgba(245,158,11,.16), transparent 60%),
     linear-gradient(180deg, rgba(10,14,28,.78), rgba(6,9,18,.86));
 }
 
-.kicker{ font-size: 12px; color: rgba(229,231,235,.55); font-weight: 800; }
-.who{ margin-top: 2px; }
-.muted{ color: var(--muted); }
-.small{ font-size: 12.5px; }
-.xs{ font-size: 11.5px; margin-top: 4px; }
+.kicker{ font-size:12px; color:rgba(229,231,235,.55); font-weight:800; }
+.who{ margin-top:4px; line-height:1.4; }
+.muted{ color:var(--muted); }
+.small{ font-size:12.5px; }
+.xs{ font-size:11.5px; margin-top:4px; }
 
-.banner-right{ text-align:right; }
-.big{ font-size: 34px; font-weight: 1000; color:#dbeafe; line-height: 1; }
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  min-width:0;
+}
+
+.metric{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  min-width:0;
+  padding:16px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(2,6,23,.38);
+}
+
+.primary-metric{
+  border-color:rgba(56,189,248,.28);
+  background:
+    radial-gradient(300px 180px at 0% 0%, rgba(56,189,248,.16), transparent 70%),
+    rgba(2,6,23,.42);
+}
+
+.metric-icon{
+  flex:0 0 48px;
+  width:48px;
+  height:48px;
+  display:grid;
+  place-items:center;
+  border-radius:14px;
+  font-size:23px;
+  background:rgba(56,189,248,.12);
+  border:1px solid rgba(56,189,248,.18);
+}
+
+.family-icon{
+  background:rgba(37,99,235,.14);
+  border-color:rgba(37,99,235,.22);
+}
+
+.metric-content{ min-width:0; }
+.metric-label{
+  color:rgba(229,231,235,.68);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.75px;
+}
+
+.metric-value{
+  margin-top:3px;
+  font-size:clamp(2rem,3.2vw,3rem);
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:-1px;
+  color:#f8fafc;
+}
+
+.primary-metric .metric-value{
+  color:#dff6ff;
+  text-shadow:0 0 24px rgba(56,189,248,.16);
+}
+
+.metric-caption{
+  margin-top:6px;
+  color:rgba(229,231,235,.48);
+  font-size:11px;
+  line-height:1.35;
+}
+
+.last-update{
+  grid-column:1 / -1;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:6px;
+  padding-top:2px;
+  color:rgba(229,231,235,.45);
+  font-size:11px;
+}
+
+.last-update strong{
+  color:rgba(229,231,235,.68);
+  font-weight:700;
+}
 
 .grid{
   display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -357,9 +437,18 @@ onMounted(async () => {
 .pill-val{ font-size: 22px; font-weight: 1000; color:#dbeafe; }
 
 @media (max-width: 1000px){
-  .grid{ grid-template-columns: 1fr; }
-  .break-grid{ grid-template-columns: 1fr 1fr; }
-  .banner{ flex-direction: column; }
-  .banner-right{ text-align:left; }
+  .grid{ grid-template-columns:1fr; }
+  .break-grid{ grid-template-columns:1fr 1fr; }
+  .banner{ grid-template-columns:1fr; }
+}
+
+@media (max-width: 680px){
+  .dash{ padding:14px; }
+  .top{ align-items:flex-start; flex-direction:column; }
+  .top-actions{ width:100%; }
+  .top-actions .btn{ flex:1; justify-content:center; }
+  .metrics{ grid-template-columns:1fr; }
+  .last-update{ justify-content:flex-start; }
+  .break-grid{ grid-template-columns:1fr; }
 }
 </style>
