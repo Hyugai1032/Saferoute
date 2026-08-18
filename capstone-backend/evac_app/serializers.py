@@ -106,6 +106,12 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "pregnant_count",
             "lactating_count",
 
+            "children_out",
+            "senior_out",
+            "pwd_out",
+            "pregnant_out",
+            "lactating_out",
+
             "vulnerable_individuals",
             "total_current",
             "total_current_families",
@@ -122,6 +128,8 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "families_in", "individuals_in", "families_out", "individuals_out",
             "children_count", "senior_count", "pwd_count",
             "pregnant_count", "lactating_count",
+            "children_out", "senior_out", "pwd_out",
+            "pregnant_out", "lactating_out",
         ]
         for f in numeric_fields:
             if attrs.get(f, 0) is None:

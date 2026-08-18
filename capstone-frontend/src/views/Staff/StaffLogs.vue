@@ -86,6 +86,7 @@
               <th>In (Ind)</th>
               <th>Out (Ind)</th>
               <th>Vulnerable</th>
+              <th>Vulnerable Out</th>
               <th>Total Current</th>
               <th class="remarks">Remarks</th>
               <th style="width: 200px;">Actions</th>
@@ -100,6 +101,7 @@
               <td>{{ log.individuals_in }}</td>
               <td>{{ log.individuals_out }}</td>
               <td>{{ log.vulnerable_individuals }}</td>
+              <td>{{ logVulnerableOut(log) }}</td>
               <td><b>{{ log.total_current }}</b></td>
               <td class="remarks">
                 {{ log.remarks || "-" }}
@@ -111,7 +113,7 @@
             </tr>
 
             <tr v-if="logs.length === 0">
-              <td colspan="8" class="empty">No logs found.</td>
+              <td colspan="10" class="empty">No logs found.</td>
             </tr>
           </tbody>
         </table>
@@ -196,9 +198,9 @@
 
           <div class="wide">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <b style="color:black;">Vulnerable Breakdown</b>
+              <b style="color:black;">Vulnerable Arriving</b>
               <span style="font-size:12px; opacity:.7;">
-                Total: {{ vulnerableTotal }}
+                Total: {{ vulnerableInTotal }}
               </span>
             </div>
 
@@ -226,6 +228,42 @@
               <label>
                 Lactating
                 <input v-model.number="modal.form.lactating_count" type="number" min="0" />
+              </label>
+            </div>
+          </div>
+
+          <div class="wide">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <b style="color:black;">Vulnerable Leaving</b>
+              <span style="font-size:12px; opacity:.7;">
+                Total: {{ vulnerableOutTotal }}
+              </span>
+            </div>
+
+            <div class="vgrid">
+              <label>
+                Children
+                <input v-model.number="modal.form.children_out" type="number" min="0" />
+              </label>
+
+              <label>
+                Seniors
+              <input v-model.number="modal.form.senior_out" type="number" min="0" />
+              </label>
+
+              <label>
+                PWD
+              <input v-model.number="modal.form.pwd_out" type="number" min="0" /> 
+              </label>
+
+              <label>
+                Pregnant
+                <input v-model.number="modal.form.pregnant_out" type="number" min="0" />
+              </label>
+
+              <label>
+                Lactating
+                <input v-model.number="modal.form.lactating_out" type="number" min="0" />
               </label>
             </div>
           </div>
@@ -305,7 +343,12 @@ export default {
           senior_count: 0,
           pwd_count: 0,
           pregnant_count: 0,
-          lactating_count: 0
+          lactating_count: 0,
+          children_out: 0,
+          senior_out: 0,
+          pwd_out: 0,
+          pregnant_out: 0,
+          lactating_out: 0,
         },
       },
     };
@@ -363,7 +406,7 @@ export default {
       const d = new Date(this.latestLog.date_recorded);
       return isNaN(d.getTime()) ? this.latestLog.date_recorded : d.toLocaleString();
     },
-    vulnerableTotal() {
+    vulnerableInTotal() {
       const f = this.modal.form || {};
       return (
         (f.children_count || 0) +
@@ -371,6 +414,16 @@ export default {
         (f.pwd_count || 0) +
         (f.pregnant_count || 0) +
         (f.lactating_count || 0)
+      );
+    },
+    vulnerableOutTotal() {
+      const f = this.modal.form || {};
+      return (
+        (f.children_out || 0) +
+        (f.senior_out || 0) +
+        (f.pwd_out || 0) +
+        (f.pregnant_out || 0) +
+        (f.lactating_out || 0)
       );
     },
     activeCenterLabel() {
@@ -401,6 +454,16 @@ methods: {
       if (!dt) return "-";
       const d = new Date(dt);
       return isNaN(d.getTime()) ? dt : d.toLocaleString();
+    },
+
+    logVulnerableOut(log) {
+      return (
+        (log.children_out || 0) +
+        (log.senior_out || 0) +
+        (log.pwd_out || 0) +
+        (log.pregnant_out || 0) +
+        (log.lactating_out || 0)
+      );
     },
 
     async fetchReasonOptions() {
@@ -507,6 +570,11 @@ methods: {
       pwd_count: 0,
       pregnant_count: 0,
       lactating_count: 0,
+      children_out: 0,
+      senior_out: 0,
+      pwd_out: 0,
+      pregnant_out: 0,
+      lactating_out: 0,
       remarks: "",
     };
 
@@ -532,6 +600,11 @@ methods: {
       pwd_count: log.pwd_count ?? 0,
       pregnant_count: log.pregnant_count ?? 0,
       lactating_count: log.lactating_count ?? 0,
+      children_out: log.children_out ?? 0,
+      senior_out: log.senior_out ?? 0,
+      pwd_out: log.pwd_out ?? 0,
+      pregnant_out: log.pregnant_out ?? 0,
+      lactating_out: log.lactating_out ?? 0,
       remarks: log.remarks || "",
     };
   },
@@ -585,6 +658,12 @@ methods: {
       pwd_count: this.modal.form.pwd_count ?? 0,
       pregnant_count: this.modal.form.pregnant_count ?? 0,
       lactating_count: this.modal.form.lactating_count ?? 0,
+
+      children_out: this.modal.form.children_out ?? 0,
+      senior_out: this.modal.form.senior_out ?? 0,
+      pwd_out: this.modal.form.pwd_out ?? 0,
+      pregnant_out: this.modal.form.pregnant_out ?? 0,
+      lactating_out: this.modal.form.lactating_out ?? 0,
 
       remarks: this.modal.form.remarks || "",
     };
