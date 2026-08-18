@@ -76,9 +76,49 @@
                     class="form-input"
                     placeholder="Enter your email"
                     v-model="form.email"
+                    :disabled="emailVerified"
+                    @input="onEmailChanged"
                     required
                   >
+                  <button
+                    type="button"
+                    class="otp-inline-btn"
+                    :disabled="!isEmailValid || emailVerified || otpCooldown > 0 || sendingOtp"
+                    @click="sendOtp"
+                  >
+                    <span v-if="emailVerified"><i class="fas fa-check"></i> Verified</span>
+                    <span v-else-if="sendingOtp">Sending...</span>
+                    <span v-else-if="otpCooldown > 0">Resend in {{ otpCooldown }}s</span>
+                    <span v-else-if="otpSent">Resend code</span>
+                    <span v-else>Send code</span>
+                  </button>
                 </div>
+                <p v-if="otpError" class="captcha-error">{{ otpError }}</p>
+              </div>
+
+              <div class="form-group" v-if="otpSent && !emailVerified">
+                <label class="form-label">Verification Code</label>
+                <div class="input-group">
+                  <i class="fas fa-key input-icon"></i>
+                  <input
+                    type="text"
+                    class="form-input"
+                    placeholder="6-digit code"
+                    maxlength="6"
+                    inputmode="numeric"
+                    v-model="otpCode"
+                  >
+                  <button
+                    type="button"
+                    class="otp-inline-btn"
+                    :disabled="otpCode.length !== 6 || verifyingOtp"
+                    @click="verifyOtp"
+                  >
+                    <span v-if="verifyingOtp">Checking...</span>
+                    <span v-else>Verify</span>
+                  </button>
+                </div>
+                <p class="otp-hint">We sent a code to {{ form.email }}. It expires in 10 minutes.</p>
               </div>
 
               <div class="form-group">
@@ -193,6 +233,16 @@ export default {
       captchaError: "",
       captchaWidgetId: null,
 
+      // Email OTP verification
+      otpSent: false,
+      otpCode: "",
+      otpError: "",
+      sendingOtp: false,
+      verifyingOtp: false,
+      emailVerified: false,
+      otpCooldown: 0,
+      otpCooldownTimer: null,
+
       features: [
         {
           id: 1,
@@ -219,6 +269,12 @@ export default {
     };
   },
 
+  computed: {
+    isEmailValid() {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email.trim());
+    }
+  },
+ 
   mounted() {
     try {
       this.fetchMunicipalities();
@@ -234,13 +290,89 @@ export default {
     });
   },
 
+  beforeUnmount() {
+    if (this.otpCooldownTimer) {
+      clearInterval(this.otpCooldownTimer);
+    }
+  },
+ 
   methods: {
     togglePasswordVisibility() {
       this.showPassword = !this.showPassword;
     },
 
+    onEmailChanged() {
+      // If the user edits the email after verifying/sending, the old OTP no longer applies.
+      if (this.otpSent || this.emailVerified) {
+        this.otpSent = false;
+        this.emailVerified = false;
+        this.otpCode = "";
+        this.otpError = "";
+      }
+    },
+
+    startOtpCooldown(seconds) {
+      this.otpCooldown = seconds;
+      if (this.otpCooldownTimer) clearInterval(this.otpCooldownTimer);
+      this.otpCooldownTimer = setInterval(() => {
+        this.otpCooldown -= 1;
+        if (this.otpCooldown <= 0) {
+          clearInterval(this.otpCooldownTimer);
+          this.otpCooldownTimer = null;
+        }
+      }, 1000);
+    },
+
+    async sendOtp() {
+      this.otpError = "";
+      if (!this.isEmailValid) {
+        this.otpError = "Enter a valid email address first.";
+        return;
+      }
+
+      this.sendingOtp = true;
+      try {
+        await api.post("/auth/register/send-otp/", { email: this.form.email.trim().toLowerCase() });
+        this.otpSent = true;
+        this.otpCode = "";
+        this.startOtpCooldown(60);
+      } catch (error) {
+        const data = error?.response?.data;
+        this.otpError = data?.email || data?.detail || "Failed to send verification code.";
+      } finally {
+        this.sendingOtp = false;
+      }
+    },
+
+    async verifyOtp() {
+      this.otpError = "";
+      this.verifyingOtp = true;
+      try {
+        await api.post("/auth/register/verify-otp/", {
+          email: this.form.email.trim().toLowerCase(),
+          otp_code: this.otpCode,
+        });
+        this.emailVerified = true;
+        if (this.otpCooldownTimer) {
+          clearInterval(this.otpCooldownTimer);
+          this.otpCooldownTimer = null;
+        }
+        this.otpCooldown = 0;
+      } catch (error) {
+        const data = error?.response?.data;
+        this.otpError = data?.otp_code || data?.detail || "Verification failed.";
+      } finally {
+        this.verifyingOtp = false;
+      }
+    },
+
     async handleRegister() {
       this.captchaError = "";
+
+      if (!this.emailVerified) {
+        this.otpError = "Please verify your email before registering.";
+        return;
+      }
 
       if (!this.captchaToken) {
         this.captchaError = "Please complete the captcha before registering.";
@@ -260,7 +392,7 @@ export default {
 
       } catch (error) {
         console.error("Register error:", error);
-        alert(error?.error || error?.captcha_token || JSON.stringify(error) || "Registration failed.");
+        alert(error?.error || error?.captcha_token || error?.email || JSON.stringify(error) || "Registration failed.");
         // Captcha tokens are single-use; force the user to re-solve it after any failed attempt.
         this.resetCaptcha();
       } finally {

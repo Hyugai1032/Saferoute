@@ -4,6 +4,8 @@ from django.contrib.auth.models import (
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+from django.contrib.auth.hashers import make_password, check_password
+import random
 
 class Municipality(models.Model):
     name = models.CharField(max_length=150)
@@ -238,3 +240,38 @@ class GisLayer(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.municipality.name})"
+
+class EmailOTP(models.Model):
+    PURPOSE_CHOICES = [
+        ('REGISTER', 'Registration'),
+    ]
+
+    email = models.EmailField(max_length=191, db_index=True)
+    purpose = models.CharField(max_length=30, choices=PURPOSE_CHOICES, default='REGISTER')
+    code_hash = models.CharField(max_length=128)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["email", "purpose"]),
+        ]
+
+    def __str__(self):
+        return f"OTP for {self.email} ({self.purpose})"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def set_code(self, raw_code):
+        self.code_hash = make_password(raw_code)
+
+    def check_code(self, raw_code):
+        return check_password(raw_code, self.code_hash)
+
+    @staticmethod
+    def generate_code():
+        return f"{random.randint(0, 999999):06d}"

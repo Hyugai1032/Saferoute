@@ -15,6 +15,8 @@ from .api_views import (
     MeView,
     UpdateMeView,
     NearbyHazardAlertsView,
+    SendRegisterOTPView,
+    VerifyRegisterOTPView
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -47,4 +49,6 @@ urlpatterns = [
         NearbyHazardAlertsView.as_view(),
         name="nearby-hazard-alerts"
     ),
+    path("auth/register/send-otp/", SendRegisterOTPView.as_view()),
+    path("auth/register/verify-otp/", VerifyRegisterOTPView.as_view()),
 ]

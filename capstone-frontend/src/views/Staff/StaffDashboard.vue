@@ -29,27 +29,27 @@ affdashboard · VUE
       </div>
 
       <div class="metrics">
-        <div class="metric primary-metric">
+        <div class="metric primary-metric banner">
           <div class="metric-icon">👥</div>
           <div class="metric-content">
             <div class="metric-label">Current Evacuees</div>
             <div class="metric-value">{{ latest.total_current ?? 0 }}</div>
-            <div class="metric-caption">People currently recorded at the center</div>
+            <div class="metric-caption muted">People currently recorded at the center</div>
           </div>
         </div>
 
-        <div class="metric">
+        <div class="metric banner">
           <div class="metric-icon family-icon">🏠</div>
           <div class="metric-content">
             <div class="metric-label">Current Families</div>
             <div class="metric-value">{{ latest.total_current_families ?? 0 }}</div>
-            <div class="metric-caption">Families currently recorded</div>
+            <div class="metric-caption muted">Families currently recorded</div>
           </div>
         </div>
 
-        <div class="last-update">
+        <div class="last-update muted">
           <span>Last update</span>
-          <strong>{{ lastUpdatedText }}</strong>
+          <strong class="muted">{{ lastUpdatedText }}</strong>
         </div>
       </div>
     </div>

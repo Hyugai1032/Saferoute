@@ -6,6 +6,7 @@ from django.apps import apps
 from django.conf import settings
 from django.db import models 
 from django.db.models import F
+from django.core.mail import send_mail
 from rest_framework import generics, permissions, viewsets, filters, status
 from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.decorators import action
@@ -14,7 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport
+from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport, EmailOTP
 from .serializers import RegisterSerializer
 from .serializers import (UserProfileSerializer, 
                           HazardReportSerializer, 
@@ -83,6 +84,139 @@ def verify_recaptcha(token, remote_ip=None):
 
     return True, None
 
+OTP_EXPIRY_MINUTES = 10
+OTP_RESEND_COOLDOWN_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
+# Window after verification during which the user must finish submitting the register form.
+OTP_VERIFIED_WINDOW_MINUTES = 15
+
+
+def send_otp_email(email, code):
+    send_mail(
+        subject="Your SafeRoute verification code",
+        message=(
+            f"Your verification code is: {code}\n\n"
+            f"This code expires in {OTP_EXPIRY_MINUTES} minutes. "
+            "If you didn't request this, you can safely ignore this email."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
+
+class SendRegisterOTPView(APIView):
+    """Issues a one-time email verification code for the registration flow."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        if not email:
+            return Response({"email": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if CustomUser.objects.filter(email__iexact=email).exists():
+            return Response(
+                {"email": "An account with this email already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        existing = (
+            EmailOTP.objects
+            .filter(email__iexact=email, purpose="REGISTER")
+            .order_by("-created_at")
+            .first()
+        )
+        if existing:
+            wait_left = (
+                existing.created_at + timedelta(seconds=OTP_RESEND_COOLDOWN_SECONDS) - timezone.now()
+            ).total_seconds()
+            if wait_left > 0:
+                return Response(
+                    {"detail": f"Please wait {int(wait_left)}s before requesting another code."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+        code = EmailOTP.generate_code()
+        otp = EmailOTP(
+            email=email,
+            purpose="REGISTER",
+            expires_at=timezone.now() + timedelta(minutes=OTP_EXPIRY_MINUTES),
+        )
+        otp.set_code(code)
+        otp.save()
+
+        try:
+            send_otp_email(email, code)
+        except Exception:
+            otp.delete()
+            return Response(
+                {"detail": "Failed to send verification email. Please try again."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        return Response({
+            "detail": "Verification code sent.",
+            "expires_in": OTP_EXPIRY_MINUTES * 60,
+        })
+
+
+class VerifyRegisterOTPView(APIView):
+    """Checks a code submitted for the registration flow and marks the email verified."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        code = (request.data.get("otp_code") or "").strip()
+
+        if not email or not code:
+            return Response(
+                {"detail": "Email and verification code are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        otp = (
+            EmailOTP.objects
+            .filter(email__iexact=email, purpose="REGISTER")
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not otp:
+            return Response(
+                {"otp_code": "No verification code found for this email. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if otp.is_verified:
+            return Response({"detail": "Email already verified."})
+
+        if otp.is_expired():
+            return Response(
+                {"otp_code": "This code has expired. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if otp.attempts >= OTP_MAX_ATTEMPTS:
+            return Response(
+                {"otp_code": "Too many incorrect attempts. Please request a new code."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not otp.check_code(code):
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            remaining = OTP_MAX_ATTEMPTS - otp.attempts
+            return Response(
+                {"otp_code": f"Incorrect code. {remaining} attempt(s) remaining."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        otp.is_verified = True
+        otp.verified_at = timezone.now()
+        otp.save(update_fields=["is_verified", "verified_at"])
+
+        return Response({"detail": "Email verified."})
+
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (permissions.AllowAny,)
@@ -94,9 +228,32 @@ class RegisterView(generics.CreateAPIView):
         if not is_valid:
             return Response({"captcha_token": error}, status=status.HTTP_400_BAD_REQUEST)
 
+        email = (request.data.get("email") or "").strip().lower()
+        otp = (
+            EmailOTP.objects
+            .filter(email__iexact=email, purpose="REGISTER", is_verified=True)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not otp:
+            return Response(
+                {"email": "Please verify your email with the code sent to you before registering."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if timezone.now() > otp.verified_at + timedelta(minutes=OTP_VERIFIED_WINDOW_MINUTES):
+            return Response(
+                {"email": "Your email verification has expired. Please verify your email again."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # OTP is single-use; remove it now that registration is complete.
+        otp.delete()
 
         return Response({
             "message": "User created successfully",
