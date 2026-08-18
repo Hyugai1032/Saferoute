@@ -82,7 +82,7 @@
             <tr>
               <th>Date</th>
               <th>Center</th>
-              <th>Cause</th>
+              <th>Reason for Evacuation</th>
               <th>In (Ind)</th>
               <th>Out (Ind)</th>
               <th>Vulnerable</th>
@@ -96,7 +96,7 @@
             <tr v-for="log in logs" :key="log.id">
               <td>{{ formatDate(log.date_recorded) }}</td>
               <td>{{ log.center_name || log.center }}</td>
-              <td>{{ log.disaster_cause || "-" }}</td>
+              <td>{{ log.reason_for_evacuation_display || "-" }}</td>
               <td>{{ log.individuals_in }}</td>
               <td>{{ log.individuals_out }}</td>
               <td>{{ log.vulnerable_individuals }}</td>
@@ -155,18 +155,24 @@
             </select>
           </label>
 
-          <label>
-            Disaster Cause
-            <select v-model="modal.form.disaster_cause">
-              <option value="TYPHOON">Typhoon</option>
-              <option value="FLOOD">Flood</option>
-              <option value="LANDSLIDE">Landslide</option>
-              <option value="EARTHQUAKE">Earthquake</option>
-              <option value="FIRE">Fire</option>
-              <option value="VOLCANIC_ACTIVITY">Volcanic Activity</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </label>
+          <div class="checkbox-section">
+            <p class="section-title">Classification / Reason for Evacuation</p>
+
+            <label class="full">
+              Reason for Evacuation
+              <select v-model="modal.form.reason_for_evacuation" required>
+                <option :value="null" disabled>-- Select reason --</option>
+                <option
+                  v-for="reason in availableReasonOptions"
+                  :key="reason.id"
+                  :value="reason.id"
+                >
+                  {{ reason.name }}
+                </option>
+              </select>
+              <small v-if="reasonsError" class="field-error">{{ reasonsError }}</small>
+            </label>
+          </div>
 
           <label>
             Families In
@@ -269,6 +275,10 @@ export default {
         center: null, // admin filter
       },
 
+      reasonOptions: [],
+      reasonsLoading: false,
+      reasonsError: "",
+
       pagination: {
         page: 1,
         page_size: 10,
@@ -283,6 +293,8 @@ export default {
         id: null,
         form: {
           center: null,
+          reason_for_evacuation: null,
+          reason_for_evacuation_name: "",
           disaster_cause: "OTHER",
           families_in: 0,
           individuals_in: 0,
@@ -327,6 +339,22 @@ export default {
         return latest;
       }, this.logs[0]);
     },
+
+    availableReasonOptions() {
+      const options = [...this.reasonOptions];
+      const currentId = this.modal.form.reason_for_evacuation;
+      const alreadyListed = options.some((reason) => reason.id === currentId);
+
+      if (currentId && !alreadyListed && this.modal.form.reason_for_evacuation_name) {
+        options.push({
+          id: currentId,
+          name: `${this.modal.form.reason_for_evacuation_name} (inactive)`,
+        });
+      }
+
+      return options;
+    },
+
     currentEvacuees() {
       return this.summary?.total_current ?? 0;
     },
@@ -364,6 +392,7 @@ export default {
       await this.fetchCenters();
     }
     await this.fetchLogs(1);
+    await this.fetchReasonOptions();
     // console.log("ME:", res.data);
   },
 
@@ -374,71 +403,89 @@ methods: {
       return isNaN(d.getTime()) ? dt : d.toLocaleString();
     },
 
+    async fetchReasonOptions() {
+      this.reasonsLoading = true;
+      this.reasonsError = "";
+
+      try {
+        const res = await api.get("evac_centers/evacuation-reasons/");
+        const data = res.data;
+        const reasons = data.results || (Array.isArray(data) ? data : []);
+
+        this.reasonOptions = reasons.filter((reason) => reason.is_active !== false);
+        console.log("[fetchReasonOptions] loaded", this.reasonOptions);
+      } catch (e) {
+        console.error("[fetchReasonOptions] error:", e);
+        this.reasonOptions = [];
+        this.reasonsError = e?.response?.data?.detail || "Unable to load evacuation reasons.";
+      } finally {
+        this.reasonsLoading = false;
+      }
+    },
+
     async fetchMe() {
-      // Use your existing profile endpoint because it includes assigned_center_name/id
       const res = await api.get("user/profile/");
       this.me = res.data;
 
-// prevent stale filter affecting staff
-if (this.me.role === "EVAC_CENTER_STAFF") {
-  this.filters.center = null;
-}
-    },
-
-    async fetchCenters() {
-      // IMPORTANT: evac module is under /api/evac_centers/
-      const res = await api.get("evac_centers/evacuation-centers/");
-      const data = res.data;
-      this.centers = Array.isArray(data) ? data : (data.results || []);
-    },
-
-    async fetchLogs(page = 1) {
-      this.loading = true;
-      
-      try {
-        const pageNum = Number(page) || 1;
-
-        const params = new URLSearchParams();
-        params.append("page", pageNum);
-        params.append("page_size", this.pagination.page_size);
-
-      // ✅ Only ONE center param allowed
-      if (this.isStaff && this.me.assigned_center_id) {
-        params.append("center", this.me.assigned_center_id);
-      } else if (this.filters.center) {
-        params.append("center", this.filters.center);
-      }
-
-        const res = await api.get(`evac_centers/evacuation-logs/?${params.toString()}`);
-        const data = res.data;
-
-        // supports paginated or not
-        this.logs = data.results || (Array.isArray(data) ? data : []);
-        this.pagination.count = data.count || this.logs.length || 0;
-        this.pagination.next = data.next || null;
-        this.pagination.previous = data.previous || null;
-        this.pagination.page = pageNum;
-        await this.fetchSummary();  // ✅ ADD THIS
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchSummary() {
-  try {
-    let url = "evac_centers/evacuation-logs/staff_summary/";
-
-    // If not staff, pass center filter
-    if (!this.isStaff && this.filters.center) {
-      url += `?center=${this.filters.center}`;
+    // prevent stale filter affecting staff
+    if (this.me.role === "EVAC_CENTER_STAFF") {
+      this.filters.center = null;
     }
+        },
 
-    const res = await api.get(url);
-    this.summary = res.data;
-  } catch (e) {
-    console.error("fetchSummary error:", e);
-  }
-},
+        async fetchCenters() {
+          const res = await api.get("evac_centers/evacuation-centers/");
+          const data = res.data;
+          this.centers = Array.isArray(data) ? data : (data.results || []);
+        },
+
+        async fetchLogs(page = 1) {
+          this.loading = true;
+          
+          try {
+            const pageNum = Number(page) || 1;
+
+            const params = new URLSearchParams();
+            params.append("page", pageNum);
+            params.append("page_size", this.pagination.page_size);
+
+          // ✅ Only ONE center param allowed
+          if (this.isStaff && this.me.assigned_center_id) {
+            params.append("center", this.me.assigned_center_id);
+          } else if (this.filters.center) {
+            params.append("center", this.filters.center);
+          }
+
+            const res = await api.get(`evac_centers/evacuation-logs/?${params.toString()}`);
+            const data = res.data;
+
+            // supports paginated or not
+            this.logs = data.results || (Array.isArray(data) ? data : []);
+            this.pagination.count = data.count || this.logs.length || 0;
+            this.pagination.next = data.next || null;
+            this.pagination.previous = data.previous || null;
+            this.pagination.page = pageNum;
+            await this.fetchSummary();  // ✅ ADD THIS
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async fetchSummary() {
+      try {
+        let url = "evac_centers/evacuation-logs/staff_summary/";
+
+        // If not staff, pass center filter
+        if (!this.isStaff && this.filters.center) {
+          url += `?center=${this.filters.center}`;
+        }
+
+        const res = await api.get(url);
+        this.summary = res.data;
+      } catch (e) {
+        console.error("fetchSummary error:", e);
+      }
+    },
 
     openCreate() {
       this.modalError = "";
@@ -448,6 +495,8 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     this.modal.form = {
       center: this.isStaff ? (this.me.assigned_center_id || null) : null,
+      reason_for_evacuation: null,
+      reason_for_evacuation_name: "",
       disaster_cause: "OTHER",
       families_in: 0,
       individuals_in: 0,
@@ -471,6 +520,8 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     this.modal.form = {
       center: log.center || null,
+      reason_for_evacuation: log.reason_for_evacuation || null,
+      reason_for_evacuation_name: log.reason_for_evacuation_display || "",
       disaster_cause: log.disaster_cause || "OTHER",
       families_in: log.families_in ?? 0,
       individuals_in: log.individuals_in ?? 0,
@@ -492,8 +543,6 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
     },
 
     async saveLog() {
-      alert("Log Saved!");
-
       console.log("[saveLog] clicked", {
       role: this.me.role,
       assigned_center_id: this.me.assigned_center_id,
@@ -525,7 +574,7 @@ if (this.me.role === "EVAC_CENTER_STAFF") {
 
     const payload = {
       center: this.modal.form.center,
-      disaster_cause: this.modal.form.disaster_cause || "OTHER",
+      reason_for_evacuation: this.modal.form.reason_for_evacuation,
       families_in: this.modal.form.families_in ?? 0,
       individuals_in: this.modal.form.individuals_in ?? 0,
       families_out: this.modal.form.families_out ?? 0,

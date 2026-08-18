@@ -122,7 +122,7 @@
               </td>
 
               <td>
-                {{ formatReason(evacuee.reason_for_evacuation) }}
+                {{ evacuee.reason_for_evacuation_display || "-" }}
               </td>
 
               <td>
@@ -302,52 +302,54 @@
           </div>
 
           <div class="checkbox-section">
-            <p class="section-title label">Classification / Reason for Evacuation</p>
+            <p class="section-title">Classification / Reason for Evacuation</p>
 
-            <label class="full label">
+            <label class="full">
               Reason for Evacuation
               <select v-model="modal.form.reason_for_evacuation" required>
+                <option :value="null" disabled>-- Select reason --</option>
                 <option
-                  v-for="reason in reasonOptions"
-                  :key="reason.value"
-                  :value="reason.value"
+                  v-for="reason in availableReasonOptions"
+                  :key="reason.id"
+                  :value="reason.id"
                 >
-                  {{ reason.label }}
+                  {{ reason.name }}
                 </option>
               </select>
+              <small v-if="reasonsError" class="field-error">{{ reasonsError }}</small>
             </label>
           </div>
 
           <div class="checkbox-section">
-            <p class="section-title label">Category / Special Condition</p>
+            <p class="section-title">Category / Special Condition</p>
 
             <div class="checkbox-grid">
-              <label class="check-label label">
+              <label class="check-label">
                 <input v-model="modal.form.is_child" type="checkbox" />
                 Child
               </label>
 
-              <label class="check-label label">
+              <label class="check-label">
                 <input v-model="modal.form.is_senior" type="checkbox" />
                 Senior Citizen
               </label>
 
-              <label class="check-label label">
+              <label class="check-label">
                 <input v-model="modal.form.is_pwd" type="checkbox" />
                 PWD
               </label>
 
-              <label class="check-label label">
+              <label class="check-label">
                 <input v-model="modal.form.is_pregnant" type="checkbox" />
                 Pregnant
               </label>
 
-              <label class="check-label label">
+              <label class="check-label">
                 <input v-model="modal.form.is_lactating" type="checkbox" />
                 Lactating
               </label>
 
-              <label class="check-label label">
+              <label class="check-label">
                 <input v-model="modal.form.is_active" type="checkbox" />
                 Active in Center
               </label>
@@ -403,16 +405,11 @@ export default {
         category: "",
       },
 
-      // Keep in sync with EvacuationLog.DISASTER_CAUSE_CHOICES / Evacuee.REASON choices on the backend
-      reasonOptions: [
-        { value: "TYPHOON", label: "Typhoon" },
-        { value: "FLOOD", label: "Flood" },
-        { value: "LANDSLIDE", label: "Landslide" },
-        { value: "EARTHQUAKE", label: "Earthquake" },
-        { value: "FIRE", label: "Fire" },
-        { value: "VOLCANIC_ACTIVITY", label: "Volcanic Activity" },
-        { value: "OTHER", label: "Other" },
-      ],
+      // Populated from GET evac_centers/evacuation-reasons/?active_only=true
+      // Admins manage this list; staff can only pick from it.
+      reasonOptions: [],
+      reasonsLoading: false,
+      reasonsError: "",
 
       modal: {
         open: false,
@@ -426,6 +423,7 @@ export default {
   mounted() {
     this.fetchCenters();
     this.fetchEvacuees();
+    this.fetchReasonOptions();
   },
 
   computed: {
@@ -448,6 +446,21 @@ export default {
 
       return Array.from(names).sort((a, b) => a.localeCompare(b));
     },
+
+    availableReasonOptions() {
+      const options = [...this.reasonOptions];
+      const currentId = this.modal.form.reason_for_evacuation;
+      const alreadyListed = options.some((reason) => reason.id === currentId);
+
+      if (currentId && !alreadyListed && this.modal.form.reason_for_evacuation_name) {
+        options.push({
+          id: currentId,
+          name: `${this.modal.form.reason_for_evacuation_name} (inactive)`,
+        });
+      }
+
+      return options;
+    },
   },
 
   methods: {
@@ -464,7 +477,8 @@ export default {
         is_family_head: false,
         family_head_name: "",
         family_head_selection: "",
-        reason_for_evacuation: "OTHER",
+        reason_for_evacuation: null,
+        reason_for_evacuation_name: "",
         is_child: false,
         is_senior: false,
         is_pwd: false,
@@ -475,6 +489,23 @@ export default {
       };
     },
 
+    async fetchReasonOptions() {
+      this.reasonsLoading = true;
+      this.reasonsError = "";
+ 
+      try {
+        const res = await api.get("evac_centers/evacuation-reasons/", {
+          params: { active_only: "true" },
+        });
+        this.reasonOptions = Array.isArray(res.data) ? res.data : res.data.results || [];
+      } catch (err) {
+        console.error(err);
+        this.reasonsError = "Failed to load evacuation reasons.";
+      } finally {
+        this.reasonsLoading = false;
+      }
+    },
+ 
     async fetchCenters() {
         try {
             const res = await api.get("evac_centers/evacuation-centers/");
@@ -577,7 +608,8 @@ export default {
         family_head_selection: existingFamilyHeadName
           ? (isKnownFamilyHead ? existingFamilyHeadName : "__OTHER__")
           : "",
-        reason_for_evacuation: evacuee.reason_for_evacuation || "OTHER",
+        reason_for_evacuation: evacuee.reason_for_evacuation || null,
+        reason_for_evacuation_name: evacuee.reason_for_evacuation_display || "",
         is_child: Boolean(evacuee.is_child),
         is_senior: Boolean(evacuee.is_senior),
         is_pwd: Boolean(evacuee.is_pwd),
@@ -613,7 +645,7 @@ export default {
             return;
             }
 
-            const { family_head_selection, ...formData } = this.modal.form;
+            const { family_head_selection, reason_for_evacuation_name, ...formData } = this.modal.form;
 
             const payload = {
             ...formData,
@@ -685,16 +717,9 @@ export default {
             .join(", ");
     },
 
-    formatReason(reason) {
-      if (!reason) return "-";
- 
-      const match = this.reasonOptions.find((option) => option.value === reason);
-      return match ? match.label : reason;
-    },
- 
     formatSex(sex) {
       if (!sex) return "-";
-
+ 
       const map = {
         MALE: "Male",
         FEMALE: "Female",

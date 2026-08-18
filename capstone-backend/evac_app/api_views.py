@@ -8,13 +8,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from django.db.models import Sum, Max
+from django.db.models import Sum, Max, ProtectedError
 from django.utils import timezone
-from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed
-from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer
+from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed, EvacuationReason
+from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer, EvacuationReasonSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
 from django.db import transaction
 from auth_app.models import Municipality, Barangay
+from auth_app.permissions import IsStaffOrHigher, IsMunicipalAdminOrHigher
 
 
 class EvacuationCenterViewSet(viewsets.ModelViewSet):
@@ -321,6 +322,54 @@ class EvacUploadAPIView(APIView):
 
 from .models import EvacuationLog
 from .serializers import EvacuationLogSerializer
+
+
+class EvacuationReasonViewSet(viewsets.ModelViewSet):
+    """
+    Admin-managed list of evacuation reasons shown in the evacuee registration form.
+
+    - list/retrieve: any staff role (so the evacuee form can populate its dropdown)
+    - create/update/partial_update/destroy: Municipal Admin or Provincial Admin only
+
+    Query params:
+    - ?active_only=true  → list endpoint only returns reasons currently in use
+                             (used by the staff-facing dropdown; the admin management
+                             page omits this param so it can see/reactivate everything)
+    """
+    serializer_class = EvacuationReasonSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = EvacuationReason.objects.all().order_by("name")
+
+        if self.action == "list":
+            active_only = self.request.query_params.get("active_only")
+            if active_only in ["1", "true", "True"]:
+                qs = qs.filter(is_active=True)
+
+        return qs
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            permission_classes = [IsStaffOrHigher]
+        else:
+            permission_classes = [IsMunicipalAdminOrHigher]
+        return [permission() for permission in permission_classes]
+
+    def destroy(self, request, *args, **kwargs):
+        reason = self.get_object()
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {
+                    "detail": (
+                        f"\"{reason.name}\" is still assigned to one or more evacuees and can't be deleted. "
+                        "Deactivate it instead so it stops appearing as an option."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class EvacuationLogViewSet(viewsets.ModelViewSet):

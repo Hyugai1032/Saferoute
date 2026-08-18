@@ -1,6 +1,6 @@
 # capstone-backend/evac_app/serializers.py
 from rest_framework import serializers
-from .models import EvacuationCenter, EvacuationLog, Evacuee, Donation, DonationNeed, DonationDistribution
+from .models import EvacuationCenter, EvacuationLog, Evacuee, Donation, DonationNeed, DonationDistribution, EvacuationReason
 
 class EvacuationCenterSerializer(serializers.ModelSerializer):
     municipality_name = serializers.CharField(
@@ -73,6 +73,19 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
     center_name = serializers.CharField(source="center.name", read_only=True)
     reporting_staff_name = serializers.CharField(source="reporting_staff.email", read_only=True)
 
+    # The database field is still named disaster_cause, but the API now uses
+    # the same naming as EvacueeSerializer.
+    reason_for_evacuation = serializers.PrimaryKeyRelatedField(
+        source="disaster_cause",
+        queryset=EvacuationReason.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+    reason_for_evacuation_display = serializers.CharField(
+        source="disaster_cause.name",
+        read_only=True,
+    )
+
     class Meta:
         model = EvacuationLog
         fields = [
@@ -80,13 +93,13 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
             "center", "center_name",
             "reporting_staff", "reporting_staff_name",
             "date_recorded",
-            
-            "disaster_cause",
+
+            "reason_for_evacuation",
+            "reason_for_evacuation_display",
 
             "families_in", "individuals_in",
             "families_out", "individuals_out",
-            
-            # ✅ new breakdown
+
             "children_count",
             "senior_count",
             "pwd_count",
@@ -95,17 +108,21 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
 
             "vulnerable_individuals",
             "total_current",
-            "total_current_families",  # ✅ new
+            "total_current_families",
             "remarks",
         ]
-        read_only_fields = ["reporting_staff"]
+        read_only_fields = [
+            "reporting_staff",
+            "total_current",
+            "vulnerable_individuals",
+        ]
 
     def validate(self, attrs):
         numeric_fields = [
-        "families_in","individuals_in","families_out","individuals_out",
-        "children_count","senior_count","pwd_count","pregnant_count","lactating_count"
+            "families_in", "individuals_in", "families_out", "individuals_out",
+            "children_count", "senior_count", "pwd_count",
+            "pregnant_count", "lactating_count",
         ]
-        read_only_fields = ["reporting_staff", "total_current", "vulnerable_individuals"]
         for f in numeric_fields:
             if attrs.get(f, 0) is None:
                 attrs[f] = 0
@@ -113,6 +130,7 @@ class EvacuationLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({f: "Must be 0 or greater."})
 
         return attrs
+
     
 class EvacuationCenterListSerializer(serializers.ModelSerializer):
     municipality_name = serializers.CharField(source="municipality.name", read_only=True)
@@ -128,10 +146,33 @@ class EvacCenterDropdownSerializer(serializers.ModelSerializer):
         model = EvacuationCenter
         fields = ["id", "name", "municipality", "municipality_name"]
 
+class EvacuationReasonSerializer(serializers.ModelSerializer):
+    evacuee_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EvacuationReason
+        fields = ["id", "name", "is_active", "evacuee_count", "created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def get_evacuee_count(self, reason):
+        return reason.evacuees.count()
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Name cannot be blank.")
+        return value
+
 class EvacueeSerializer(serializers.ModelSerializer):
     center_name = serializers.CharField(source="center.name", read_only=True)
+
+    reason_for_evacuation = serializers.PrimaryKeyRelatedField(
+        queryset=EvacuationReason.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
     reason_for_evacuation_display = serializers.CharField(
-        source="get_reason_for_evacuation_display", read_only=True
+        source="reason_for_evacuation.name", read_only=True, default=None
     )
 
     class Meta:
@@ -162,6 +203,7 @@ class EvacueeSerializer(serializers.ModelSerializer):
             "remarks",
         ]
         read_only_fields = ["date_registered"]
+
 
 class DonationNeedSerializer(serializers.ModelSerializer):
     center_name = serializers.CharField(source="center.name", read_only=True)

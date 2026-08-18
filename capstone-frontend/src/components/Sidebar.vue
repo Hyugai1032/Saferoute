@@ -93,6 +93,7 @@ const navItems = [
     { to: '/admin/reports/affected-population', name: 'Affected Population Report', icon: '📄' }
   ] : []),
   { to: '/admin/donation-drive', name: 'Donation Drive', icon: '📦'},
+  { to: '/admin/edit_forms', name: 'Edit Forms', icon: '✏️' },
   { to: '/admin/users', name: 'User Management', icon: '👥' },
   { to: '/admin/profile', name: 'Profile', icon: '👤' },
 ];

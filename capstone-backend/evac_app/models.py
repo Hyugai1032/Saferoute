@@ -50,6 +50,28 @@ class EvacuationCenter(models.Model):
         return self.name
 
 
+class EvacuationReason(models.Model):
+    """
+    Admin-managed list of reasons an evacuee may have been displaced.
+    Staff can only pick from this list when registering an evacuee;
+    only admins (Provincial/Municipal) can add, rename, deactivate, or delete entries.
+    """
+
+    name = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive reasons are hidden from the staff dropdown but kept for existing records."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class EvacuationLog(models.Model):
     center = models.ForeignKey(EvacuationCenter, on_delete=models.CASCADE)
     reporting_staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
@@ -81,10 +103,12 @@ class EvacuationLog(models.Model):
         ("OTHER", "Other"),
     ]
 
-    disaster_cause = models.CharField(
-        max_length=50,
-        choices=DISASTER_CAUSE_CHOICES,
-        default="OTHER"
+    disaster_cause = models.ForeignKey(
+        EvacuationReason,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="cause",
     )
 
     remarks = models.TextField(null=True, blank=True)
@@ -166,10 +190,12 @@ class Evacuee(models.Model):
     family_head_name = models.CharField(max_length=150, blank=True)
     is_family_head = models.BooleanField(default=False)
 
-    reason_for_evacuation = models.CharField(
-        max_length=50,
-        choices=EvacuationLog.DISASTER_CAUSE_CHOICES,
-        default="OTHER",
+    reason_for_evacuation = models.ForeignKey(
+        EvacuationReason,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="evacuees",
     )
 
     is_child = models.BooleanField(default=False)

@@ -1,3 +1,4 @@
+affdashboard · VUE
 <template>
   <div class="dash">
     <!-- top row -->
@@ -180,6 +181,7 @@ async function fetchLatest() {
 
   // update latest from summary
   latest.total_current = summary.value?.total_current ?? 0;
+  latest.total_current_families = summary.value?.total_current_families ?? 0;
   latest.date_recorded = summary.value?.latest?.date_recorded ?? null;
 }
 
