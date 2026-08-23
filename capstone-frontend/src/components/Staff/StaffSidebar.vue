@@ -53,7 +53,6 @@
           </div>
           <div class="user-info" :class="{ 'user-info-hidden': isCollapsed }">
             <div class="user-name">{{ user?.first_name }} {{ user?.last_name }}</div>
-            <div class="user-role">{{ user?.roleCode || user?.role }}</div>
             <div class="user-status">Online</div>
           </div>
         </div>

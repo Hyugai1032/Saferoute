@@ -23,7 +23,7 @@
             {{ loading ? 'Loading...' : 'Refresh' }}
           </button>
 
-          <button class="btn-secondary" @click="exportToExcel" :disabled="!rows.length">
+          <button class="btn-secondary" @click="exportToExcel(report, rows, { leftLogoUrl, rightLogoUrl })" :disabled="!rows.length">
                 Export to Excel
             </button>
 
@@ -135,8 +135,11 @@
 </template>
 
 <script setup>
+import ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
 import { computed, onMounted, ref } from 'vue'
-import * as XLSX from 'xlsx'
+import leftLogoUrl from '@/assets/orminlogo.png'
+import rightLogoUrl from '@/assets/pdrrmo.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
 
@@ -146,7 +149,6 @@ const report = ref({})
 const rows = ref([])
 
 const asOfInput = ref(getDefaultLocalDateTime())
-
 function getDefaultLocalDateTime() {
   const now = new Date()
   const pad = (n) => String(n).padStart(2, '0')
@@ -204,124 +206,331 @@ async function loadReport() {
   }
 }
 
-function exportToExcel() {
-  if (!rows.value.length) return
-
-  const title = "EFFECTS OF SHEAR LINE"
-  const subtitle = "AFFECTED POPULATION"
-  const asOf = report.value?.as_of
-    ? `As of ${new Date(report.value.as_of).toLocaleString()}`
-    : ""
-
-  // --- HEADER STRUCTURE ---
-  const header1 = [
-    "Province",
-    "City / Municipality",
-    "Barangay",
-    "NO. OF AFFECTED", "", "",
-    "NO. OF ECS", "",
-    "INSIDE EVACUATION CENTERS", "", "", "",
-    "OUTSIDE EVACUATION CENTERS", "", "", "",
-    "TOTAL SERVED (CURRENT)", "", "", ""
+// ---- style constants pulled from the sample sheet ----
+const FILL_HEADER = 'FFE2EFDA'   // pale green — header block
+const FILL_DATA = 'FFE2EFDA'     // pale green — data rows
+const FILL_SUBTOTAL = 'FFFFFF00' // yellow
+const FILL_TOTAL = 'FFBDD7EE'    // light blue
+const FILL_WHITE = 'FFFFFFFF'
+ 
+const THIN_BORDER = {
+  top: { style: 'thin', color: { argb: 'FF000000' } },
+  left: { style: 'thin', color: { argb: 'FF000000' } },
+  bottom: { style: 'thin', color: { argb: 'FF000000' } },
+  right: { style: 'thin', color: { argb: 'FF000000' } },
+}
+ 
+const TEAL_BORDER = {
+  top: { style: 'medium', color: { argb: 'FF008080' } },
+  left: { style: 'medium', color: { argb: 'FF008080' } },
+  bottom: { style: 'medium', color: { argb: 'FF008080' } },
+  right: { style: 'medium', color: { argb: 'FF008080' } },
+}
+ 
+const TOTAL_COLS = 20 // A..T
+const LAST_COL_LETTER = 'T'
+ 
+const HEADER_FONT = 'Arial Narrow'
+ 
+function applyFillBorder(cell, fillArgb, opts = {}) {
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillArgb } }
+  cell.border = opts.border || THIN_BORDER
+  cell.alignment = {
+    vertical: 'middle',
+    horizontal: opts.align || 'center',
+    wrapText: !!opts.wrap,
+  }
+  if (opts.bold || opts.fontName) {
+    cell.font = { ...(cell.font || {}), ...(opts.bold ? { bold: true } : {}), ...(opts.fontName ? { name: opts.fontName } : {}) }
+  }
+}
+ 
+async function loadImage(url) {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Failed to fetch logo at ${url} (status ${res.status})`)
+  const buffer = await res.arrayBuffer()
+ 
+  // ExcelJS only accepts 'png' | 'jpeg' | 'gif' — detect from content-type first,
+  // fall back to the URL's file extension. A mismatch here is the #1 reason a
+  // logo silently fails to render in Excel even though the export succeeds.
+  const contentType = res.headers.get('content-type') || ''
+  let extension = null
+  if (contentType.includes('png')) extension = 'png'
+  else if (contentType.includes('jpeg') || contentType.includes('jpg')) extension = 'jpeg'
+  else if (contentType.includes('gif')) extension = 'gif'
+ 
+  if (!extension) {
+    const match = url.match(/\.(png|jpe?g|gif)(\?|#|$)/i)
+    if (match) extension = match[1].toLowerCase() === 'jpg' ? 'jpeg' : match[1].toLowerCase()
+  }
+ 
+  if (!extension) {
+    throw new Error(
+      `Could not determine image type for ${url} — ExcelJS only supports png/jpeg/gif (not svg/webp).`
+    )
+  }
+ 
+  return { buffer, extension }
+}
+ 
+// row where the title block ("SITREP No. 8") starts — letterhead occupies rows 1..(TITLE_START-1)
+const TITLE_START = 9
+ 
+async function exportToExcel(report, rows, logos = {}) {
+  if (!rows?.length) return
+ 
+  const { leftLogoUrl, rightLogoUrl } = logos
+  console.log('[exportToExcel] logos received:', { leftLogoUrl, rightLogoUrl })
+ 
+  const asOfText = report?.as_of
+    ? `As of ${new Date(report.as_of).toLocaleString('en-US', {
+        month: 'long',
+        day: '2-digit',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })}`
+    : ''
+ 
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Affected Population', {
+    views: [{ state: 'frozen', ySplit: TITLE_START + 8 }], // freeze under the full header block
+  })
+ 
+  // ---------- LETTERHEAD (rows 1-8) ----------
+  ws.mergeCells(`A2:${LAST_COL_LETTER}2`)
+  ws.getCell('A2').value = 'Republic of the Philippines'
+  ws.getCell('A2').font = { italic: true, size: 10, name: HEADER_FONT }
+  ws.getCell('A2').alignment = { horizontal: 'center' }
+ 
+  ws.mergeCells(`A3:${LAST_COL_LETTER}3`)
+  ws.getCell('A3').value = 'PROVINCE OF ORIENTAL MINDORO'
+  ws.getCell('A3').font = { bold: true, size: 13, name: HEADER_FONT }
+  ws.getCell('A3').alignment = { horizontal: 'center' }
+ 
+  ws.mergeCells(`A5:${LAST_COL_LETTER}5`)
+  ws.getCell('A5').value = 'PROVINCIAL DISASTER RISK REDUCTION AND MANAGEMENT OFFICE'
+  ws.getCell('A5').font = { bold: true, size: 11, name: HEADER_FONT }
+  ws.getCell('A5').alignment = { horizontal: 'center' }
+ 
+  ws.mergeCells(`A7:${LAST_COL_LETTER}7`)
+  ws.getCell('A7').value =
+    'Provincial Capitol Complex, Barangay Camilmil, Calapan City 5200, Oriental Mindoro'
+  ws.getCell('A7').font = { italic: true, size: 9, name: HEADER_FONT }
+  ws.getCell('A7').alignment = { horizontal: 'center' }
+ 
+  // thick rule under the letterhead, spanning the full width
+  ws.mergeCells(`A8:${LAST_COL_LETTER}8`)
+  ws.getCell('A8').border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } }
+ 
+  for (let r = 1; r <= 8; r++) ws.getRow(r).height = r === 1 || r === 8 ? 6 : 14
+ 
+  // logos — anchored top-left, floating over the letterhead rows (0-indexed col/row)
+  if (leftLogoUrl) {
+    try {
+      console.log('[exportToExcel] fetching left logo:', leftLogoUrl)
+      const { buffer, extension } = await loadImage(leftLogoUrl)
+      const id = wb.addImage({ buffer, extension })
+      ws.addImage(id, { tl: { col: 0.15, row: 0.15 }, ext: { width: 65, height: 65 } })
+      console.log('[exportToExcel] left logo embedded, extension:', extension)
+    } catch (err) {
+      console.warn('[exportToExcel] left logo not embedded:', err.message)
+    }
+  } else {
+    console.warn('[exportToExcel] no leftLogoUrl provided — skipping left logo entirely')
+  }
+  if (rightLogoUrl) {
+    try {
+      console.log('[exportToExcel] fetching right logo:', rightLogoUrl)
+      const { buffer, extension } = await loadImage(rightLogoUrl)
+      const id = wb.addImage({ buffer, extension })
+      ws.addImage(id, { tl: { col: 18.6, row: 0.15 }, ext: { width: 65, height: 65 } })
+      console.log('[exportToExcel] right logo embedded, extension:', extension)
+    } catch (err) {
+      console.warn('[exportToExcel] right logo not embedded:', err.message)
+    }
+  } else {
+    console.warn('[exportToExcel] no rightLogoUrl provided — skipping right logo entirely')
+  }
+ 
+  ws.columns = [
+    { width: 16 }, // Province
+    { width: 16 }, // City/Municipality
+    { width: 16 }, // Barangay
+    { width: 8 },  // Brgys
+    { width: 9 },  // Families (affected)
+    { width: 9 },  // Persons (affected)
+    { width: 7 },  // CUM (ecs)
+    { width: 7 },  // NOW (ecs)
+    { width: 8 },  // Inside Families CUM
+    { width: 8 },  // Inside Families NOW
+    { width: 8 },  // Inside Persons CUM
+    { width: 8 },  // Inside Persons NOW
+    { width: 8 },  // Outside Families CUM
+    { width: 8 },  // Outside Families NOW
+    { width: 8 },  // Outside Persons CUM
+    { width: 8 },  // Outside Persons NOW
+    { width: 9 },  // Total Families CUM
+    { width: 9 },  // Total Families NOW
+    { width: 9 },  // Total Persons CUM
+    { width: 9 },  // Total Persons NOW
   ]
-
-  const header2 = [
-    "", "", "",
-    "Brgys.", "Families", "Persons",
-    "CUM", "NOW",
-    "Families", "", "Persons", "",
-    "Families", "", "Persons", "",
-    "Families", "", "Persons", ""
+ 
+  // ---------- TITLE BLOCK ----------
+  const T1 = TITLE_START       // SITREP No. 8
+  const T2 = TITLE_START + 1   // EFFECTS OF SHEAR LINE
+  const T3 = TITLE_START + 2   // AFFECTED POPULATION
+  const T4 = TITLE_START + 3   // As of ...
+  const SPACER = TITLE_START + 4
+ 
+  ws.mergeCells(`A${T1}:${LAST_COL_LETTER}${T1}`)
+  ws.getCell(`A${T1}`).value = 'SITREP No. 8'
+  ws.getCell(`A${T1}`).alignment = { horizontal: 'left', vertical: 'middle' }
+  ws.getCell(`A${T1}`).font = { bold: true } // keep default font here — explicitly excluded from Arial Narrow
+ 
+  ws.mergeCells(`A${T2}:${LAST_COL_LETTER}${T2}`)
+  ws.getCell(`A${T2}`).value = 'EFFECTS OF SHEAR LINE'
+  ws.getCell(`A${T2}`).alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getCell(`A${T2}`).font = { bold: true, size: 13, name: HEADER_FONT }
+ 
+  ws.mergeCells(`A${T3}:${LAST_COL_LETTER}${T3}`)
+  ws.getCell(`A${T3}`).value = 'AFFECTED POPULATION'
+  ws.getCell(`A${T3}`).alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getCell(`A${T3}`).font = { bold: true, size: 13, name: HEADER_FONT }
+ 
+  ws.mergeCells(`A${T4}:${LAST_COL_LETTER}${T4}`)
+  ws.getCell(`A${T4}`).value = asOfText
+  ws.getCell(`A${T4}`).alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getCell(`A${T4}`).font = { bold: true, name: HEADER_FONT }
+ 
+  for (let r = T1; r <= T4; r++) {
+    for (let c = 1; c <= TOTAL_COLS; c++) {
+      const cell = ws.getRow(r).getCell(c)
+      cell.border = {
+        top: r === T1 ? TEAL_BORDER.top : undefined,
+        left: c === 1 ? TEAL_BORDER.left : undefined,
+        bottom: r === T4 ? TEAL_BORDER.bottom : undefined,
+        right: c === TOTAL_COLS ? TEAL_BORDER.right : undefined,
+      }
+    }
+  }
+  ws.getRow(SPACER).height = 6 // spacer row
+ 
+  // ---------- HEADER BLOCK ----------
+  const HR1 = SPACER + 1, HR2 = SPACER + 2, HR3 = SPACER + 3, HR4 = SPACER + 4
+ 
+  // vertical merges for Province / City-Municipality / Barangay
+  ws.mergeCells(`A${HR1}:A${HR4}`)
+  ws.mergeCells(`B${HR1}:B${HR4}`)
+  ws.mergeCells(`C${HR1}:C${HR4}`)
+  ws.getCell(`A${HR1}`).value = 'Province'
+  ws.getCell(`B${HR1}`).value = 'City / Municipality'
+  ws.getCell(`C${HR1}`).value = 'Barangay'
+ 
+  // group headers row (HR1)
+  ws.mergeCells(`D${HR1}:F${HR1}`)
+  ws.getCell(`D${HR1}`).value = 'NO. OF AFFECTED'
+ 
+  ws.mergeCells(`G${HR1}:H${HR1}`)
+  ws.getCell(`G${HR1}`).value = 'NO. OF ECS'
+ 
+  ws.mergeCells(`I${HR1}:L${HR1}`)
+  ws.getCell(`I${HR1}`).value = 'INSIDE EVACUATION CENTERS'
+ 
+  ws.mergeCells(`M${HR1}:P${HR1}`)
+  ws.getCell(`M${HR1}`).value = 'OUTSIDE EVACUATION CENTERS'
+ 
+  ws.mergeCells(`Q${HR1}:T${HR1}`)
+  ws.getCell(`Q${HR1}`).value = 'TOTAL SERVED (CURRENT)'
+ 
+  // sub-label row for TOTAL SERVED
+  ws.mergeCells(`Q${HR2}:T${HR2}`)
+  ws.getCell(`Q${HR2}`).value = '(Inside + Outside)'
+ 
+  // Families / Persons row (HR3) for Inside / Outside / Total blocks
+  ws.mergeCells(`I${HR3}:J${HR3}`)
+  ws.getCell(`I${HR3}`).value = 'Families'
+  ws.mergeCells(`K${HR3}:L${HR3}`)
+  ws.getCell(`K${HR3}`).value = 'Persons'
+ 
+  ws.mergeCells(`M${HR3}:N${HR3}`)
+  ws.getCell(`M${HR3}`).value = 'Families'
+  ws.mergeCells(`O${HR3}:P${HR3}`)
+  ws.getCell(`O${HR3}`).value = 'Persons'
+ 
+  ws.mergeCells(`Q${HR3}:R${HR3}`)
+  ws.getCell(`Q${HR3}`).value = 'Families'
+  ws.mergeCells(`S${HR3}:T${HR3}`)
+  ws.getCell(`S${HR3}`).value = 'Persons'
+ 
+  // final row (HR4): CUM / NOW labels + Brgys/Families/Persons for affected block
+  ws.getCell(`D${HR4}`).value = 'Brgys.'
+  ws.getCell(`E${HR4}`).value = 'Families'
+  ws.getCell(`F${HR4}`).value = 'Persons'
+  ws.getCell(`G${HR4}`).value = 'CUM'
+  ws.getCell(`H${HR4}`).value = 'NOW'
+  ;['I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'].forEach((col, i) => {
+    ws.getCell(`${col}${HR4}`).value = i % 2 === 0 ? 'CUM' : 'NOW'
+  })
+ 
+  // style every cell in the header block
+  for (let r = HR1; r <= HR4; r++) {
+    for (let c = 1; c <= TOTAL_COLS; c++) {
+      const cell = ws.getRow(r).getCell(c)
+      applyFillBorder(cell, FILL_HEADER, { bold: true, wrap: true, fontName: HEADER_FONT })
+    }
+  }
+  ws.getRow(HR1).height = 18
+  ws.getRow(HR4).height = 16
+ 
+  // ---------- DATA ROWS ----------
+  let currentRow = HR4 + 1
+  const numericFields = [
+    'affected_brgys', 'affected_families', 'affected_persons',
+    'ecs_cum', 'ecs_now',
+    'inside_families_cum', 'inside_families_now', 'inside_persons_cum', 'inside_persons_now',
+    'outside_families_cum', 'outside_families_now', 'outside_persons_cum', 'outside_persons_now',
+    'total_families_cum', 'total_families_now', 'total_persons_cum', 'total_persons_now',
   ]
-
-  const header3 = [
-    "", "", "",
-    "", "", "",
-    "", "",
-    "CUM", "NOW", "CUM", "NOW",
-    "CUM", "NOW", "CUM", "NOW",
-    "CUM", "NOW", "CUM", "NOW"
-  ]
-
-  // --- DATA ---
-  const dataRows = rows.value.map(row => [
-    row?.province ?? "",
-    row?.municipality ?? "",
-    row?.barangay ?? "",
-
-    row?.affected_brgys ?? 0,
-    row?.affected_families ?? 0,
-    row?.affected_persons ?? 0,
-
-    row?.ecs_cum ?? 0,
-    row?.ecs_now ?? 0,
-
-    row?.inside_families_cum ?? 0,
-    row?.inside_families_now ?? 0,
-    row?.inside_persons_cum ?? 0,
-    row?.inside_persons_now ?? 0,
-
-    row?.outside_families_cum ?? 0,
-    row?.outside_families_now ?? 0,
-    row?.outside_persons_cum ?? 0,
-    row?.outside_persons_now ?? 0,
-
-    row?.total_families_cum ?? 0,
-    row?.total_families_now ?? 0,
-    row?.total_persons_cum ?? 0,
-    row?.total_persons_now ?? 0
-  ])
-
-  // --- COMBINE ---
-  const sheetData = [
-    [title],
-    [subtitle],
-    [asOf],
-    [],
-    header1,
-    header2,
-    header3,
-    ...dataRows
-  ]
-
-  const ws = XLSX.utils.aoa_to_sheet(sheetData)
-
-  // --- MERGES ---
-  ws['!merges'] = [
-    // Title merges
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 19 } },
-
-    // Header group merges
-    { s: { r: 4, c: 3 }, e: { r: 4, c: 5 } },
-    { s: { r: 4, c: 6 }, e: { r: 4, c: 7 } },
-    { s: { r: 4, c: 8 }, e: { r: 4, c: 11 } },
-    { s: { r: 4, c: 12 }, e: { r: 4, c: 15 } },
-    { s: { r: 4, c: 16 }, e: { r: 4, c: 19 } },
-
-    // Sub-header merges
-    { s: { r: 5, c: 8 }, e: { r: 5, c: 9 } },
-    { s: { r: 5, c: 10 }, e: { r: 5, c: 11 } },
-    { s: { r: 5, c: 12 }, e: { r: 5, c: 13 } },
-    { s: { r: 5, c: 14 }, e: { r: 5, c: 15 } },
-    { s: { r: 5, c: 16 }, e: { r: 5, c: 17 } },
-    { s: { r: 5, c: 18 }, e: { r: 5, c: 19 } }
-  ]
-
-  // --- COLUMN WIDTHS ---
-  ws['!cols'] = [
-    { wch: 20 },
-    { wch: 25 },
-    { wch: 25 },
-    ...Array(17).fill({ wch: 12 })
-  ]
-
-  // --- CREATE FILE ---
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, "Affected Population")
-
-  XLSX.writeFile(wb, "affected_population_report.xlsx")
+ 
+  for (const row of rows) {
+    const isSubtotal = row.row_type === 'subtotal'
+    const isGrandTotal = row.row_type === 'grand_total'
+    const fill = isGrandTotal ? FILL_TOTAL : isSubtotal ? FILL_SUBTOTAL : FILL_DATA
+ 
+    const excelRow = ws.getRow(currentRow)
+    excelRow.getCell(1).value = isGrandTotal ? '' : row.province || ''
+    excelRow.getCell(2).value = isGrandTotal ? '' : row.municipality || ''
+    excelRow.getCell(3).value = isGrandTotal ? 'Total' : row.barangay || ''
+ 
+    numericFields.forEach((field, idx) => {
+      const col = idx + 4 // starts at column D
+      const val = row[field]
+      // leave blank (not 0) when the source row never populated this location (pure barangay stub)
+      excelRow.getCell(col).value = val === undefined || val === null ? '' : Number(val)
+    })
+ 
+    for (let c = 1; c <= TOTAL_COLS; c++) {
+      const cell = excelRow.getCell(c)
+      applyFillBorder(cell, fill, {
+        align: c <= 3 ? 'left' : 'center',
+        bold: isSubtotal || isGrandTotal,
+      })
+      if (typeof cell.value === 'number') {
+        cell.numFmt = '#,##0'
+      }
+    }
+ 
+    currentRow++
+  }
+ 
+  // ---------- DOWNLOAD ----------
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  saveAs(blob, 'affected_population_report.xlsx')
 }
 
 function printReport() {
