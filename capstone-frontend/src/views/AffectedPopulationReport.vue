@@ -23,7 +23,7 @@
             {{ loading ? 'Loading...' : 'Refresh' }}
           </button>
 
-          <button class="btn-secondary" @click="exportToExcel(report, rows)" :disabled="!rows.length">
+          <button class="btn-secondary" @click="exportToExcel(report, rows, { leftLogoUrl, rightLogoUrl })" :disabled="!rows.length">
                 Export to Excel
             </button>
 
@@ -280,6 +280,7 @@ async function exportToExcel(report, rows, logos = {}) {
   if (!rows?.length) return
  
   const { leftLogoUrl, rightLogoUrl } = logos
+  console.log('[exportToExcel] logos received:', { leftLogoUrl, rightLogoUrl })
  
   const asOfText = report?.as_of
     ? `As of ${new Date(report.as_of).toLocaleString('en-US', {
@@ -328,21 +329,29 @@ async function exportToExcel(report, rows, logos = {}) {
   // logos — anchored top-left, floating over the letterhead rows (0-indexed col/row)
   if (leftLogoUrl) {
     try {
+      console.log('[exportToExcel] fetching left logo:', leftLogoUrl)
       const { buffer, extension } = await loadImage(leftLogoUrl)
       const id = wb.addImage({ buffer, extension })
       ws.addImage(id, { tl: { col: 0.15, row: 0.15 }, ext: { width: 65, height: 65 } })
+      console.log('[exportToExcel] left logo embedded, extension:', extension)
     } catch (err) {
-      console.warn('Left logo not embedded:', err.message)
+      console.warn('[exportToExcel] left logo not embedded:', err.message)
     }
+  } else {
+    console.warn('[exportToExcel] no leftLogoUrl provided — skipping left logo entirely')
   }
   if (rightLogoUrl) {
     try {
+      console.log('[exportToExcel] fetching right logo:', rightLogoUrl)
       const { buffer, extension } = await loadImage(rightLogoUrl)
       const id = wb.addImage({ buffer, extension })
       ws.addImage(id, { tl: { col: 18.6, row: 0.15 }, ext: { width: 65, height: 65 } })
+      console.log('[exportToExcel] right logo embedded, extension:', extension)
     } catch (err) {
-      console.warn('Right logo not embedded:', err.message)
+      console.warn('[exportToExcel] right logo not embedded:', err.message)
     }
+  } else {
+    console.warn('[exportToExcel] no rightLogoUrl provided — skipping right logo entirely')
   }
  
   ws.columns = [
