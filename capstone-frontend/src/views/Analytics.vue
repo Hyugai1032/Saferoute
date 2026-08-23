@@ -317,6 +317,45 @@ function chartTheme() {
   }
 }
 
+// --- Visual helpers (presentation only, no data/logic impact) ---
+function makeGradient(ctx, canvas, colorFrom, colorTo, vertical = false) {
+  const g = vertical
+    ? ctx.createLinearGradient(0, 0, 0, canvas.height)
+    : ctx.createLinearGradient(0, 0, canvas.width, 0)
+  g.addColorStop(0, colorFrom)
+  g.addColorStop(1, colorTo)
+  return g
+}
+
+const RISK_COLORS = {
+  LOW: '#17e0a0',
+  MODERATE: '#ffb020',
+  HIGH: '#ff5d73',
+  FULL: '#ff2f7e'
+}
+
+// Draws the total count in the center of a doughnut chart
+const centerTextPlugin = {
+  id: 'sr_centerText',
+  afterDraw(chart) {
+    if (chart.config.type !== 'doughnut') return
+    const { ctx, chartArea } = chart
+    const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0)
+    const cx = (chartArea.left + chartArea.right) / 2
+    const cy = (chartArea.top + chartArea.bottom) / 2
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = chartTheme().text
+    ctx.font = '700 26px system-ui, sans-serif'
+    ctx.fillText(total, cx, cy - 8)
+    ctx.fillStyle = chartTheme().muted
+    ctx.font = '600 11px system-ui, sans-serif'
+    ctx.fillText('CENTERS', cx, cy + 14)
+    ctx.restore()
+  }
+}
+
 function rebuildThemeCharts() {
   initRiskDistributionChart()
   initTopRiskChart()
@@ -496,10 +535,8 @@ function initRiskDistributionChart() {
 
   riskChart = new Chart(ctx, {
     type: 'doughnut',
-    cutout: '60%',
-    plugins: {
-      legend: { position: 'top' }
-    },
+    cutout: '68%',
+    plugins: [centerTextPlugin],
     data: {
       labels: ['LOW', 'MODERATE', 'HIGH', 'FULL'],
       datasets: [{
@@ -510,19 +547,45 @@ function initRiskDistributionChart() {
           riskDistribution.value.FULL
         ],
         backgroundColor: [
-          '#00ff7f',
-          '#ffc107',
-          '#ff4d4d',
-          '#ff0050'
-        ]
+          RISK_COLORS.LOW,
+          RISK_COLORS.MODERATE,
+          RISK_COLORS.HIGH,
+          RISK_COLORS.FULL
+        ],
+        borderColor: chartTheme().tooltipBg,
+        borderWidth: 3,
+        spacing: 4,
+        borderRadius: 6,
+        hoverOffset: 14,
+        hoverBorderWidth: 0
       }]
     },
     options: {
       maintainAspectRatio: false,
       responsive: true,
+      animation: { duration: 900, easing: 'easeOutQuart' },
+      interaction: { mode: 'nearest', intersect: true },
       plugins: {
         legend: {
-          labels: { color: chartTheme().text }
+          position: 'top',
+          labels: {
+            color: chartTheme().muted,
+            usePointStyle: true,
+            pointStyle: 'circle',
+            padding: 16,
+            font: { size: 12, weight: '600' }
+          }
+        },
+        tooltip: {
+          backgroundColor: chartTheme().tooltipBg,
+          titleColor: chartTheme().accent,
+          bodyColor: chartTheme().text,
+          borderColor: chartTheme().accent,
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+          displayColors: true,
+          boxPadding: 4
         }
       }
     }
@@ -663,6 +726,15 @@ function initTopRiskChart() {
     .sort((a, b) => b.predicted_occupancy - a.predicted_occupancy)
     .slice(0, 5)
 
+  const barGradient = makeGradient(
+    ctx.getContext('2d'), ctx,
+    'rgba(255, 93, 115, 0.55)', '#ff5d73'
+  )
+  const barGradientHover = makeGradient(
+    ctx.getContext('2d'), ctx,
+    'rgba(255, 47, 126, 0.65)', '#ff2f7e'
+  )
+
   topRiskChart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -670,24 +742,43 @@ function initTopRiskChart() {
       datasets: [{
         label: 'Predicted Occupancy (%)',
         data: top5.map(r => Math.round(r.predicted_occupancy * 100)),
-        backgroundColor: '#ff4d4d'
+        backgroundColor: barGradient,
+        hoverBackgroundColor: barGradientHover,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 26
       }]
     },
     options: {
       indexAxis: 'y',
       maintainAspectRatio: false,
       responsive: true,
+      animation: { duration: 900, easing: 'easeOutQuart' },
       plugins: {
-        legend: { labels: { color: chartTheme().text } }
+        legend: {
+          labels: { color: chartTheme().muted, usePointStyle: true, pointStyle: 'rectRounded', font: { size: 12, weight: '600' } }
+        },
+        tooltip: {
+          backgroundColor: chartTheme().tooltipBg,
+          titleColor: chartTheme().accent,
+          bodyColor: chartTheme().text,
+          borderColor: chartTheme().accent,
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: (item) => ` ${item.formattedValue}% predicted occupancy`
+          }
+        }
       },
       scales: {
         x: {
           ticks: { color: chartTheme().muted },
-          grid: { color: chartTheme().grid }
+          grid: { color: chartTheme().grid, drawTicks: false }
         },
         y: {
-          ticks: { color: chartTheme().muted },
-          grid: { color: chartTheme().grid }
+          ticks: { color: chartTheme().muted, font: { size: 12, weight: '600' } },
+          grid: { display: false }
         }
       }
     }
@@ -709,6 +800,10 @@ function initSelectedCenterChart() {
 
   if (selectedCenterChart) selectedCenterChart.destroy()
 
+  const c2d = ctx.getContext('2d')
+  const currentGradient = makeGradient(c2d, ctx, 'rgba(0, 180, 255, 0.35)', '#00b4ff', true)
+  const predictedGradient = makeGradient(c2d, ctx, 'rgba(255, 176, 32, 0.35)', '#ffb020', true)
+
   selectedCenterChart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -719,14 +814,42 @@ function initSelectedCenterChart() {
           Math.round(selectedRisk.value.occupancy * 100),
           Math.round(selectedRisk.value.predicted_occupancy * 100)
         ],
-        backgroundColor: ['#00b4ff', '#ffb020']
+        backgroundColor: [currentGradient, predictedGradient],
+        borderRadius: 10,
+        borderSkipped: false,
+        maxBarThickness: 90
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 900, easing: 'easeOutQuart' },
       plugins: {
-        legend: { labels: { color: chartTheme().text } }
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: chartTheme().tooltipBg,
+          titleColor: chartTheme().accent,
+          bodyColor: chartTheme().text,
+          borderColor: chartTheme().accent,
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: (item) => ` ${item.formattedValue}% occupancy`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: chartTheme().muted, font: { size: 13, weight: '700' } },
+          grid: { display: false }
+        },
+        y: {
+          ticks: { color: chartTheme().muted, callback: (v) => v + '%' },
+          grid: { color: chartTheme().grid },
+          beginAtZero: true,
+          max: 100
+        }
       }
     }
   })
@@ -795,20 +918,87 @@ function updateChart(type) {
 </script>
 
 <style scoped>
+/* ==========================================================================
+   SafeRoute+ · Congestion Analytics — visual layer only
+   Command-console aesthetic: translucent glass panels, a single cyan
+   signal color, and status colors that carry real meaning (LOW → FULL).
+   Every surface below derives from theme variables that are already being
+   read for the charts (--text-primary, --text-muted, --border-light,
+   --surface-elevated, --brand-blue), with safe fallbacks, plus
+   color-mix() so panels stay correct in both light and dark mode without
+   hardcoding an absolute background.
+   ========================================================================== */
+
 .analytics-container {
-  padding: 1rem 1.5rem;
-  color: white;
+  /* ---- tokens ---- */
+  --sr-accent: var(--brand-blue, #00b4ff);
+  --sr-accent-2: #22d3c7;
+  --sr-text: var(--text-primary, #e8eef6);
+  --sr-muted: var(--text-muted, #8ea0b8);
+  --sr-border: var(--border-light, color-mix(in srgb, var(--sr-text) 16%, transparent));
+  --sr-surface: var(--surface-elevated, color-mix(in srgb, var(--sr-text) 5%, transparent));
+  --sr-surface-2: color-mix(in srgb, var(--sr-text) 3%, transparent);
+  --sr-ring: color-mix(in srgb, var(--sr-accent) 30%, transparent);
+
+  --sr-low: #17e0a0;
+  --sr-moderate: #ffb020;
+  --sr-high: #ff5d73;
+  --sr-full: #ff2f7e;
+
+  --sr-radius-lg: 18px;
+  --sr-radius-md: 12px;
+  --sr-radius-sm: 9px;
+  --sr-ease: cubic-bezier(.22, 1, .36, 1);
+
+  padding: 0.25rem 0.25rem 1rem;
+  color: var(--sr-text);
+  font-variant-numeric: tabular-nums;
+  animation: sr-rise .5s var(--sr-ease) both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .analytics-container, .analytics-container * {
+    animation-duration: .001s !important;
+    transition-duration: .001s !important;
+  }
+}
+
+@keyframes sr-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- TITLE ---------- */
 .page-title {
-  color: #4dc3ff;
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  text-shadow: 0 0 8px rgba(77, 195, 255, 0.4);
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 1.1rem;
+  background: linear-gradient(90deg, var(--sr-accent), var(--sr-accent-2) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.page-title::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sr-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--sr-accent) 55%, transparent);
+  animation: sr-pulse 2.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes sr-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sr-accent) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 9px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
-/* STATS CARDS */
+/* ---------- STAT CARDS ---------- */
 .stats-row {
   display: flex;
   flex-wrap: wrap;
@@ -817,463 +1007,427 @@ function updateChart(type) {
 }
 
 .stat-card {
+  position: relative;
   flex: 1;
-  min-width: 150px;
-  background: linear-gradient(145deg, #0f1a25, #0b121a);
-  border: 1px solid rgba(0, 204, 255, 0.2);
-  border-radius: 12px;
+  min-width: 170px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--sr-accent) 10%, transparent), transparent 60%),
+    var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: var(--sr-radius-lg);
   text-align: center;
-  padding: 1rem;
-  box-shadow: 0 0 12px rgba(0, 204, 255, 0.1);
-  transition: all 0.3s ease;
+  padding: 1.15rem 1rem;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--sr-text) 6%, transparent) inset,
+              0 12px 28px -18px color-mix(in srgb, var(--sr-accent) 45%, transparent);
+  transition: transform .35s var(--sr-ease), box-shadow .35s var(--sr-ease), border-color .35s;
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--sr-accent), transparent);
+  opacity: .8;
 }
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 0 16px rgba(0, 204, 255, 0.4);
+  transform: translateY(-3px);
+  border-color: var(--sr-ring);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--sr-text) 6%, transparent) inset,
+              0 18px 36px -16px color-mix(in srgb, var(--sr-accent) 55%, transparent);
 }
 .stat-card h3 {
-  color: #4dc3ff;
-  font-size: 1.6rem;
+  color: var(--sr-text);
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 .stat-card p {
-  color: #9ca3af;
+  color: var(--sr-muted);
   margin: 4px 0 0;
-  font-size: 0.9rem;
-}
-
-/* TOGGLE BUTTONS */
-.chart-controls {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-.chart-controls button {
-  background: #0f1a25;
-  border: 1px solid rgba(0, 204, 255, 0.3);
-  color: #4dc3ff;
-  padding: 6px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: 0.3s;
-}
-.chart-controls button:hover {
-  background: #1a2735;
-}
-.chart-controls .active {
-  background: #00b4ff;
-  color: #fff;
-  border-color: #00b4ff;
-}
-
-/* CHART LAYOUT */
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.chart-card {
-  background: linear-gradient(145deg, #0f1a25, #0b121a);
-  padding: 1rem;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 204, 255, 0.15);
-  box-shadow: 0 0 10px rgba(0, 204, 255, 0.1);
-  height: 320px;
-  transition: all 0.3s ease;
-}
-.chart-card:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 20px rgba(0, 204, 255, 0.3);
-}
-
-.chart-card.full-width {
-  grid-column: 1 / -1;
-  height: 360px;
-}
-
-/* WEATHER SECTION */
-.weather-section {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  background: linear-gradient(145deg, #0f1a25, #0a131c);
-  border-radius: 14px;
-  border: 1px solid rgba(0, 204, 255, 0.25);
-  box-shadow: 0 0 14px rgba(0, 204, 255, 0.15);
-  color: #cfe7ff;
-}
-
-.weather-title {
-  font-size: 1.4rem;
-  margin-bottom: 1rem;
-  color: #4dc3ff;
-  font-weight: 600;
-  text-shadow: 0 0 10px rgba(0, 204, 255, 0.3);
-}
-
-/* SUMMARY CARDS */
-.weather-summary-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
-}
-
-.weather-summary-card {
-  flex: 1;
-  min-width: 150px;
-  padding: 1rem;
-  background: linear-gradient(145deg, #0b1620, #09101a);
-  border: 1px solid rgba(0, 204, 255, 0.2);
-  border-radius: 10px;
-  text-align: center;
-  box-shadow: 0 0 10px rgba(0, 204, 255, 0.1);
-  transition: 0.3s;
-}
-
-.weather-summary-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 0 18px rgba(0, 204, 255, 0.4);
-}
-
-.weather-summary-card h4 {
-  color: #4dc3ff;
-  font-size: 1.4rem;
-  margin: 0;
-}
-
-.weather-summary-card p {
-  color: #9ca3af;
-  font-size: 0.85rem;
-  margin-top: 4px;
-}
-
-/* TABLE */
-.weather-table-container {
-  border-radius: 12px;
-  overflow-x: auto;
-  margin-bottom: 1.5rem;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.styled-scroll::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
-}
-.styled-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 204, 255, 0.3);
-  border-radius: 10px;
-}
-.styled-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.dark-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #0d1b27;
-  color: #d5eaff;
-}
-
-.dark-table th {
-  background: rgba(0, 204, 255, 0.15);
-  color: #4dc3ff;
-  padding: 10px;
-  font-size: 0.85rem;
+  font-size: .82rem;
   text-transform: uppercase;
-  border-bottom: 1px solid rgba(0, 204, 255, 0.2);
+  letter-spacing: .08em;
 }
 
-.dark-table td {
-  padding: 8px;
-  border-bottom: 1px solid rgba(0, 204, 255, 0.1);
-}
-
-.dark-table tr:hover td {
-  background: rgba(0, 204, 255, 0.05);
-}
-
-/* WEATHER CHART CARD MATCH FIX */
-.weather-chart-card {
-  border-color: rgba(0, 204, 255, 0.3) !important;
-  background: linear-gradient(145deg, #0f1a25, #0b121a) !important;
-}
-
-/* Loading text */
-.loading-text {
-  color: #9ca3af;
-  padding: 1rem;
-  text-align: center;
-}
-
-@media (max-width: 768px) {
-  .chart-card {
-    height: 250px;
-  }
-}
-
-thead {
-  position: static;
-  top: 0;
-  z-index: 10;
-}
-
-.card-section{
-  margin-top: 1.5rem;
-  padding: 1rem;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 204, 255, 0.15);
-  background: linear-gradient(145deg, #0f1a25, #0b121a);
-  box-shadow: 0 0 12px rgba(0, 204, 255, 0.08);
-}
-
-.section-title{
-  margin: 0 0 0.8rem;
-  color: #4dc3ff;
-  font-weight: 600;
-}
-
-.controls-row{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: end;
-  margin-bottom: 1rem;
-}
-
-.control{
-  min-width: 180px;
-  flex: 1;
-}
-
-.control-label{
-  display: block;
-  font-size: 0.85rem;
-  color: #9ca3af;
-  margin-bottom: 0.35rem;
-}
-
-.control-input{
-  width: 100%;
-  background: #0f1a25;
-  border: 1px solid rgba(0, 204, 255, 0.25);
-  color: #e5e7eb;
-  border-radius: 10px;
-  padding: 8px 10px;
-  outline: none;
-}
-
-.btn-refresh{
-  padding: 9px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 204, 255, 0.35);
-  background: #0f1a25;
-  color: #4dc3ff;
-  cursor: pointer;
-}
-
-.risk-grid{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-@media (max-width: 1100px){
-  .risk-grid{ grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 650px){
-  .risk-grid{ grid-template-columns: 1fr; }
-}
-
-.risk-card{
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 0.85rem;
-}
-
-.risk-card-title{
-  font-size: 0.85rem;
-  color: #9ca3af;
-  margin-bottom: 0.4rem;
-}
-
-.big-metric{
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #e5e7eb;
-  margin-bottom: 0.5rem;
-}
-
-.muted-sm{
-  font-size: 0.82rem;
-  color: #9ca3af;
-  margin-top: 0.4rem;
-}
-
-.progress{
-  width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.06);
-  overflow: hidden;
-}
-.progress-bar{
-  height: 100%;
-  border-radius: 999px;
-  background: #00b4ff;
-}
-.progress-bar.warn{
-  background: #ffb020;
-}
-
-.risk-badge{
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.risk-pill{
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 0.8rem;
-}
-
-.low{ background: rgba(0,255,127,0.12); color: #00ff7f; border: 1px solid rgba(0,255,127,0.25); }
-.moderate{ background: rgba(255,193,7,0.12); color: #ffc107; border: 1px solid rgba(255,193,7,0.25); }
-.high{ background: rgba(255,77,77,0.12); color: #ff4d4d; border: 1px solid rgba(255,77,77,0.25); }
-.full{ background: rgba(255,0,80,0.12); color: #ff0050; border: 1px solid rgba(255,0,80,0.25); }
-
-.table-wrap{
-  margin-top: 0.75rem;
-}
-
-.dark-table.compact th, .dark-table.compact td{
-  padding: 10px 10px;
-}
-
-.btn-mini{
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 204, 255, 0.25);
-  background: transparent;
-  color: #4dc3ff;
-  cursor: pointer;
-}
-
-.pagination-bar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-top:1rem;
-  flex-wrap:wrap;
-  gap:10px;
-}
-
-.pagination-info{
-  font-size:0.85rem;
-  color:#9ca3af;
-}
-
-.pagination-controls{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-.page-btn{
-  padding:6px 10px;
-  border-radius:8px;
-  border:1px solid rgba(0,204,255,0.25);
-  background:transparent;
-  color:#4dc3ff;
-  cursor:pointer;
-}
-
-.page-btn:disabled{
-  opacity:0.4;
-  cursor:not-allowed;
-}
-
-.page-number{
-  font-size:0.85rem;
-  color:#e5e7eb;
-}
-
-.rows-select{
-  background:#0f1a25;
-  border:1px solid rgba(0,204,255,0.25);
-  color:#e5e7eb;
-  border-radius:8px;
-  padding:4px 6px;
-}
-
-.congestion-charts{
+/* ---------- CHART GRID ---------- */
+.congestion-charts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin: 14px 0 18px;
 }
 
-/* Make the "Top 5" chart span full width */
-.chart-lg{
-  grid-column: 1 / -1;
+.chart-lg { grid-column: 1 / -1; height: 340px; }
+.chart-sm { height: 300px; }
+
+.chart-card {
+  position: relative;
+  border-radius: var(--sr-radius-lg);
+  border: 1px solid var(--sr-border);
+  background: var(--sr-surface);
+  backdrop-filter: blur(6px);
+  padding: 14px 14px 10px;
+  box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--sr-accent) 40%, transparent);
+  transition: transform .35s var(--sr-ease), box-shadow .35s var(--sr-ease), border-color .35s;
+}
+.chart-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--sr-ring);
+  box-shadow: 0 16px 34px -18px color-mix(in srgb, var(--sr-accent) 50%, transparent);
 }
 
-/* Small charts have same height */
-.chart-sm{
-  height: 300px;
-}
-
-/* Large chart has more height */
-.chart-lg{
-  height: 340px;
-}
-
-.chart-card{
-  border-radius: 14px;
-  border: 1px solid rgba(0, 204, 255, 0.12);
-  background: linear-gradient(145deg, #0f1a25, #0b121a);
-  padding: 12px 12px 10px;
-}
-
-.chart-header{
-  display:flex;
-  align-items:center;
+.chart-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--sr-border);
 }
-
-.chart-header h4{
+.chart-header h4 {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
   margin: 0;
-  font-size: 0.95rem;
-  color: #e5e7eb;
+  font-size: .92rem;
+  color: var(--sr-text);
   font-weight: 600;
+  letter-spacing: .01em;
+}
+.chart-header h4::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--sr-accent);
+  transform: rotate(45deg);
+  flex-shrink: 0;
 }
 
-.chart-body{
-  height: calc(100% - 28px);
+.chart-body { height: calc(100% - 38px); }
+.chart-body canvas { width: 100% !important; height: 100% !important; }
+
+@media (max-width: 900px) {
+  .congestion-charts { grid-template-columns: 1fr; }
+  .chart-lg { grid-column: auto; }
+}
+@media (max-width: 768px) {
+  .chart-card { height: 260px; }
 }
 
-/* Ensures canvas fills the container */
-.chart-body canvas{
-  width: 100% !important;
-  height: 100% !important;
+/* ---------- FORECAST CARD SECTION ---------- */
+.card-section {
+  margin-top: 1.5rem;
+  padding: 1.1rem 1.15rem 1.3rem;
+  border-radius: 20px;
+  border: 1px solid var(--sr-border);
+  background: linear-gradient(180deg, var(--sr-surface-2), transparent 40%), var(--sr-surface);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 18px 40px -28px color-mix(in srgb, var(--sr-accent) 45%, transparent);
 }
 
-/* Responsive: stack on small screens */
-@media (max-width: 900px){
-  .congestion-charts{
-    grid-template-columns: 1fr;
-  }
-  .chart-lg{
-    grid-column: auto;
-  }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 1rem;
+  color: var(--sr-text);
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding-bottom: .7rem;
+  border-bottom: 1px solid var(--sr-border);
 }
+
+/* ---------- CONTROLS ---------- */
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: end;
+  margin-bottom: 1.1rem;
+}
+
+.control { min-width: 180px; flex: 1; }
+
+.control-label {
+  display: block;
+  font-size: .74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--sr-muted);
+  margin-bottom: .4rem;
+}
+
+.control-input {
+  width: 100%;
+  background: var(--sr-surface-2);
+  border: 1px solid var(--sr-border);
+  color: var(--sr-text);
+  border-radius: 10px;
+  padding: 9px 11px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.control-input:hover { border-color: color-mix(in srgb, var(--sr-accent) 40%, var(--sr-border)); }
+.control-input:focus-visible {
+  border-color: var(--sr-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sr-accent) 22%, transparent);
+}
+
+.btn-refresh {
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--sr-accent) 45%, var(--sr-border));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sr-accent) 18%, transparent), color-mix(in srgb, var(--sr-accent) 6%, transparent));
+  color: var(--sr-accent);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .18s var(--sr-ease), box-shadow .18s var(--sr-ease), background .18s;
+}
+.btn-refresh:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--sr-accent) 60%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sr-accent) 28%, transparent), color-mix(in srgb, var(--sr-accent) 10%, transparent));
+}
+.btn-refresh:active { transform: translateY(0); }
+
+/* ---------- RISK SUMMARY GRID ---------- */
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: .8rem;
+  margin-bottom: 1.2rem;
+}
+@media (max-width: 1100px) { .risk-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 650px)  { .risk-grid { grid-template-columns: 1fr; } }
+
+.risk-card {
+  position: relative;
+  background: var(--sr-surface-2);
+  border: 1px solid var(--sr-border);
+  border-radius: var(--sr-radius-md);
+  padding: .95rem 1rem;
+  transition: border-color .25s, transform .25s var(--sr-ease);
+}
+.risk-card:hover {
+  border-color: var(--sr-ring);
+  transform: translateY(-2px);
+}
+
+.risk-card-title {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--sr-muted);
+  margin-bottom: .5rem;
+}
+
+.big-metric {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--sr-text);
+  letter-spacing: -0.01em;
+  margin-bottom: .5rem;
+}
+
+.muted-sm {
+  font-size: .8rem;
+  color: var(--sr-muted);
+  margin-top: .4rem;
+}
+
+.progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sr-text) 10%, transparent);
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sr-accent), var(--sr-accent-2));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--sr-accent) 55%, transparent);
+  transition: width .6s var(--sr-ease);
+}
+.progress-bar.warn {
+  background: linear-gradient(90deg, #ffb020, #ff7a45);
+  box-shadow: 0 0 10px rgba(255, 176, 32, .5);
+}
+
+/* ---------- RISK BADGES / PILLS ---------- */
+.risk-badge, .risk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+.risk-badge::before, .risk-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.risk-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: .82rem;
+  margin-bottom: .5rem;
+}
+.risk-pill {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: .76rem;
+}
+
+.low {
+  background: color-mix(in srgb, var(--sr-low) 14%, transparent);
+  color: var(--sr-low);
+  border: 1px solid color-mix(in srgb, var(--sr-low) 30%, transparent);
+}
+.moderate {
+  background: color-mix(in srgb, var(--sr-moderate) 14%, transparent);
+  color: var(--sr-moderate);
+  border: 1px solid color-mix(in srgb, var(--sr-moderate) 30%, transparent);
+}
+.high {
+  background: color-mix(in srgb, var(--sr-high) 14%, transparent);
+  color: var(--sr-high);
+  border: 1px solid color-mix(in srgb, var(--sr-high) 30%, transparent);
+  animation: sr-urgent 1.8s ease-in-out infinite;
+}
+.full {
+  background: color-mix(in srgb, var(--sr-full) 16%, transparent);
+  color: var(--sr-full);
+  border: 1px solid color-mix(in srgb, var(--sr-full) 35%, transparent);
+  animation: sr-urgent 1.2s ease-in-out infinite;
+}
+@keyframes sr-urgent {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.35); }
+}
+
+/* ---------- TABLE ---------- */
+.table-wrap { margin-top: .9rem; }
+
+.styled-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
+.styled-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sr-accent) 35%, transparent);
+  border-radius: 10px;
+}
+.styled-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.dark-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border);
+  border-radius: var(--sr-radius-md);
+  overflow: hidden;
+  margin-top: .75rem;
+}
+
+.dark-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--sr-accent) 12%, var(--sr-surface));
+  backdrop-filter: blur(6px);
+  color: var(--sr-accent);
+  padding: 11px 12px;
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  border-bottom: 1px solid var(--sr-border);
+  text-align: left;
+}
+
+.dark-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sr-border);
+  font-size: .89rem;
+}
+
+.dark-table tbody tr { transition: background .15s; }
+.dark-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--sr-text) 2.5%, transparent); }
+.dark-table tbody tr:hover td { background: color-mix(in srgb, var(--sr-accent) 7%, transparent); }
+.dark-table tbody tr:last-child td { border-bottom: none; }
+
+.dark-table.compact th, .dark-table.compact td { padding: 10px 12px; }
+
+.btn-mini {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sr-accent) 35%, var(--sr-border));
+  background: transparent;
+  color: var(--sr-accent);
+  font-weight: 600;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: background .18s, transform .18s var(--sr-ease);
+}
+.btn-mini:hover {
+  background: color-mix(in srgb, var(--sr-accent) 14%, transparent);
+  transform: translateY(-1px);
+}
+
+/* ---------- PAGINATION ---------- */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.1rem;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pagination-info { font-size: .82rem; color: var(--sr-muted); }
+
+.pagination-controls { display: flex; align-items: center; gap: 8px; }
+
+.page-btn {
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--sr-border);
+  background: var(--sr-surface-2);
+  color: var(--sr-accent);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .18s, border-color .18s, transform .18s var(--sr-ease);
+}
+.page-btn:hover:not(:disabled) {
+  border-color: var(--sr-ring);
+  background: color-mix(in srgb, var(--sr-accent) 10%, transparent);
+  transform: translateY(-1px);
+}
+.page-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.page-number { font-size: .82rem; color: var(--sr-text); font-weight: 600; }
+
+.rows-select {
+  background: var(--sr-surface-2);
+  border: 1px solid var(--sr-border);
+  color: var(--sr-text);
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+/* ---------- Shared focus ring for a11y ---------- */
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Loading text (kept, in case weather section is re-enabled) ---------- */
+.loading-text { color: var(--sr-muted); padding: 1rem; text-align: center; }
 </style>

@@ -24,7 +24,7 @@
       </div>
       
       <!-- Active Hazards Card -->
-      <div class="status-card warning">
+      <div class="status-card" :class="activeHazards > 0 ? 'warning' : 'safe'">
         <div class="status-icon">
           <i class="icon-hazard"></i>
         </div>
@@ -45,12 +45,15 @@
           <button class="view-all-btn" @click="$router.push('/user/map')">View All</button>
         </div>
         <div class="hazards-list">
-          <div v-if="loadingHazards">
-            Loading nearby hazards...
+          <div v-if="loadingHazards" class="empty-state">
+            <span class="loading-spinner"></span>
+            <p>Loading nearby hazards...</p>
           </div>
 
-          <div v-else-if="recentHazards.length === 0">
-            No recent nearby hazards.
+          <div v-else-if="recentHazards.length === 0" class="empty-state">
+            <span class="empty-state-icon">✅</span>
+            <p>No recent nearby hazards.</p>
+            <span class="empty-state-sub">Your area looks clear for now.</span>
           </div>
 
           <div 
@@ -327,293 +330,346 @@ onMounted(() => {
 
 <style scoped>
 .user-dashboard {
-  padding: 20px;
+  /* Reuse the app's real theme tokens (proven live via ThemeToggle) wherever
+     they exist, with dark-mode-safe fallbacks. We deliberately do NOT
+     redeclare --text-primary/--surface-elevated/--border-light locally —
+     doing that previously shadowed the real global values for this whole
+     subtree, which is why text vanished in light mode. */
+  --sr-accent: var(--accent-primary, #0096ff);
+  --sr-accent-soft: rgba(0, 150, 255, 0.16);
+  --sr-safe: #16a34a;
+  --sr-safe-soft: rgba(22, 163, 74, 0.16);
+  --sr-warning: #d97706;
+  --sr-warning-soft: rgba(217, 119, 6, 0.16);
+  --sr-critical: #dc2626;
+  --sr-critical-soft: rgba(220, 38, 38, 0.16);
+  --sr-panel: var(--surface-elevated, rgba(255, 255, 255, 0.045));
+  --sr-panel-inner: rgba(120, 120, 130, 0.07);
+  --sr-panel-inner-hover: rgba(120, 120, 130, 0.13);
+  --sr-border: var(--border-light, rgba(255, 255, 255, 0.09));
+  --sr-border-strong: rgba(120, 120, 130, 0.35);
+  --sr-text-secondary: #767b85;
+  --sr-text-tertiary: #8a8f97;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  padding: 24px clamp(20px, 3vw, 32px) 40px;
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
   min-height: 100vh;
-  color: white;
+  color: var(--text-primary, #ffffff);
 }
 
+/* ===== Top status cards ===== */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(300px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
 }
 
 .status-card {
-  background: rgba(30, 30, 40, 0.8);
-  min-height: 135px;
-  border-radius: 15px;
-  padding: 25px;
+  background: var(--sr-panel);
+  min-height: 120px;
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  border: 1px solid rgba(100, 100, 120, 0.2);
-  transition: all 0.3s ease;
+  gap: 18px;
+  border: 1px solid var(--sr-border);
+  border-left: 4px solid var(--sr-accent);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   position: relative;
   overflow: hidden;
 }
 
-.status-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(0, 150, 255, 0.1), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.status-card:hover::before {
-  opacity: 1;
-}
-
 .status-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
 }
 
 .status-card.critical {
-  border-left: 4px solid #ff4444;
-  background: rgba(255, 68, 68, 0.1);
+  border-left-color: var(--sr-critical);
+  background: var(--sr-critical-soft);
 }
 
 .status-card.warning {
-  border-left: 4px solid #ffaa00;
-  background: rgba(255, 170, 0, 0.1);
+  border-left-color: var(--sr-warning);
+  background: var(--sr-warning-soft);
+}
+
+/* Zero-hazard state reads as reassurance, not an unresolved alert */
+.status-card.safe {
+  border-left-color: var(--sr-safe);
+  background: var(--sr-safe-soft);
 }
 
 .status-icon {
-  width: 60px;
-  height: 60px;
-  background: rgba(0, 150, 255, 0.2);
-  border-radius: 15px;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  background: var(--sr-accent-soft);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
 }
 
-.status-card.critical .status-icon {
-  background: rgba(255, 68, 68, 0.2);
-}
-
-.status-card.warning .status-icon {
-  background: rgba(255, 170, 0, 0.2);
-}
+.status-card.critical .status-icon { background: var(--sr-critical-soft); }
+.status-card.warning .status-icon { background: var(--sr-warning-soft); }
+.status-card.safe .status-icon { background: var(--sr-safe-soft); }
 
 .status-content h3 {
-  font-size: 18px;
-  margin-bottom: 5px;
-  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text-primary, #ffffff);
 }
 
 .status-content p {
-  color: #ddd;
-  margin-bottom: 5px;
+  color: var(--sr-text-secondary);
+  margin: 0 0 4px;
   font-size: 14px;
 }
 
 .status-time {
-  color: #888;
+  color: var(--sr-text-tertiary);
   font-size: 12px;
 }
 
+/* ===== Main content: hazards (left) + contacts stay full-width below ===== */
 .dashboard-content {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 30px;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
-.quick-actions h2,
+.recent-section,
+.contacts-section {
+  background: var(--sr-panel);
+  border: 1px solid var(--sr-border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+}
+
 .recent-section h2,
 .contacts-section h2 {
-  color: white;
-  margin-bottom: 20px;
-  font-size: 22px;
-}
-
-.action-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-
-.action-btn {
-  background: rgba(40, 40, 50, 0.8);
-  border: 1px solid rgba(100, 100, 120, 0.3);
-  border-radius: 12px;
-  padding: 20px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.action-btn:hover {
-  background: rgba(0, 150, 255, 0.2);
-  border-color: #0096ff;
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(0, 150, 255, 0.2);
-}
-
-.action-btn i {
-  font-size: 24px;
-  color: #0096ff;
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .view-all-btn {
   background: transparent;
-  border: 1px solid #0096ff;
-  color: #0096ff;
-  padding: 8px 16px;
+  border: 1px solid var(--sr-accent);
+  color: var(--sr-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 7px 14px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .view-all-btn:hover {
-  background: #0096ff;
+  background: var(--sr-accent);
   color: white;
+  transform: translateY(-1px);
+}
+
+.view-all-btn:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
 }
 
 .hazards-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .hazard-item {
-  background: rgba(40, 40, 50, 0.8);
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--sr-panel-inner);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  transition: all 0.3s ease;
-  border-left: 4px solid #0096ff;
+  gap: 14px;
+  transition: transform 0.2s ease, background 0.2s ease;
+  border: 1px solid var(--sr-border);
+  border-left: 3px solid var(--sr-accent);
 }
 
 .hazard-item.verified {
-  border-left: 4px solid #00cc66;
+  border-left-color: var(--sr-safe);
 }
 
 .hazard-item.pending {
-  border-left: 4px solid #ffaa00;
+  border-left-color: var(--sr-warning);
 }
 
 .hazard-item:hover {
-  transform: translateX(5px);
-  background: rgba(50, 50, 60, 0.8);
+  transform: translateX(4px);
+  background: var(--sr-panel-inner-hover);
 }
 
 .hazard-icon {
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 150, 255, 0.2);
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: var(--sr-accent-soft);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .hazard-details {
   flex: 1;
+  min-width: 0;
 }
 
 .hazard-details h4 {
-  color: white;
-  margin-bottom: 5px;
-  font-size: 16px;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 3px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .hazard-details p {
-  color: #888;
-  font-size: 14px;
-  margin-bottom: 5px;
+  color: var(--sr-text-secondary);
+  font-size: 13px;
+  margin: 0 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hazard-status {
-  font-size: 12px;
-  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  padding: 3px 9px;
   border-radius: 12px;
-  background: rgba(0, 150, 255, 0.2);
-  color: #0096ff;
+  background: var(--sr-accent-soft);
+  color: var(--sr-accent);
 }
 
 .hazard-item.verified .hazard-status {
-  background: rgba(0, 204, 102, 0.2);
-  color: #00cc66;
+  background: var(--sr-safe-soft);
+  color: var(--sr-safe);
 }
 
 .hazard-item.pending .hazard-status {
-  background: rgba(255, 170, 0, 0.2);
-  color: #ffaa00;
+  background: var(--sr-warning-soft);
+  color: var(--sr-warning);
 }
 
 .hazard-time {
-  color: #666;
+  color: var(--sr-text-tertiary);
   font-size: 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.contacts-section {
-  grid-column: 1 / -1;
+/* Empty / loading state — centered so it doesn't float in dead whitespace */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 36px 20px;
+  color: var(--sr-text-secondary);
 }
 
+.empty-state-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-primary, #ffffff);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.empty-state-sub {
+  font-size: 12px;
+  color: var(--sr-text-tertiary);
+}
+
+.loading-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--sr-border-strong);
+  border-top-color: var(--sr-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== Emergency contacts ===== */
 .contacts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
 }
 
 .contact-item {
-  background: rgba(40, 40, 50, 0.8);
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--sr-panel-inner);
+  border-radius: var(--radius-md);
+  padding: 18px 12px;
   text-align: center;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(100, 100, 120, 0.3);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  border: 1px solid var(--sr-border);
 }
 
 .contact-item:hover {
-  background: rgba(0, 150, 255, 0.2);
-  border-color: #0096ff;
+  background: var(--sr-accent-soft);
+  border-color: var(--sr-accent);
   transform: translateY(-3px);
 }
 
 .contact-item i {
-  font-size: 24px;
-  color: #0096ff;
-  margin-bottom: 10px;
+  font-size: 22px;
+  margin-bottom: 8px;
   display: block;
 }
 
 .contact-item span {
   display: block;
-  color: white;
+  color: var(--text-primary, #ffffff);
   font-weight: 600;
-  margin-bottom: 5px;
+  font-size: 14px;
+  margin-bottom: 3px;
 }
 
 .contact-item small {
-  color: #888;
-  font-size: 12px;
+  color: var(--sr-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-/* Icon placeholders - you would replace these with actual icon classes */
+/* Icon placeholders - swap for an icon font/SVG set when convenient */
 .icon-alert::before { content: "⚠️"; }
 .icon-warning::before { content: "🚨"; }
 .icon-shelter::before { content: "🏠"; }
@@ -628,33 +684,43 @@ onMounted(() => {
 .icon-police::before { content: "👮"; }
 .icon-fire::before { content: "🚒"; }
 .icon-ambulance::before { content: "🚑"; }
-.icon-rescue::before { content: "🛟"; }
+.icon-rescue::before { content: "🆘"; }
 .icon-logout::before { content: "🚪"; }
 
-@media (max-width: 1024px) {
-  .dashboard-content {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
+  .user-dashboard {
+    padding: 18px 16px 32px;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-  
-  .action-grid {
-    grid-template-columns: 1fr;
+
+  .recent-section,
+  .contacts-section {
+    padding: 18px;
   }
-  
+
   .dashboard-header {
     flex-direction: column;
     gap: 15px;
     align-items: flex-start;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-card,
+  .hazard-item,
+  .contact-item,
+  .view-all-btn,
+  .loading-spinner {
+    transition: none;
+    animation: none;
   }
 }
 </style>

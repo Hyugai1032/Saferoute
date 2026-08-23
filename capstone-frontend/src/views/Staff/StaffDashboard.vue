@@ -1,4 +1,3 @@
-affdashboard · VUE
 <template>
   <div class="dash">
     <!-- top row -->
@@ -6,11 +5,6 @@ affdashboard · VUE
       <div>
         <h1 class="title">Staff Dashboard</h1>
         <p class="sub">Quick access for evacuation staff (center + logs + map).</p>
-      </div>
-
-      <div class="top-actions">
-        <button class="btn ghost" @click="goLogs">Evacuation Logs</button>
-        <button class="btn ghost" @click="goMap">GIS Map</button>
       </div>
     </div>
 
@@ -76,7 +70,6 @@ affdashboard · VUE
       <div class="card">
         <div class="card-top">
           <span class="label">Quick Actions</span>
-          <span class="dot blue"></span>
         </div>
 
         <div class="muted small">Go directly to pages:</div>
@@ -85,7 +78,7 @@ affdashboard · VUE
           <button class="btn primary" @click="goLogs">
             View Logs
           </button>
-          <button class="btn" @click="goMap">Open Map</button>
+          <button class="btn ghost" @click="goMap">Open Map</button>
         </div>
 
         <div class="hint" v-if="isStaff && !me.assigned_center_id">
@@ -99,14 +92,22 @@ affdashboard · VUE
     <div class="breakdown">
       <div class="break-head">
         <h2>Vulnerable Breakdown</h2>
-        <span class="muted small">Requires log breakdown fields (Children/Seniors/PWD/Pregnant/Lactating)</span>
+        <span class="note">
+          <span class="note-icon">i</span>
+          Requires log breakdown fields (Children/Seniors/PWD/Pregnant/Lactating)
+        </span>
       </div>
 
       <div class="break-grid">
-        <div class="pillcard" v-for="x in breakdownCards" :key="x.key">
+        <div
+          class="pillcard"
+          v-for="x in breakdownCards"
+          :key="x.key"
+          :class="'accent-' + x.key"
+        >
           <div class="pill-top">
+            <span class="pill-icon">{{ iconFor(x.key) }}</span>
             <span class="pill-label">{{ x.label }}</span>
-            <span class="pill-dot"></span>
           </div>
           <div class="pill-val">{{ x.value }}</div>
         </div>
@@ -152,7 +153,19 @@ const breakdownCards = computed(() => {
     { key: "pregnant", label: "Pregnant", value: b.pregnant_count ?? 0 },
     { key: "lactating", label: "Lactating", value: b.lactating_count ?? 0 },
   ];
-}); 
+});
+
+// presentation-only helper: maps breakdown key -> icon glyph
+function iconFor(key) {
+  const map = {
+    children: "🧒",
+    seniors: "👵",
+    pwd: "♿",
+    pregnant: "🤰",
+    lactating: "🍼",
+  };
+  return map[key] || "•";
+}
 
 async function fetchMe() {
   const res = await api.get("user/profile/");
@@ -206,6 +219,9 @@ onMounted(async () => {
   --blue2:#2563eb;
   --green:#22c55e;
   --red:#ef4444;
+  --amber:#f59e0b;
+  --pink:#f472b6;
+  --violet:#a78bfa;
 
   padding: clamp(16px,2vw,24px);
   max-width: 1500px;
@@ -223,8 +239,6 @@ onMounted(async () => {
 
 .title{ margin:0; font-size: 2rem; color:#f8fafc; letter-spacing:.2px; }
 .sub{ margin:6px 0 0; color: var(--muted); font-size: 13px; }
-
-.top-actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
 .btn{
   border-radius:14px;
@@ -253,10 +267,6 @@ onMounted(async () => {
   background: rgba(2,6,23,.35);
   border-color: rgba(255,255,255,.10);
 }
-.btn.danger{
-  background: rgba(239,68,68,.15);
-  border-color: rgba(239,68,68,.30);
-}
 
 .banner{
   display:grid;
@@ -267,7 +277,8 @@ onMounted(async () => {
   border-radius:20px;
   border:1px solid var(--border2);
   background:
-    radial-gradient(1000px 420px at 15% -15%, rgba(56,189,248,.22), transparent 55%),
+    radial-gradient(1000px 420px at 15% -15%, rgba(56,189,248,.24), transparent 55%),
+    radial-gradient(700px 320px at 100% 0%, rgba(167,139,250,.10), transparent 60%),
     linear-gradient(180deg, rgba(10,14,28,.78), rgba(6,9,18,.86));
   box-shadow:0 20px 48px rgba(0,0,0,.48);
 }
@@ -283,7 +294,6 @@ onMounted(async () => {
 .who{ margin-top:4px; line-height:1.4; }
 .muted{ color:var(--muted); }
 .small{ font-size:12.5px; }
-.xs{ font-size:11.5px; margin-top:4px; }
 
 .metrics{
   display:grid;
@@ -302,12 +312,14 @@ onMounted(async () => {
   border-radius:16px;
   border:1px solid rgba(255,255,255,.08);
   background:rgba(2,6,23,.38);
+  transition: transform .15s ease, border-color .15s ease;
 }
+.metric:hover{ transform: translateY(-2px); border-color: rgba(56,189,248,.32); }
 
 .primary-metric{
   border-color:rgba(56,189,248,.28);
   background:
-    radial-gradient(300px 180px at 0% 0%, rgba(56,189,248,.16), transparent 70%),
+    radial-gradient(300px 180px at 0% 0%, rgba(56,189,248,.18), transparent 70%),
     rgba(2,6,23,.42);
 }
 
@@ -319,13 +331,13 @@ onMounted(async () => {
   place-items:center;
   border-radius:14px;
   font-size:23px;
-  background:rgba(56,189,248,.12);
-  border:1px solid rgba(56,189,248,.18);
+  background:rgba(56,189,248,.14);
+  border:1px solid rgba(56,189,248,.22);
 }
 
 .family-icon{
-  background:rgba(37,99,235,.14);
-  border-color:rgba(37,99,235,.22);
+  background:rgba(37,99,235,.16);
+  border-color:rgba(37,99,235,.26);
 }
 
 .metric-content{ min-width:0; }
@@ -348,7 +360,7 @@ onMounted(async () => {
 
 .primary-metric .metric-value{
   color:#dff6ff;
-  text-shadow:0 0 24px rgba(56,189,248,.16);
+  text-shadow:0 0 24px rgba(56,189,248,.20);
 }
 
 .metric-caption{
@@ -387,7 +399,9 @@ onMounted(async () => {
   border: 1px solid var(--border2);
   background: var(--panel2);
   box-shadow: 0 18px 40px rgba(0,0,0,.45);
+  transition: transform .15s ease, border-color .15s ease;
 }
+.card:hover{ transform: translateY(-2px); border-color: rgba(56,189,248,.24); }
 
 .card-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; }
 .label{ font-size: 12px; text-transform: uppercase; letter-spacing:.7px; color: rgba(229,231,235,.65); font-weight: 900; }
@@ -397,8 +411,6 @@ onMounted(async () => {
   background: rgba(255,255,255,.25);
   box-shadow:0 0 0 6px rgba(255,255,255,.04);
 }
-.dot.blue{ background: var(--blue); box-shadow:0 0 0 6px rgba(56,189,248,.10); }
-.dot.green{ background: var(--green); box-shadow:0 0 0 6px rgba(34,197,94,.10); }
 .dot.ok{ background: var(--green); box-shadow:0 0 0 6px rgba(34,197,94,.10); }
 .dot.bad{ background: var(--red); box-shadow:0 0 0 6px rgba(239,68,68,.10); }
 
@@ -415,26 +427,60 @@ onMounted(async () => {
   box-shadow: 0 20px 48px rgba(0,0,0,.48);
 }
 
-.break-head{ display:flex; justify-content:space-between; gap: 10px; flex-wrap:wrap; align-items:baseline; }
+.break-head{ display:flex; justify-content:space-between; gap: 10px; flex-wrap:wrap; align-items:center; }
 .break-head h2{ margin:0; font-size: 1.1rem; color:#f8fafc; }
+
+.note{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-size: 11.5px;
+  color: rgba(229,231,235,.55);
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 999px;
+  padding: 5px 10px 5px 6px;
+}
+
+.note-icon{
+  flex:0 0 auto;
+  width:16px; height:16px;
+  display:grid; place-items:center;
+  border-radius:999px;
+  font-size: 10px;
+  font-weight: 900;
+  font-style: normal;
+  color:#06121f;
+  background: var(--blue);
+}
 
 .break-grid{
   display:grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .pillcard{
   border-radius: 16px;
   padding: 12px;
   border: 1px solid rgba(56,189,248,.14);
+  border-top: 2px solid rgba(56,189,248,.5);
   background: rgba(2,6,23,.35);
+  transition: transform .15s ease;
 }
-.pill-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; }
+.pillcard:hover{ transform: translateY(-2px); }
+
+.accent-children{ border-top-color: var(--blue); }
+.accent-seniors{ border-top-color: var(--violet); }
+.accent-pwd{ border-top-color: var(--amber); }
+.accent-pregnant{ border-top-color: var(--pink); }
+.accent-lactating{ border-top-color: var(--green); }
+
+.pill-top{ display:flex; align-items:center; gap:8px; margin-bottom: 10px; }
+.pill-icon{ font-size: 15px; line-height:1; }
 .pill-label{ font-size: 12px; color: rgba(229,231,235,.65); font-weight: 900; }
-.pill-dot{ width: 9px; height: 9px; border-radius: 999px; background: var(--blue); box-shadow:0 0 0 5px rgba(56,189,248,.10); }
-.pill-val{ font-size: 22px; font-weight: 1000; color:#dbeafe; }
+.pill-val{ font-size: 26px; font-weight: 1000; color:#f8fafc; letter-spacing:-0.5px; }
 
 @media (max-width: 1000px){
   .grid{ grid-template-columns:1fr; }
@@ -445,8 +491,6 @@ onMounted(async () => {
 @media (max-width: 680px){
   .dash{ padding:14px; }
   .top{ align-items:flex-start; flex-direction:column; }
-  .top-actions{ width:100%; }
-  .top-actions .btn{ flex:1; justify-content:center; }
   .metrics{ grid-template-columns:1fr; }
   .last-update{ justify-content:flex-start; }
   .break-grid{ grid-template-columns:1fr; }

@@ -336,7 +336,7 @@ onMounted(() => {
 
 <style scoped>
 .report-container {
-  padding: 1.25rem;
+  padding: 1.75rem;
   color: #e5e7eb;
 }
 
@@ -346,18 +346,22 @@ onMounted(() => {
   align-items: end;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .page-title {
   margin: 0;
-  font-size: 1.6rem;
-  font-weight: 700;
+  padding-left: 0.85rem;
+  border-left: 4px solid #00b4ff;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 .page-subtitle {
-  margin: 0.35rem 0 0;
+  margin: 0.4rem 0 0 1.05rem;
   color: #94a3b8;
+  font-size: 0.92rem;
 }
 
 .header-actions {
@@ -376,6 +380,7 @@ onMounted(() => {
 .filter-label {
   font-size: 0.85rem;
   color: #94a3b8;
+  font-weight: 600;
 }
 
 .filter-input {
@@ -384,39 +389,79 @@ onMounted(() => {
   border: 1px solid rgba(0, 204, 255, 0.25);
   border-radius: 10px;
   padding: 0.65rem 0.8rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: rgba(0, 204, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 180, 255, 0.18);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #00b4ff, #0088ff);
+  background: linear-gradient(135deg, #00c2ff, #0080ff);
   color: white;
   border: none;
   border-radius: 10px;
-  padding: 0.72rem 1rem;
-  font-weight: 600;
+  padding: 0.72rem 1.1rem;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 136, 255, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0, 136, 255, 0.4);
 }
 
 .btn-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.03);
+  color: #dbeafe;
+  border: 1px solid rgba(0, 204, 255, 0.3);
+  border-radius: 10px;
+  padding: 0.72rem 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(0, 180, 255, 0.12);
+  border-color: rgba(0, 204, 255, 0.55);
+  transform: translateY(-2px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .report-meta {
   display: flex;
   gap: 1.5rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(0, 204, 255, 0.12);
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.2rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(0, 180, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(0, 204, 255, 0.18);
 }
 
 .table-wrap {
   overflow: auto;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 204, 255, 0.12);
-  background: linear-gradient(145deg, #0f1a25, #0b121a);
+  border-radius: 16px;
+  border: 1px solid rgba(0, 204, 255, 0.14);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
+  max-height: 72vh;
 }
 
 .report-table {
@@ -427,17 +472,107 @@ onMounted(() => {
 
 .report-table th,
 .report-table td {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.75rem 0.8rem;
   text-align: center;
   white-space: nowrap;
 }
 
-.report-table th {
-  background: rgba(0, 180, 255, 0.14);
-  color: #dbeafe;
-  font-weight: 700;
-  font-size: 0.9rem;
+.report-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  font-weight: 800 !important;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* base identity columns (Province / City / Barangay) — solid, theme-proof */
+.report-table thead th:nth-child(-n+3) {
+  background: #101c2b !important;
+  color: #a8c5e0 !important;
+}
+
+/* --- Group header row (row 1): solid, dark shade, white text --- */
+.report-table thead tr:nth-child(1) th:nth-child(4) {
+  background: #b45309 !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(1) th:nth-child(5) {
+  background: #7e22ce !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(1) th:nth-child(6) {
+  background: #0e7490 !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(1) th:nth-child(7) {
+  background: #be185d !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(1) th:nth-child(8) {
+  background: #15803d !important;
+  color: #ffffff !important;
+}
+
+/* --- Sub-header row (row 2): solid, medium shade, white text --- */
+.report-table thead tr:nth-child(2) th:nth-child(-n+3) {
+  background: #d97706 !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(2) th:nth-child(n+4):nth-child(-n+5) {
+  background: #9333ea !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(2) th:nth-child(n+6):nth-child(-n+7) {
+  background: #0891b2 !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(2) th:nth-child(n+8):nth-child(-n+9) {
+  background: #db2777 !important;
+  color: #ffffff !important;
+}
+.report-table thead tr:nth-child(2) th:nth-child(n+10) {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+/* --- CUM / NOW row (row 3): solid, light shade, dark text for contrast --- */
+.report-table thead tr:nth-child(3) th:nth-child(-n+4) {
+  background: #fbbf24 !important;
+  color: #1c1300 !important;
+}
+.report-table thead tr:nth-child(3) th:nth-child(n+5):nth-child(-n+8) {
+  background: #f0abfc !important;
+  color: #2e0a35 !important;
+}
+.report-table thead tr:nth-child(3) th:nth-child(n+9) {
+  background: #6ee7b7 !important;
+  color: #032116 !important;
+}
+
+/* --- Body columns tinted subtly to match their section --- */
+.row-data td:nth-child(-n+3) {
+  text-align: left;
+  font-weight: 600;
+}
+.row-data td:nth-child(n+4):nth-child(-n+6) {
+  background: rgba(217, 119, 6, 0.06) !important;
+}
+.row-data td:nth-child(n+7):nth-child(-n+8) {
+  background: rgba(147, 51, 234, 0.06) !important;
+}
+.row-data td:nth-child(n+9):nth-child(-n+12) {
+  background: rgba(8, 145, 178, 0.06) !important;
+}
+.row-data td:nth-child(n+13):nth-child(-n+16) {
+  background: rgba(219, 39, 119, 0.06) !important;
+}
+.row-data td:nth-child(n+17) {
+  background: rgba(22, 163, 74, 0.07) !important;
+  font-weight: 600;
 }
 
 .report-table td:first-child,
@@ -446,26 +581,28 @@ onMounted(() => {
   text-align: left;
 }
 
-.row-data:hover {
-  background: rgba(255, 255, 255, 0.03);
+.row-data:hover td {
+  background: rgba(0, 180, 255, 0.09) !important;
 }
 
-.row-subtotal {
-  background: rgba(255, 221, 0, 0.18);
+/* Subtotal / Grand total — swapped from yellow to indigo / sky blue.
+   Raised specificity + !important to beat the pre-existing global class rules. */
+.report-table tbody tr.row-subtotal,
+.report-table tbody tr.row-subtotal td {
+  background: rgba(129, 140, 248, 0.22) !important;
   font-weight: 700;
-  color: #fff7bf;
 }
 
-.row-grand-total {
-  background: rgba(96, 165, 250, 0.22);
+.report-table tbody tr.row-grand-total,
+.report-table tbody tr.row-grand-total td {
+  background: rgba(56, 189, 248, 0.22) !important;
   font-weight: 800;
-  color: #dbeafe;
 }
 
 .error-box {
   margin-bottom: 1rem;
   padding: 0.9rem 1rem;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(239, 68, 68, 0.14);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fecaca;
@@ -476,32 +613,22 @@ onMounted(() => {
   color: #94a3b8;
 }
 
-.btn-secondary {
-  background: transparent;
-  color: #dbeafe;
-  border: 1px solid rgba(0, 204, 255, 0.25);
-  border-radius: 10px;
-  padding: 0.72rem 1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 @media (max-width: 768px) {
   .report-container {
-    padding: 0.9rem;
+    padding: 1rem;
   }
 
   .page-title {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
   }
 }
 
 @media print {
+  @page {
+    size: landscape;
+    margin: 8mm;
+  }
+
   .panel,
   .report-container {
     padding: 0 !important;
@@ -515,6 +642,13 @@ onMounted(() => {
     display: none !important;
   }
 
+  .page-title {
+    border-left: none !important;
+    padding-left: 0 !important;
+    color: black !important;
+    margin-bottom: 8px;
+  }
+
   .report-meta {
     border: 1px solid #ccc !important;
     background: white !important;
@@ -525,12 +659,15 @@ onMounted(() => {
     overflow: visible !important;
     border: none !important;
     background: white !important;
+    box-shadow: none !important;
+    max-height: none !important;
   }
 
   .report-table {
     min-width: unset !important;
     width: 100% !important;
-    font-size: 11px;
+    table-layout: fixed !important;
+    font-size: 8.5px;
   }
 
   .report-table th,
@@ -538,24 +675,63 @@ onMounted(() => {
     border: 1px solid #999 !important;
     color: black !important;
     background: white !important;
-    padding: 4px 6px !important;
+    padding: 3px 4px !important;
+    white-space: normal !important;
+    word-break: break-word;
   }
 
-  .row-subtotal td {
+  .report-table thead th {
+    position: static !important;
+    box-shadow: none !important;
+  }
+
+  /* Force plain black-on-white for print — matching the SAME specificity
+     as the colored header rules above so they actually win in the cascade. */
+  .report-table thead th:nth-child(-n+3),
+  .report-table thead tr:nth-child(1) th:nth-child(4),
+  .report-table thead tr:nth-child(1) th:nth-child(5),
+  .report-table thead tr:nth-child(1) th:nth-child(6),
+  .report-table thead tr:nth-child(1) th:nth-child(7),
+  .report-table thead tr:nth-child(1) th:nth-child(8),
+  .report-table thead tr:nth-child(2) th:nth-child(-n+3),
+  .report-table thead tr:nth-child(2) th:nth-child(n+4):nth-child(-n+5),
+  .report-table thead tr:nth-child(2) th:nth-child(n+6):nth-child(-n+7),
+  .report-table thead tr:nth-child(2) th:nth-child(n+8):nth-child(-n+9),
+  .report-table thead tr:nth-child(2) th:nth-child(n+10),
+  .report-table thead tr:nth-child(3) th:nth-child(-n+4),
+  .report-table thead tr:nth-child(3) th:nth-child(n+5):nth-child(-n+8),
+  .report-table thead tr:nth-child(3) th:nth-child(n+9) {
+    background: white !important;
+    color: black !important;
+  }
+
+  .row-data td:nth-child(-n+3),
+  .row-data td:nth-child(n+4):nth-child(-n+6),
+  .row-data td:nth-child(n+7):nth-child(-n+8),
+  .row-data td:nth-child(n+9):nth-child(-n+12),
+  .row-data td:nth-child(n+13):nth-child(-n+16),
+  .row-data td:nth-child(n+17) {
+    background: white !important;
+    color: black !important;
+    font-weight: normal !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  .report-table tbody tr.row-subtotal,
+  .report-table tbody tr.row-subtotal td {
     background: #fff59d !important;
     color: black !important;
     font-weight: 700;
   }
 
-  .row-grand-total td {
+  .report-table tbody tr.row-grand-total,
+  .report-table tbody tr.row-grand-total td {
     background: #bbdefb !important;
     color: black !important;
     font-weight: 800;
-  }
-
-  .page-title {
-    color: black !important;
-    margin-bottom: 8px;
   }
 
   body {

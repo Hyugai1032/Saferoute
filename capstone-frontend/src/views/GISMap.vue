@@ -726,14 +726,18 @@ watch(selectedCenter, () => {
 
 <style scoped>
 .map-container {
-  height: 100%;
+  /* Locked to its own dark palette on purpose: this component keeps a
+     consistent look regardless of the app-wide light/dark toggle, so the
+     map and its readouts never wash out. */
+  color-scheme: dark;
+  height: 100% !important;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #0c0f1d 0%, #1a1f38 100%);
+  background: linear-gradient(135deg, #0c0f1d 0%, #1a1f38 100%) !important;
 }
 
 .map-header {
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.8) !important;
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1.5rem 2rem;
@@ -750,12 +754,12 @@ watch(selectedCenter, () => {
 .page-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #f1f5f9 !important;
   margin: 0 0 0.5rem 0;
 }
 
 .page-subtitle {
-  color: #94a3b8;
+  color: #94a3b8 !important;
   margin: 0;
   font-size: 0.875rem;
 }
@@ -831,13 +835,14 @@ watch(selectedCenter, () => {
 
 .map-sidebar {
   width: 400px;
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(15, 23, 42, 0.97) !important;
   backdrop-filter: blur(20px);
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s;
   display: flex;
   flex-direction: column;
   z-index: 10;
+  color-scheme: dark;
 }
 
 .map-sidebar.sidebar-collapsed {
@@ -850,15 +855,17 @@ watch(selectedCenter, () => {
   flex: 1;
   overflow-y: auto;
   position: relative;
+  background: transparent !important;
+  color: #e2e8f0 !important;
 }
 
 .close-sidebar {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1) !important;
   border: none;
-  color: #cbd5e1;
+  color: #cbd5e1 !important;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -890,7 +897,7 @@ watch(selectedCenter, () => {
 
 .center-header h3 {
   margin: 0;
-  color: #f1f5f9;
+  color: #f1f5f9 !important;
   font-size: 1.25rem;
   line-height: 1.4;
 }
@@ -924,55 +931,72 @@ watch(selectedCenter, () => {
 .center-info {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
 }
 
 .info-label {
-  color: #94a3b8;
-  font-size: 0.875rem;
+  color: #94a3b8 !important;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .info-value {
-  color: #cbd5e1;
-  font-size: 0.875rem;
-  font-weight: 500;
+  color: #e2e8f0 !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: right;
+  /* was inheriting an all-caps + wide letter-spacing look from elsewhere,
+     which is what made "VICTORIA - VILLA CERVEZA" look oddly spaced out */
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .metrics-section {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.035) !important;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 1.25rem;
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem 1.25rem;
 }
 
 .metrics-section h4 {
-  margin: 0 0 1rem 0;
-  color: #f1f5f9;
-  font-size: 1rem;
+  margin: 0 0 0.9rem 0;
+  color: #f1f5f9 !important;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  opacity: .85;
+  text-align: center; 
 }
 
 .progress-container {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .progress-bar.large {
-  height: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 999px;
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: 6px;
+  border-radius: 999px;
   transition: width 0.3s;
 }
 
@@ -981,10 +1005,14 @@ watch(selectedCenter, () => {
 .progress-fill.normal { background: linear-gradient(90deg, #10b981, #34d399); }
 
 .progress-text {
-  color: #cbd5e1;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-align: center;
+  color: #e2e8f0 !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: left;
+
+  text-align: center; 
+  background: none;    
+  padding: 0; 
 }
 
 .supplies-grid {
@@ -1060,13 +1088,13 @@ watch(selectedCenter, () => {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(135deg, #f6513b, #d8231d);
   color: white;
 }
 
 .action-btn.secondary {
   background: rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
+  color: #e1d5cb;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -1081,11 +1109,12 @@ watch(selectedCenter, () => {
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  background: transparent !important;
 }
 
 .placeholder-content {
   text-align: center;
-  color: #94a3b8;
+  color: #94a3b8 !important;
 }
 
 .placeholder-icon {
@@ -1271,7 +1300,7 @@ watch(selectedCenter, () => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.05) !important;
   padding: 0.75rem;
   border-radius: 12px;
 }
@@ -1281,8 +1310,8 @@ watch(selectedCenter, () => {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.75rem;
-  color: #cbd5e1;
-  background: rgba(255,255,255,0.05);
+  color: #cbd5e1 !important;
+  background: rgba(255,255,255,0.05) !important;
   padding: 0.4rem 0.6rem;
   border-radius: 8px;
   cursor: pointer;
@@ -1290,5 +1319,21 @@ watch(selectedCenter, () => {
 
 .filter-item input {
   cursor: pointer;
+}
+
+/* ---- Theme lock for the map itself ----
+   Leaflet renders its tiles/canvas as plain <img>/<div> nodes injected
+   directly into #map by JS, outside Vue's template — so Vue's scoped
+   attribute never lands on them. If any global light/dark stylesheet
+   applies a filter (a common trick for "instant" dark-mode maps), it can
+   only reach these nodes through such a global rule. The :deep() + 
+   !important below guarantees the map tiles always render exactly as
+   fetched, regardless of what the app-wide theme toggle does elsewhere. */
+.map-content :deep(.leaflet-container),
+.map-content :deep(.leaflet-tile-pane),
+.map-content :deep(.leaflet-layer),
+.map-content :deep(.leaflet-tile) {
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 </style>

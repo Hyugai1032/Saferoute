@@ -579,6 +579,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* CHANGED: was hardcoded dark gradient + color:white; this class is also
+   unused in the template (you use .dashboard-container), so it's dead
+   weight either way — left as-is per your request, not touched further. */
 .admin-layout {
   background: linear-gradient(135deg, #1a365d 0%, #1a1a2e 100%);
   min-height: 100vh;
@@ -587,7 +590,8 @@ onBeforeUnmount(() => {
 
 .dashboard-container {
   min-height: 100vh;
-  color: white;
+  color: var(--text-primary); /* CHANGED: was hardcoded white */
+  background: var(--bg-page, transparent); /* CHANGED: let theme control page bg */
 }
 
 
@@ -605,20 +609,23 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 1rem;
   padding: 1rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
 }
 
 .header-info h1 {
   margin: 0;
-  color: #f1f5f9;
   font-size: 2rem;
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  /* NOTE: kept as a blue gradient clip-text on purpose — this one reads
+     fine on both light and dark since it's a saturated gradient, not a
+     near-white one. If you'd rather it follow --text-primary exactly,
+     say so and I'll swap it too. */
 }
 
 .header-info p {
-  color: #94a3b8;
+  color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   margin: 0.5rem 0 0 0;
   font-size: 1rem;
 }
@@ -698,8 +705,8 @@ onBeforeUnmount(() => {
 }
 
 .metric-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-elevated); /* CHANGED: was a white-tinted gradient that only worked on dark bg */
+  border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
@@ -708,6 +715,7 @@ onBeforeUnmount(() => {
   transition: all 0.3s;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-soft); /* CHANGED: added so cards keep depth in light mode too */
 }
 
 .metric-card::before {
@@ -748,13 +756,18 @@ onBeforeUnmount(() => {
   font-size: 2rem;
   font-weight: 800;
   margin: 0.25rem 0;
-  background: linear-gradient(135deg, #f1f5f9, #cbd5e1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  /* CHANGED: this was the main bug — a near-white gradient clipped to
+     text (#f1f5f9 -> #cbd5e1). On a light background that's basically
+     white-on-white, so the big numbers vanished. Swapped to a solid
+     theme-aware color instead of a clip-text gradient. */
+  color: var(--text-primary);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
 }
 
 .metric-label {
-  color: #94a3b8;
+  color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   font-size: 0.875rem;
   margin: 0;
 }
@@ -790,6 +803,14 @@ onBeforeUnmount(() => {
 .content-panel.large {
   min-width: 0;
   grid-column: span 1;
+  /* CHANGED: panels themselves had no background/border before — they
+     were relying on the dark page gradient behind them. Give them an
+     explicit theme-aware surface so they read correctly in light mode. */
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-soft);
 }
 
 .panel-header {
@@ -797,11 +818,13 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  gap: 1rem; /* CHANGED: added so title + toggle don't collide on narrower panels */
+  flex-wrap: wrap; /* CHANGED: lets the toggle drop to its own line instead of overlapping the title */
 }
 
 .panel-header h3 {
   margin: 0;
-  color: #f1f5f9;
+  color: var(--text-primary); /* CHANGED: was #f1f5f9 */
   font-size: 1.25rem;
 }
 
@@ -825,9 +848,9 @@ onBeforeUnmount(() => {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.1) */
+  color: var(--text-secondary); /* CHANGED: was #cbd5e1 */
+  border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.2) */
 }
 
 .btn-primary:hover, .btn-secondary:hover {
@@ -845,11 +868,11 @@ onBeforeUnmount(() => {
 }
 
 .data-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.05) */
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -857,8 +880,8 @@ onBeforeUnmount(() => {
 
 .data-table td {
   padding: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #cbd5e1;
+  border-bottom: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.05) */
+  color: var(--text-primary); /* CHANGED: was #cbd5e1 */
 }
 
 .name-cell {
@@ -907,7 +930,7 @@ onBeforeUnmount(() => {
 
 .status-badge.pending {
   background: rgba(100, 116, 139, 0.2);
-  color: #cbd5e1;
+  color: var(--text-secondary); /* CHANGED: was #cbd5e1 */
   border: 1px solid rgba(100, 116, 139, 0.3);
 }
 
@@ -917,8 +940,8 @@ onBeforeUnmount(() => {
 }
 
 .btn-icon {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.1) */
+  border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.2) */
   padding: 0.5rem;
   border-radius: 6px;
   cursor: pointer;
@@ -938,8 +961,8 @@ onBeforeUnmount(() => {
 }
 
 .center-item {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.03) */
+  border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
   border-radius: 12px;
   padding: 1rem;
   cursor: pointer;
@@ -961,7 +984,7 @@ onBeforeUnmount(() => {
 
 .center-header h4 {
   margin: 0;
-  color: #f1f5f9;
+  color: var(--text-primary); /* CHANGED: was #f1f5f9 */
   font-size: 1rem;
 }
 
@@ -976,7 +999,7 @@ onBeforeUnmount(() => {
 .status-indicator.normal { background: #10b981; }
 
 .center-location {
-  color: #94a3b8;
+  color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   font-size: 0.875rem;
   margin: 0 0 1rem 0;
 }
@@ -988,7 +1011,7 @@ onBeforeUnmount(() => {
 .progress-bar {
   width: 100%;
   height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 0.5rem;
@@ -1006,7 +1029,7 @@ onBeforeUnmount(() => {
 
 .occupancy-text {
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: var(--text-primary); /* CHANGED: was #cbd5e1 */
 }
 
 .supplies-overview {
@@ -1023,7 +1046,7 @@ onBeforeUnmount(() => {
 
 .supply-label {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   min-width: 60px;
   text-transform: capitalize;
 }
@@ -1031,7 +1054,7 @@ onBeforeUnmount(() => {
 .supply-bar {
   flex: 1;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1049,24 +1072,26 @@ onBeforeUnmount(() => {
 /* View Toggle */
 .view-toggle {
   display: flex;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.05) */
   border-radius: 8px;
   padding: 4px;
+  flex-shrink: 0; /* CHANGED: stop it from squishing against the h3 title */
 }
 
 .toggle-btn {
   padding: 0.5rem 1rem;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.3s;
+  white-space: nowrap; /* CHANGED: keep "Full List" from wrapping awkwardly */
 }
 
 .toggle-btn.active {
   background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  color: var(--accent-primary); /* CHANGED: was #60a5fa */
 }
 
 /* Icon styles */
@@ -1127,5 +1152,19 @@ onBeforeUnmount(() => {
   height: 900px;
   border-radius: 12px;
   overflow: hidden;
+}
+
+/* CHANGED: added — mirrors the exact override already used in the GIS
+   map component. Without this, any global dark-mode filter rule applied
+   to Leaflet tiles elsewhere in the app still hits this map (since
+   Leaflet injects its DOM outside Vue's scoped-style reach), which is
+   why this map looked "inverted"/wrong in dark mode while the GIS tab
+   didn't. */
+.quick-map-container :deep(.leaflet-container),
+.quick-map-container :deep(.leaflet-tile-pane),
+.quick-map-container :deep(.leaflet-layer),
+.quick-map-container :deep(.leaflet-tile) {
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 </style>
