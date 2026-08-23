@@ -20,6 +20,26 @@ api.interceptors.response.use(
   async error => {
     const originalRequest = error.config;
 
+    // Guest-safe requests (pass { publicOk: true } in the call config, e.g.
+    // the public GIS map's overview/route/detail calls) must never get
+    // hijacked into a login redirect. A stale/expired token sitting in
+    // localStorage shouldn't be able to bounce a visitor who was never
+    // required to log in in the first place.
+    if (error.response?.status === 401 && originalRequest.publicOk) {
+      // First failure: the 401 might just be a stale token. Retry once
+      // with no Authorization header at all, exactly like a fresh guest.
+      if (!originalRequest._retriedPublic) {
+        originalRequest._retriedPublic = true;
+        delete originalRequest.headers.Authorization;
+        return api(originalRequest);
+      }
+      // Still failing with no token attached at all means this endpoint
+      // genuinely requires login — but this is a public-facing request,
+      // so we still must not redirect. Let the caller's own error
+      // handling deal with it instead of bouncing the guest to /login.
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -66,5 +86,3 @@ export const evacLogsApi = {
 };
 
 export default api;
-
-

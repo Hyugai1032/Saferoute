@@ -6,27 +6,7 @@
     <div class="grid-overlay"></div>
 
     <!-- NAVBAR -->
-    <header class="landing-header">
-      <div class="brand" @click="scrollToSection('hero')">
-        <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
-        <div>
-          <h1>SafeRoute</h1>
-          <p>Evacuation Monitoring System</p>
-        </div>
-      </div>
-
-      <nav class="nav-links">
-        <button @click="scrollToSection('features')">Features</button>
-        <button @click="scrollToSection('how-it-works')">How it Works</button>
-        <button @click="scrollToSection('roles')">Users</button>
-        <button @click="scrollToSection('contact')">Contact</button>
-      </nav>
-
-      <div class="nav-actions">
-        <button class="btn ghost" @click="goToLogin">Login</button>
-        <button class="btn primary" @click="goToRegister">Get Started</button>
-      </div>
-    </header>
+    <IndexNavBar />
 
     <!-- HERO -->
     <section id="hero" class="hero-section">
@@ -401,11 +381,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import saferouteLogo from '@/assets/saferoute-logo.png'
+import IndexNavBar from '../components/IndexNavBar.vue'
 const router = useRouter()
+const route = useRoute()
 
 const contactInfo = {
   supportPhoneDisplay: '+63 912 345 6789',
@@ -486,6 +467,12 @@ const fetchPublicStats = async () => {
 
 onMounted(() => {
   fetchPublicStats()
+
+  if (route.hash) {
+    nextTick(() => {
+      scrollToSection(route.hash.slice(1))
+    })
+  }
 })
 </script>
 

@@ -35,11 +35,20 @@ import StaffDonationDrive from '../views/Staff/StaffDonationDrive.vue'
 //Profile
 // import UserProfile from "@/views/Profile/UserProfile.vue";
 
+import PublicGISMap from '../views/PublicGISMap.vue'
+
 const routes = [
   {
     path: '/',
     name: 'LandingPage',
     component: LandingPage
+  },
+
+  {
+    path: '/gis-map',
+    name: 'PublicGISMap',
+    component: PublicGISMap,
+    meta: { requiresAuth: false },
   },
 
   // USER ROUTES
