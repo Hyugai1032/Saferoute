@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth.models import AnonymousUser
 from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport, EmailOTP
 from .serializers import RegisterSerializer
 from .serializers import (UserProfileSerializer, 
@@ -606,12 +607,12 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class GisLayerViewSet(viewsets.ModelViewSet):
     serializer_class = GisLayerSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         qs = GisLayer.objects.select_related("municipality").order_by("-updated_at")
 
-        user = self.request.user
+        user = self.request.user or AnonymousUser()
         if user.is_authenticated and user.role == "MUNICIPAL_ADMIN":
             user_mun = getattr(user, "municipality", None)
             if user_mun:
@@ -687,61 +688,106 @@ class MapOverviewView(APIView):
     GET /api/map/overview/?recent_hours=48&municipality_id=3
     Returns center pins + recent hazard pins.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         recent_hours = int(request.query_params.get("recent_hours", 48))
-        user = request.user
+        user = request.user or AnonymousUser()
         requested_municipality_id = request.query_params.get("municipality_id")
 
         centers_qs = EvacuationCenter.objects.all()
         since = timezone.now() - timedelta(hours=recent_hours)
-        hazards_qs = HazardReport.objects.filter(validated_at__gte=since, status = "APPROVED")
+        hazards_qs = HazardReport.objects.filter(
+            validated_at__gte=since,
+            status="APPROVED"
+        )
 
-        if user.role == "MUNICIPAL_ADMIN":
+        # Only apply role-based restrictions to authenticated users
+        if user.is_authenticated and user.role == "MUNICIPAL_ADMIN":
             if not user.municipality_id:
                 centers_qs = centers_qs.none()
                 hazards_qs = hazards_qs.none()
             else:
-                centers_qs = centers_qs.filter(municipality_id=user.municipality_id)
-                hazards_qs = hazards_qs.filter(municipality_id=user.municipality_id)
+                centers_qs = centers_qs.filter(
+                    municipality_id=user.municipality_id
+                )
+                hazards_qs = hazards_qs.filter(
+                    municipality_id=user.municipality_id
+                )
 
-        elif user.role in ["EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
+        elif user.is_authenticated and user.role in [
+            "EVAC_CENTER_STAFF",
+            "RESPONSE_TEAM"
+        ]:
             if not user.municipality_id:
                 centers_qs = centers_qs.none()
                 hazards_qs = hazards_qs.none()
             else:
-                centers_qs = centers_qs.filter(municipality_id=user.municipality_id)
-                hazards_qs = hazards_qs.filter(municipality_id=user.municipality_id)
+                centers_qs = centers_qs.filter(
+                    municipality_id=user.municipality_id
+                )
+                hazards_qs = hazards_qs.filter(
+                    municipality_id=user.municipality_id
+                )
 
-        elif requested_municipality_id:
-            # only broader roles should be allowed to use arbitrary municipality filter
-            centers_qs = centers_qs.filter(municipality_id=requested_municipality_id)
-            hazards_qs = hazards_qs.filter(municipality_id=requested_municipality_id)
+        elif requested_municipality_id and (
+            not user.is_authenticated
+            or user.role not in [
+                "MUNICIPAL_ADMIN",
+                "EVAC_CENTER_STAFF",
+                "RESPONSE_TEAM"
+            ]
+        ):
+            # Authenticated broader roles and anonymous users
+            # may use the municipality filter.
+            centers_qs = centers_qs.filter(
+                municipality_id=requested_municipality_id
+            )
+            hazards_qs = hazards_qs.filter(
+                municipality_id=requested_municipality_id
+            )
 
-        centers_data = EvacuationCenterSerializer(centers_qs, many=True).data
+        centers_data = EvacuationCenterSerializer(
+            centers_qs,
+            many=True,
+            context={"request": request},
+        ).data
 
         center_objects = {c.id: c for c in centers_qs}
 
-        window = int(request.query_params.get("prediction_window", 60))
-        horizon = int(request.query_params.get("prediction_horizon", 60))
+        window = int(
+            request.query_params.get("prediction_window", 60)
+        )
+        horizon = int(
+            request.query_params.get("prediction_horizon", 60)
+        )
 
         for center_data in centers_data:
             center_obj = center_objects.get(center_data["id"])
             if not center_obj:
                 continue
 
-            center_data.update(
-                get_center_prediction(
-                    center_obj,
-                    window=window,
-                    horizon=horizon
+            try:
+                center_data.update(
+                    get_center_prediction(
+                        center_obj,
+                        window=window,
+                        horizon=horizon
+                    )
                 )
-            )
+            except Exception:
+                center_data.update({
+                    "predicted_congestion_percent": None,
+                    "predicted_status": "UNAVAILABLE",
+                    "prediction_note": "Prediction failed for this center.",
+                })
 
         return Response({
             "centers": centers_data,
-            "hazards": HazardPinSerializer(hazards_qs, many=True).data,
+            "hazards": HazardPinSerializer(
+                hazards_qs,
+                many=True
+            ).data,
         })
     
 def circle_to_polygon(lng, lat, radius_m=150, points=24):
@@ -824,7 +870,7 @@ class ORSRouteView(APIView):
       "hazard_radius_m": 150
     }
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         ors_key = settings.ORS_API_KEY
@@ -906,7 +952,7 @@ class ORSRouteView(APIView):
         })
     
 class NearbyHazardAlertsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         lat = request.query_params.get("lat")
@@ -958,7 +1004,7 @@ class NearbyHazardAlertsView(APIView):
         return Response(serializer.data)
 
 class SuggestNearestAvailableCenterView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         ors_key = settings.ORS_API_KEY
@@ -1099,4 +1145,4 @@ class UpdateMeView(APIView):
             if field in request.data:
                 setattr(u, field, request.data.get(field))
         u.save()
-        return Response({"detail": "Profile updated."}, status=status.HTTP_200_OK)        
+        return Response({"detail": "Profile updated."}, status=status.HTTP_200_OK)

@@ -6,6 +6,7 @@
     <div class="grid-overlay"></div>
 
     <!-- NAVBAR -->
+<<<<<<< HEAD
     <header class="landing-header">
       <div class="brand" @click="scrollToSection('hero')">
         <img :src="saferouteLogo" alt="SafeRoute Logo" class="logo-img" />
@@ -29,6 +30,9 @@
         <button class="btn primary" @click="goToRegister">Get Started</button>
       </div>
     </header>
+=======
+    <IndexNavBar />
+>>>>>>> 30e6c4e2eb4ae2dde2f6a87f3f18476c293961df
 
     <!-- HERO -->
     <section id="hero" class="hero-section">
@@ -602,6 +606,7 @@ import floodRescue3 from '@/assets/pdrrmo-gallery/flood-rescue-3.jpg'
 import floodRescue4 from '@/assets/pdrrmo-gallery/flood-rescue-4.jpg'
 
 const router = useRouter()
+const route = useRoute()
 
 const donationNeeds = ref([]);
 
@@ -878,7 +883,16 @@ const fetchPublicStats = async () => {
 
 onMounted(() => {
   fetchPublicStats()
+<<<<<<< HEAD
   fetchPublicDonationSummary()
+=======
+
+  if (route.hash) {
+    nextTick(() => {
+      scrollToSection(route.hash.slice(1))
+    })
+  }
+>>>>>>> 30e6c4e2eb4ae2dde2f6a87f3f18476c293961df
 })
 </script>
 
@@ -1488,6 +1502,7 @@ onMounted(() => {
     margin-top: 1rem;
   }
 }
+<<<<<<< HEAD
 
 @media (max-width: 640px) {
   /* 6. Mobile Modal & Form optimization */
@@ -1516,4 +1531,6 @@ onMounted(() => {
   }
 }
 
+=======
+>>>>>>> 30e6c4e2eb4ae2dde2f6a87f3f18476c293961df
 </style>

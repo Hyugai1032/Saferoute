@@ -322,13 +322,13 @@ const getOccupancyPercentage = (c) => {
 
 // ---- API ----
 const fetchMapOverview = async () => {
-  const res = await api.get('/map/overview/')
+  const res = await api.get('/map/overview/', { publicOk: true })
   centers.value = res.data.centers || []
   hazards.value = res.data.hazards || []
 }
 
 const fetchCenterDetail = async (id) => {
-  const res = await api.get(`/evac_centers/evac-centers/${id}/`)
+  const res = await api.get(`/evac_centers/evac-centers/${id}/`, { publicOk: true })
   return res.data
 }
 
@@ -479,7 +479,7 @@ const routeToCenter = (center, avoidHazards = false) => {
           avoid_hazards: avoidHazards,
         }
 
-        const res = await api.post("/route/ors/", payload)
+        const res = await api.post("/route/ors/", payload, { publicOk: true })
         drawRoute(res.data.geometry, res.data.distance_m, res.data.duration_s)
       } catch (e) {
         console.error("Routing failed:", e)
@@ -630,7 +630,7 @@ const suggestNearestCenter = () => {
           candidate_limit: 6,
         }
 
-        const res = await api.post("/route/suggest-center/", payload)
+        const res = await api.post("/route/suggest-center/", payload, { publicOk: true })
 
         selectedCenter.value = res.data.center
 
@@ -731,6 +731,10 @@ watch(selectedCenter, () => {
      map and its readouts never wash out. */
   color-scheme: dark;
   height: 100% !important;
+  /* Also works when the parent is a flex column (e.g. the public wrapper
+     below the navbar), without breaking the height:100% case above. */
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #0c0f1d 0%, #1a1f38 100%) !important;
