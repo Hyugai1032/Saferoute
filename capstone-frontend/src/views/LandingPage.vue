@@ -17,6 +17,8 @@
 
       <nav class="nav-links">
         <button @click="scrollToSection('features')">Features</button>
+        <button @click="scrollToSection('about-pdrrmo')">About PDRRMO</button>
+        <button @click="scrollToSection('donate')">Donate</button>
         <button @click="scrollToSection('how-it-works')">How it Works</button>
         <button @click="scrollToSection('roles')">Users</button>
         <button @click="scrollToSection('contact')">Contact</button>
@@ -140,21 +142,46 @@
       </div>
     </section>
 
-    <!-- TRUST BAR
-    <section class="trust-strip">
-      <div class="trust-item">
-        <strong>Unified Tracking</strong>
-        <span>From report to response</span>
+    <!-- ABOUT PDRRMO -->
+    <section id="about-pdrrmo" class="content-section">
+      <div class="section-heading center">
+        <span class="section-tag">About Our Partner</span>
+        <h2>Powered by the PDRRMO</h2>
+        <p>
+          SafeRoute is built with and for the Provincial Disaster Risk Reduction and Management Office (PDRRMO),
+          which leads disaster preparedness and emergency response for the province.
+        </p>
       </div>
-      <div class="trust-item">
-        <strong>Role-Based Access</strong>
-        <span>Admin, team, and staff workflows</span>
+
+      <p class="placeholder-note">
+        ⚠️ Sample content — the items below are the PDRRMO's general, publicly known mandate.
+        Replace with the client's actual programs once confirmed (client is available starting Sept 7).
+      </p>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Disaster Preparedness</h3>
+          <p>Community drills, hazard mapping, and readiness planning before disasters strike.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">🚑</div>
+          <h3>Emergency Response</h3>
+          <p>Coordinating search and rescue, relief operations, and on-ground response teams.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">📚</div>
+          <h3>Public Training</h3>
+          <p>Training barangay officials, volunteers, and citizens on disaster risk reduction.</p>
+        </article>
       </div>
-      <div class="trust-item">
-        <strong>Prepared for Emergencies</strong>
-        <span>Focused on clarity and speed</span>
+
+      <div class="gallery-heading">
+        <h3>PDRRMO Through the Years</h3>
+        <p>Trainings, relief operations, and community drives from the field.</p>
       </div>
-    </section> -->
+      <PdrrmoGallery :slides="pdrrmoGallerySlides" />
+    </section>
 
     <!-- FEATURES -->
     <section id="features" class="content-section">
@@ -248,6 +275,48 @@
       </div>
     </section>
 
+    <!-- DONATION DRIVE PREVIEW -->
+    <section id="donate" class="content-section alt-bg">
+      <div class="section-heading center">
+        <span class="section-tag">Donation Drive</span>
+        <h2>Help evacuation centers stay stocked and ready</h2>
+        <p>
+          These are current needs across active evacuation centers. Anyone can pledge a donation — no account required.
+        </p>
+      </div>
+
+      <div class="donate-layout">
+        <div class="donate-summary">
+          <div class="donate-stat">
+            <h4>{{ donationSummary.openNeeds }}</h4>
+            <p>Open Needs</p>
+          </div>
+          <div class="donate-stat urgent">
+            <h4>{{ donationSummary.urgentNeeds }}</h4>
+            <p>Urgent Needs</p>
+          </div>
+        </div>
+
+        <div class="donate-needs-card">
+          <h3>Most needed right now</h3>
+          <ul class="donate-needs-list">
+            <li v-for="need in topNeeds" :key="need.id">
+              <span class="need-name">{{ need.item_name }}</span>
+              <span class="need-qty">{{ need.remaining_quantity }} {{ need.unit }} remaining</span>
+              <span class="need-pill" :class="need.priority.toLowerCase()">{{ need.priority }}</span>
+            </li>
+          </ul>
+
+          <button class="btn primary large donate-cta" @click="openPledgeModal">
+            Pledge a Donation
+          </button>
+          <p class="donate-note">
+            No sign-up needed — click to schedule an in-kind donation directly with PDRRMO.
+          </p>
+        </div>
+      </div>
+    </section>
+
     <!-- ROLES -->
     <section id="roles" class="content-section">
       <div class="section-heading center">
@@ -275,7 +344,7 @@
       </div>
     </section>
 
-    <!-- CTA -->
+    <!-- CTA
     <section class="cta-section">
       <div class="cta-card">
         <div>
@@ -291,133 +360,294 @@
           <button class="btn outline-light" @click="goToRegister">Create Account</button>
         </div>
       </div>
+    </section> -->
+
+    <!-- CONTACT / FOOTER -->
+    <section id="contact" class="contact-section">
+      <div class="contact-shell">
+        <div class="contact-intro">
+          <span class="section-tag">Contact & Support</span>
+          <h2>Need assistance with SafeRoute?</h2>
+        </div>
+
+        <div class="contact-grid three-division-grid">
+          <article class="contact-card primary-contact-card">
+            <div class="contact-card-top">
+              <div>
+                <p class="contact-kicker">{{ contactInfo.researchPlanning.label }}</p>
+                <h3>Research &amp; Planning</h3>
+              </div>
+            </div>
+
+            <div class="contact-details-list">
+              <div class="contact-line">
+                <span class="contact-icon">📘</span>
+                <div>
+                  <label>Facebook</label>
+                  <p>{{ contactInfo.researchPlanning.facebook }}</p>
+                </div>
+              </div>
+              <div class="contact-line">
+                <span class="contact-icon">✉️</span>
+                <div>
+                  <label>Email</label>
+                  <a :href="`mailto:${contactInfo.researchPlanning.email}`">
+                    {{ contactInfo.researchPlanning.email }}
+                  </a>
+                </div>
+              </div>
+              <div class="contact-line">
+                <span class="contact-icon">📞</span>
+                <div>
+                  <label>Phone</label>
+                  <a :href="`tel:${contactInfo.researchPlanning.phoneLink}`">
+                    {{ contactInfo.researchPlanning.phoneDisplay }}
+                  </a>
+                </div>
+              </div>
+            </div>
+
+
+          </article>
+
+          <article class="contact-card">
+            <p class="contact-kicker">{{ contactInfo.adminTraining.label }}</p>
+            <h3>Administration &amp; Training</h3>
+
+            <div class="contact-details-list compact">
+              <div class="contact-line">
+                <span class="contact-icon">📘</span>
+                <div>
+                  <label>Facebook</label>
+                  <p>{{ contactInfo.adminTraining.facebook }}</p>
+                </div>
+              </div>
+              <div class="contact-line">
+                <span class="contact-icon">✉️</span>
+                <div>
+                  <label>Email</label>
+                  <a :href="`mailto:${contactInfo.adminTraining.email}`">
+                    {{ contactInfo.adminTraining.email }}
+                  </a>
+                </div>
+              </div>
+              <div class="contact-line">
+                <span class="contact-icon">📞</span>
+                <div>
+                  <label>Phone</label>
+                  <a :href="`tel:${contactInfo.adminTraining.phoneLink}`">
+                    {{ contactInfo.adminTraining.phoneDisplay }}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="contact-card">
+            <p class="contact-kicker">{{ contactInfo.opsWarning.label }}</p>
+            <h3>Operations &amp; Warning</h3>
+
+            <div class="contact-details-list compact">
+              <div class="contact-line">
+                <span class="contact-icon">📘</span>
+                <div>
+                  <label>Facebook</label>
+                  <p>{{ contactInfo.opsWarning.facebook }}</p>
+                </div>
+              </div>
+              <div class="contact-line">
+                <span class="contact-icon">✉️</span>
+                <div>
+                  <label>Email</label>
+                  <a :href="`mailto:${contactInfo.opsWarning.email}`">
+                    {{ contactInfo.opsWarning.email }}
+                  </a>
+                </div>
+              </div>
+              <div class="contact-line">
+                <span class="contact-icon">📞</span>
+                <div>
+                  <label>Hotlines</label>
+                  <a :href="`tel:${contactInfo.opsWarning.phoneLink}`">{{ contactInfo.opsWarning.phoneDisplay }}</a>
+                  <a :href="`tel:${contactInfo.opsWarning.phoneLink2}`">{{ contactInfo.opsWarning.phoneDisplay2 }}</a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="contact-card wide-card">
+            <p class="contact-kicker">Office</p>
+            <h3>{{ contactInfo.office }}</h3>
+            <div class="contact-details-list compact">
+              <div class="contact-line">
+                <span class="contact-icon">🕒</span>
+                <div>
+                  <label>Office Hours</label>
+                  <p>{{ contactInfo.hours }}</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
     </section>
 
-<!-- CONTACT / FOOTER -->
-<section id="contact" class="contact-section">
-  <div class="contact-shell">
-    <div class="contact-intro">
-      <span class="section-tag">Contact & Support</span>
-      <h2>Need assistance with SafeRoute?</h2>
-      <p>
-        Keep this section short and actionable: show who users should contact,
-        how they can reach them, and when support is available.
-      </p>
-    </div>
+    <!-- IN-KIND GUEST PLEDGE MODAL -->
+    <div v-if="showModal" class="modal-backdrop" @click.self="closePledgeModal">
+      <div class="modal-card glass-card">
+        <button class="modal-close" @click="closePledgeModal">&times;</button>
 
-    <div class="contact-grid simplified">
-      <article class="contact-card primary-contact-card">
-        <div class="contact-card-top">
-          <div>
-            <p class="contact-kicker">Primary Contact</p>
-            <h3>SafeRoute Support Desk</h3>
+        <!-- FORM STATE -->
+        <div v-if="!pledgeSuccess">
+          <div class="modal-header">
+            <span class="section-tag">Public In-Kind Pledge</span>
+            <h3>Schedule a Goods Donation</h3>
+            <p>Pledge items directly to PDRRMO without creating an account.</p>
           </div>
-          <span class="contact-badge">Recommended</span>
+
+          <form @submit.prevent="submitPledge" class="pledge-form">
+            <div class="form-group">
+              <label>Select Item to Donate *</label>
+                <select v-model="pledgeForm.need_id" required class="form-input">
+                  <option 
+                    v-for="need in (donationNeeds.length ? donationNeeds : topNeeds)" 
+                    :key="need.id" 
+                    :value="need.id"
+                  >
+                    {{ need.item_name }} ({{ need.remaining_quantity || need.quantity }} {{ need.unit }} needed)
+                  </option>
+                </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Your Name *</label>
+                <input v-model="pledgeForm.donor_name" type="text" required placeholder="e.g. Juan Cruz" class="form-input" />
+              </div>
+
+              <div class="form-group">
+                <label>Contact Number *</label>
+                <input v-model="pledgeForm.contact_number" type="tel" required placeholder="e.g. 09171234567" class="form-input" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Quantity to Pledge *</label>
+                <input v-model.number="pledgeForm.quantity" type="number" min="1" required class="form-input" />
+              </div>
+
+              <div class="form-group">
+                <label>Target Drop-off Date *</label>
+                <input v-model="pledgeForm.dropoff_date" type="date" required class="form-input" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Notes / Remarks (Optional)</label>
+              <textarea v-model="pledgeForm.notes" rows="2" placeholder="e.g., Will bring directly to main office." class="form-input"></textarea>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn ghost" @click="closePledgeModal">Cancel</button>
+              <button type="submit" class="btn primary" :disabled="submittingPledge">
+                {{ submittingPledge ? 'Submitting...' : 'Submit Pledge' }}
+              </button>
+            </div>
+          </form>
         </div>
 
-        <div class="contact-details-list">
-          <div class="contact-line">
-            <span class="contact-icon">📞</span>
-            <div>
-              <label>Phone</label>
-              <a :href="`tel:${contactInfo.supportPhoneLink}`">
-                {{ contactInfo.supportPhoneDisplay }}
-              </a>
-            </div>
-          </div>
+        <!-- SUCCESS CONFIRMATION STATE -->
+        <div v-else class="pledge-success-view">
+          <div class="success-icon">🎉</div>
+          <h3>Pledge Submitted Successfully!</h3>
+          <p class="ref-code">Reference Code: <strong>{{ pledgeRefCode }}</strong></p>
 
-          <div class="contact-line">
-            <span class="contact-icon">✉️</span>
-            <div>
-              <label>Email</label>
-              <a :href="`mailto:${contactInfo.supportEmail}`">
-                {{ contactInfo.supportEmail }}
-              </a>
-            </div>
-          </div>
+          <p class="success-text">
+            Thank you for your generous pledge! Please bring the items to the main PDRRMO office on your selected date.
+            Our team will verify and receive your items upon drop-off.
+          </p>
 
-          <div class="contact-line">
-            <span class="contact-icon">🕒</span>
-            <div>
-              <label>Office Hours</label>
-              <p>{{ contactInfo.hours }}</p>
-            </div>
+          <div class="modal-actions center">
+            <button class="btn primary" @click="closePledgeModal">Done</button>
           </div>
         </div>
-
-        <div class="contact-actions">
-          <a
-            class="btn light contact-btn"
-            :href="`tel:${contactInfo.supportPhoneLink}`"
-          >
-            Call Support
-          </a>
-          <a
-            class="btn outline-light contact-btn dark-outline"
-            :href="`mailto:${contactInfo.supportEmail}`"
-          >
-            Email Support
-          </a>
-        </div>
-      </article>
-
-      <article class="contact-card">
-        <p class="contact-kicker">Emergency Coordination</p>
-        <h3>Operations Hotline</h3>
-
-        <div class="contact-details-list compact">
-          <div class="contact-line">
-            <span class="contact-icon">🚨</span>
-            <div>
-              <label>Hotline</label>
-              <a :href="`tel:${contactInfo.hotlineLink}`">
-                {{ contactInfo.hotlineDisplay }}
-              </a>
-            </div>
-          </div>
-
-          <div class="contact-line">
-            <span class="contact-icon">🏢</span>
-            <div>
-              <label>Office</label>
-              <p>{{ contactInfo.office }}</p>
-            </div>
-          </div>
-
-          <div class="contact-line">
-            <span class="contact-icon">📍</span>
-            <div>
-              <label>Location</label>
-              <p>{{ contactInfo.location }}</p>
-            </div>
-          </div>
-        </div>
-      </article>
-
       </div>
+    </div>
   </div>
-</section>
-</div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import api from '@/services/api'
 import saferouteLogo from '@/assets/saferoute-logo.png'
+import PdrrmoGallery from '@/components/pdrrmo/PdrrmoGallery.vue'
+import day1Photo1 from '@/assets/pdrrmo-gallery/bls-sfa-day1-1.jpg'
+import day1Photo2 from '@/assets/pdrrmo-gallery/bls-sfa-day1-2.jpg'
+import day1Photo3 from '@/assets/pdrrmo-gallery/bls-sfa-day1-3.jpg'
+import day1Photo4 from '@/assets/pdrrmo-gallery/bls-sfa-day1-4.jpg'
+import day2Photo1 from '@/assets/pdrrmo-gallery/bls-sfa-day2-1.jpg'
+import day2Photo2 from '@/assets/pdrrmo-gallery/bls-sfa-day2-2.jpg'
+import day2Photo3 from '@/assets/pdrrmo-gallery/bls-sfa-day2-3.jpg'
+import day2Photo4 from '@/assets/pdrrmo-gallery/bls-sfa-day2-4.jpg'
+import reliefRepacking1 from '@/assets/pdrrmo-gallery/relief-repacking-1.jpg'
+import reliefRepacking2 from '@/assets/pdrrmo-gallery/relief-repacking-2.jpg'
+import reliefRepacking3 from '@/assets/pdrrmo-gallery/relief-repacking-3.jpg'
+import reliefRepacking4 from '@/assets/pdrrmo-gallery/relief-repacking-4.jpg'
+import floodRescue1 from '@/assets/pdrrmo-gallery/flood-rescue-1.jpg'
+import floodRescue2 from '@/assets/pdrrmo-gallery/flood-rescue-2.jpg'
+import floodRescue3 from '@/assets/pdrrmo-gallery/flood-rescue-3.jpg'
+import floodRescue4 from '@/assets/pdrrmo-gallery/flood-rescue-4.jpg'
+
 const router = useRouter()
 
-const contactInfo = {
-  supportPhoneDisplay: '+63 912 345 6789',
-  supportPhoneLink: '+639123456789',
-  supportEmail: 'saferoute.support@example.gov.ph',
-  hotlineDisplay: '(043) 123-4567',
-  hotlineLink: '+63431234567',
-  office: 'Local Disaster Risk Reduction and Management Office',
-  hours: 'Monday to Friday • 8:00 AM – 5:00 PM',
-  location: 'Replace with your official office address',
-}
+const donationNeeds = ref([]);
 
+const fetchDonationNeeds = async () => {
+  try {
+    const res = await fetch('http://127.0.0.1:8000/api/evac_centers/donation-needs/');
+    if (res.ok) {
+      const data = await res.json();
+      // Unpacks paginated response results or defaults to array
+      donationNeeds.value = Array.isArray(data) ? data : (data.results || []);
+    }
+  } catch (err) {
+    console.error('Failed to fetch public needs:', err);
+  }
+};
+
+
+
+
+const contactInfo = {
+  researchPlanning: {
+    label: 'Research and Planning Division',
+    facebook: 'OrminPdrrmo ResearchPlanning Div',
+    email: 'orminpdrrmoresplandiv@gmail.com',
+    phoneDisplay: '+63 948 154 1775',
+    phoneLink: '+639481541775',
+  },
+  adminTraining: {
+    label: 'Administration and Training Division',
+    facebook: 'Pdrrmo OrMin',
+    email: 'pdrrmoormin@yahoo.com',
+    phoneDisplay: '+63 916 220 1847',
+    phoneLink: '+639162201847',
+  },
+  opsWarning: {
+    label: 'Operations and Warning Division',
+    facebook: 'OpsdivPdrrmo OrMin',
+    email: 'opswarningdivpdrrmo@gmail.com',
+    phoneDisplay: '+63 920 951 3690',
+    phoneLink: '+639209513690',
+    phoneDisplay2: '+63 948 146 0382',
+    phoneLink2: '+639481460382',
+  },
+  office: 'Provincial Disaster Risk Reduction and Management Office — Oriental Mindoro',
+  hours: 'Monday to Friday • 8:00 AM – 5:00 PM',
+}
 
 const stats = ref({
   totalCenters: 18,
@@ -426,11 +656,12 @@ const stats = ref({
   occupancyRate: 68,
 })
 
+const animatedStats = ref({ totalCenters: 0, totalHazards: 0, totalEvacuees: 0, occupancyRate: 0 })
 const apiFailed = ref(false)
 const loadingStats = ref(false)
 const updatedAt = ref(new Date())
 
-const displayStats = computed(() => stats.value)
+const displayStats = computed(() => animatedStats.value)
 const lastUpdated = computed(() => {
   return updatedAt.value.toLocaleTimeString([], {
     hour: '2-digit',
@@ -438,13 +669,175 @@ const lastUpdated = computed(() => {
   })
 })
 
-const goToLogin = () => {
-  router.push('/auth/login')
+const animateStatsTo = (target) => {
+  const start = { ...animatedStats.value }
+  const duration = 900
+  const startTime = performance.now()
+
+  const tick = (now) => {
+    const progress = Math.min((now - startTime) / duration, 1)
+    const eased = 1 - Math.pow(1 - progress, 3)
+
+    animatedStats.value = {
+      totalCenters: Math.round(start.totalCenters + (target.totalCenters - start.totalCenters) * eased),
+      totalHazards: Math.round(start.totalHazards + (target.totalHazards - start.totalHazards) * eased),
+      totalEvacuees: Math.round(start.totalEvacuees + (target.totalEvacuees - start.totalEvacuees) * eased),
+      occupancyRate: Math.round(start.occupancyRate + (target.occupancyRate - start.occupancyRate) * eased),
+    }
+
+    if (progress < 1) requestAnimationFrame(tick)
+  }
+
+  requestAnimationFrame(tick)
 }
 
-const goToRegister = () => {
-  router.push('/auth/register')
+watch(stats, (newVal) => animateStatsTo(newVal), { immediate: true, deep: true })
+
+// ---- Public donation drive data ----
+const donationSummary = ref({
+  openNeeds: 12,
+  urgentNeeds: 3,
+})
+const topNeeds = ref([
+  { id: 1, item_name: 'Bottled Water', unit: 'packs', remaining_quantity: 80, priority: 'URGENT' },
+  { id: 2, item_name: 'Canned Goods', unit: 'boxes', remaining_quantity: 45, priority: 'HIGH' },
+  { id: 3, item_name: 'Hygiene Kits', unit: 'pcs', remaining_quantity: 30, priority: 'MEDIUM' },
+])
+const donationDataFailed = ref(false)
+const usingLiveDonationData = ref(false)
+
+const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
+
+const fetchPublicDonationSummary = async () => {
+  try {
+    const res = await api.get('evac_centers/donation-needs/')
+    const needs = Array.isArray(res.data) ? res.data : res.data.results || []
+
+    if (needs.length > 0) {
+      donationSummary.value = {
+        openNeeds: needs.filter((n) => ['OPEN', 'PARTIALLY_FULFILLED'].includes(n.status)).length,
+        urgentNeeds: needs.filter((n) => n.priority === 'URGENT').length,
+      }
+
+      topNeeds.value = [...needs]
+        .filter((n) => ['OPEN', 'PARTIALLY_FULFILLED'].includes(n.status))
+        .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9))
+        .slice(0, 3)
+
+      usingLiveDonationData.value = true
+    }
+  } catch (error) {
+    donationDataFailed.value = true
+    console.warn('Public donation summary: live endpoint unavailable, showing sample numbers.', error)
+  }
 }
+
+// ---- Guest Pledge Modal Logic ----
+const showModal = ref(false)
+const submittingPledge = ref(false)
+const pledgeSuccess = ref(false)
+const pledgeRefCode = ref('')
+
+const pledgeForm = ref({
+  need_id: null,
+  donor_name: '',
+  contact_number: '',
+  quantity: 1,
+  dropoff_date: '',
+  notes: '',
+})
+
+const openPledgeModal = () => {
+  if (topNeeds.value.length > 0) {
+    pledgeForm.value.need_id = topNeeds.value[0].id
+  }
+  pledgeForm.value.dropoff_date = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  showModal.value = true
+}
+
+const closePledgeModal = () => {
+  showModal.value = false
+  pledgeSuccess.value = false
+  pledgeForm.value = {
+    need_id: null,
+    donor_name: '',
+    contact_number: '',
+    quantity: 1,
+    dropoff_date: '',
+    notes: '',
+  }
+}
+
+const submitPledge = async () => {
+  submittingPledge.value = true
+  try {
+    const needsArray = Array.isArray(donationNeeds.value) && donationNeeds.value.length 
+      ? donationNeeds.value 
+      : topNeeds.value
+
+    const targetId = pledgeForm.value.need_id || pledgeForm.value.need
+    const selectedNeed = needsArray.find(n => n.id == targetId)
+
+    // Ensure center is valid integer (fallback to 1 if missing on mock items)
+    const centerId = selectedNeed?.center || selectedNeed?.evacuation_center || pledgeForm.value.center || 1
+
+    const payload = {
+      need: targetId ? parseInt(targetId) : null,
+      center: parseInt(centerId),
+      donor_name: pledgeForm.value.donor_name,
+      contact_number: pledgeForm.value.contact_number,
+      quantity: parseInt(pledgeForm.value.quantity) || 1,
+      dropoff_date: pledgeForm.value.dropoff_date,
+      notes: pledgeForm.value.notes || '',
+      item_name: selectedNeed?.item_name || 'Donated Item',
+      category: selectedNeed?.category || 'FOOD',
+      status: 'PLEDGED'
+    }
+
+    const res = await fetch('http://127.0.0.1:8000/api/evac_centers/donations/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(JSON.stringify(errorData))
+    }
+
+    const data = await res.json()
+    pledgeRefCode.value = data?.reference_code || `PLG-${Math.floor(1000 + Math.random() * 9000)}`
+    pledgeSuccess.value = true
+  } catch (error) {
+    console.error('Failed to submit pledge:', error)
+    alert('Failed to submit donation pledge. Please check the form data.')
+  } finally {
+    submittingPledge.value = false
+  }
+}
+
+// ---- PDRRMO photo gallery ----
+const pdrrmoGallerySlides = ref([
+  { id: 1, image: day1Photo1, category: 'Training', year: 'Day 1', title: 'BLS & SFA Refresher Training', description: 'MDRRMO Naujan\'s Refresher Course on Basic Life Support and Standard First Aid.' },
+  { id: 2, image: day1Photo2, category: 'Training', year: 'Day 1', title: 'BLS & SFA Refresher Training', description: 'Small-group discussions building emergency response knowledge.' },
+  { id: 3, image: day1Photo3, category: 'Training', year: 'Day 1', title: 'BLS & SFA Refresher Training', description: 'Hands-on CPR and AED practice as part of the first-day sessions.' },
+  { id: 4, image: day1Photo4, category: 'Training', year: 'Day 1', title: 'BLS & SFA Refresher Training', description: 'Facilitators walking participants through learning objectives.' },
+  { id: 5, image: day2Photo1, category: 'Training', year: 'Day 2', title: 'Skills in Action', description: 'Return demonstration day for 44 MDRRMO Naujan personnel.' },
+  { id: 6, image: day2Photo2, category: 'Training', year: 'Day 2', title: 'Skills in Action', description: 'Participants demonstrating CPR, AED use, and rescue breathing.' },
+  { id: 7, image: day2Photo3, category: 'Training', year: 'Day 2', title: 'Skills in Action', description: 'Infant CPR and rescue breathing technique practice.' },
+  { id: 8, image: day2Photo4, category: 'Training', year: 'Day 2', title: 'Skills in Action', description: 'All 44 participants successfully completed the return demonstration.' },
+  { id: 9, image: reliefRepacking1, category: 'Operations', year: 'Kapit-Bisig', title: 'Relief Goods Repacking', description: 'Repacking relief goods for families affected by flooding.' },
+  { id: 10, image: reliefRepacking2, category: 'Operations', year: 'Kapit-Bisig', title: 'Relief Goods Repacking', description: 'Volunteers and responders working side by side.' },
+  { id: 11, image: reliefRepacking3, category: 'Operations', year: 'Kapit-Bisig', title: 'Relief Goods Repacking', description: 'Sacks of rice and repacked goods staged for distribution.' },
+  { id: 12, image: reliefRepacking4, category: 'Operations', year: 'Kapit-Bisig', title: 'Relief Goods Repacking', description: 'Joint effort among PDRRMO and partner agencies.' },
+  { id: 13, image: floodRescue1, category: 'Operations', year: 'Flood Response', title: 'Medical Rescue Amid Flooding', description: 'PDRRMO rescue personnel assist a resident onto a rescue vehicle.' },
+  { id: 14, image: floodRescue2, category: 'Operations', year: 'Flood Response', title: 'Medical Rescue Amid Flooding', description: 'Rescue teams coordinate at an ambulance transport.' },
+  { id: 15, image: floodRescue3, category: 'Operations', year: 'Flood Response', title: 'Medical Rescue Amid Flooding', description: 'Responders navigate a flooded roadway.' },
+  { id: 16, image: floodRescue4, category: 'Operations', year: 'Flood Response', title: 'Medical Rescue Amid Flooding', description: 'PDRRMO rescue swimmers gear up before deployment.' },
+])
+
+const goToLogin = () => router.push('/auth/login')
+const goToRegister = () => router.push('/auth/register')
 
 const scrollToSection = (id) => {
   const el = document.getElementById(id)
@@ -453,7 +846,6 @@ const scrollToSection = (id) => {
 
 const fetchPublicStats = async () => {
   loadingStats.value = true
-
   try {
     const [centersRes, hazardsRes] = await Promise.allSettled([
       axios.get('/api/public/centers/summary/'),
@@ -486,6 +878,7 @@ const fetchPublicStats = async () => {
 
 onMounted(() => {
   fetchPublicStats()
+  fetchPublicDonationSummary()
 })
 </script>
 
@@ -498,15 +891,94 @@ onMounted(() => {
   scroll-behavior: smooth;
 }
 
+:global(body) {
+  overflow-x: hidden;
+}
+
 .landing-page {
-  position: relative;
-  min-height: 100vh;
-  overflow: hidden;
-  color: #e8f1ff;
-  background:
+  --sr-text: #e8f1ff;
+  --sr-heading: #f8fbff;
+  --sr-text-muted: #9cb3ce;
+  --sr-text-faint: #8ea7c3;
+  --sr-nav-link: #c8d8f0;
+  --sr-accent-text: #90b8ff;
+  --sr-accent-text-hover: #8ec5ff;
+  --sr-badge-text: #dbeafe;
+
+  --sr-card-bg: rgba(9, 18, 34, 0.84);
+  --sr-panel-bg-1: rgba(9, 20, 37, 0.95);
+  --sr-panel-bg-2: rgba(6, 16, 31, 0.9);
+  --sr-glass-bg-1: rgba(9, 20, 37, 0.86);
+  --sr-glass-bg-2: rgba(12, 24, 45, 0.82);
+  --sr-chip-bg: rgba(11, 24, 48, 0.72);
+  --sr-shell-bg-1: rgba(7, 17, 31, 0.92);
+  --sr-shell-bg-2: rgba(10, 18, 34, 0.86);
+  --sr-primary-card-bg-1: rgba(17, 39, 71, 0.98);
+  --sr-nav-bg: rgba(4, 12, 24, 0.6);
+  --sr-btn-secondary-bg: rgba(10, 20, 38, 0.72);
+
+  --sr-border: rgba(148, 163, 184, 0.12);
+  --sr-border-soft: rgba(148, 163, 184, 0.1);
+  --sr-border-faint: rgba(148, 163, 184, 0.08);
+  --sr-border-accent: rgba(96, 165, 250, 0.16);
+  --sr-border-accent-hover: rgba(96, 165, 250, 0.18);
+  --sr-chip-border: rgba(125, 211, 252, 0.08);
+  --sr-panel-border: rgba(59, 130, 246, 0.12);
+
+  --sr-shadow-soft: rgba(0, 0, 0, 0.18);
+  --sr-shadow-med: rgba(0, 0, 0, 0.24);
+  --sr-shadow-strong: rgba(0, 0, 0, 0.35);
+
+  --sr-page-bg:
     radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.16), transparent 26%),
     radial-gradient(circle at 90% 10%, rgba(34, 211, 238, 0.14), transparent 24%),
     linear-gradient(180deg, #07111f 0%, #0a1628 18%, #081220 42%, #0b1830 72%, #060d17 100%);
+
+  position: relative;
+  min-height: 100vh;
+  color: var(--sr-text);
+  background: var(--sr-page-bg);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+[data-theme="light"] .landing-page {
+  --sr-text: #1e293b;
+  --sr-heading: #0f172a;
+  --sr-text-muted: #475569;
+  --sr-text-faint: #64748b;
+  --sr-nav-link: #334155;
+  --sr-accent-text: #2563eb;
+  --sr-accent-text-hover: #1d4ed8;
+  --sr-badge-text: #1d4ed8;
+
+  --sr-card-bg: rgba(255, 255, 255, 0.92);
+  --sr-panel-bg-1: rgba(255, 255, 255, 0.97);
+  --sr-panel-bg-2: rgba(241, 245, 249, 0.95);
+  --sr-glass-bg-1: rgba(255, 255, 255, 0.94);
+  --sr-glass-bg-2: rgba(241, 245, 249, 0.9);
+  --sr-chip-bg: rgba(255, 255, 255, 0.85);
+  --sr-shell-bg-1: rgba(255, 255, 255, 0.96);
+  --sr-shell-bg-2: rgba(241, 245, 249, 0.92);
+  --sr-primary-card-bg-1: rgba(226, 236, 253, 0.9);
+  --sr-nav-bg: rgba(255, 255, 255, 0.75);
+  --sr-btn-secondary-bg: rgba(226, 236, 253, 0.6);
+
+  --sr-border: rgba(15, 23, 42, 0.1);
+  --sr-border-soft: rgba(15, 23, 42, 0.08);
+  --sr-border-faint: rgba(15, 23, 42, 0.06);
+  --sr-border-accent: rgba(37, 99, 235, 0.16);
+  --sr-border-accent-hover: rgba(37, 99, 235, 0.24);
+  --sr-chip-border: rgba(37, 99, 235, 0.1);
+  --sr-panel-border: rgba(37, 99, 235, 0.14);
+
+  --sr-shadow-soft: rgba(15, 23, 42, 0.06);
+  --sr-shadow-med: rgba(15, 23, 42, 0.09);
+  --sr-shadow-strong: rgba(15, 23, 42, 0.12);
+
+  --sr-page-bg:
+    radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.08), transparent 26%),
+    radial-gradient(circle at 90% 10%, rgba(34, 211, 238, 0.08), transparent 24%),
+    linear-gradient(180deg, #f5f9ff 0%, #eef4fc 30%, #eaf1fb 60%, #f2f7fd 100%);
 }
 
 .bg-orb {
@@ -517,29 +989,9 @@ onMounted(() => {
   z-index: 0;
 }
 
-.orb-1 {
-  width: 420px;
-  height: 420px;
-  top: -100px;
-  left: -120px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.22), transparent 70%);
-}
-
-.orb-2 {
-  width: 320px;
-  height: 320px;
-  top: 520px;
-  right: -80px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.18), transparent 70%);
-}
-
-.orb-3 {
-  width: 420px;
-  height: 420px;
-  bottom: 120px;
-  left: 10%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.12), transparent 70%);
-}
+.orb-1 { width: 420px; height: 420px; top: -100px; left: -120px; background: radial-gradient(circle, rgba(37, 99, 235, 0.22), transparent 70%); }
+.orb-2 { width: 320px; height: 320px; top: 520px; right: -80px; background: radial-gradient(circle, rgba(6, 182, 212, 0.18), transparent 70%); }
+.orb-3 { width: 420px; height: 420px; bottom: 120px; left: 10%; background: radial-gradient(circle, var(--sr-panel-border), transparent 70%); }
 
 .grid-overlay {
   position: absolute;
@@ -556,9 +1008,7 @@ onMounted(() => {
 .hero-section,
 .content-section,
 .cta-section,
-.trust-strip,
-.contact-section,
-.landing-footer {
+.contact-section {
   position: relative;
   z-index: 1;
   padding-left: 5vw;
@@ -576,8 +1026,8 @@ onMounted(() => {
   padding-top: 1rem;
   padding-bottom: 1rem;
   backdrop-filter: blur(18px);
-  background: rgba(4, 12, 24, 0.6);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: var(--sr-nav-bg);
+  border-bottom: 1px solid var(--sr-border);
 }
 
 .brand {
@@ -587,47 +1037,20 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.brand-mark {
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: white;
-  background: linear-gradient(135deg, #2563eb, #22d3ee);
-  box-shadow: 0 18px 38px rgba(37, 99, 235, 0.35);
-}
+.brand h1 { margin: 0; font-size: 1.05rem; color: var(--sr-heading); }
+.brand p { margin: 0.1rem 0 0; font-size: 0.82rem; color: var(--sr-text-muted); }
 
-.brand h1 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #f8fbff;
-}
-
-.brand p {
-  margin: 0.1rem 0 0;
-  font-size: 0.82rem;
-  color: #9bb4d0;
-}
-
-.nav-links,
-.nav-actions,
-.footer-links,
-.hero-actions,
-.cta-actions {
+.nav-links, .nav-actions, .hero-actions, .cta-actions {
   display: flex;
   align-items: center;
   gap: 0.8rem;
   flex-wrap: wrap;
 }
 
-.nav-links button,
-.footer-links button {
+.nav-links button {
   border: none;
   background: transparent;
-  color: #c8d8f0;
+  color: var(--sr-nav-link);
   font-weight: 600;
   cursor: pointer;
   padding: 0.55rem 0.8rem;
@@ -635,8 +1058,7 @@ onMounted(() => {
   transition: 0.25s ease;
 }
 
-.nav-links button:hover,
-.footer-links button:hover {
+.nav-links button:hover {
   background: rgba(37, 99, 235, 0.14);
   color: #ffffff;
 }
@@ -650,10 +1072,7 @@ onMounted(() => {
   padding-bottom: 4.5rem;
 }
 
-.eyebrow,
-.section-tag,
-.status-pill,
-.step-number {
+.eyebrow, .section-tag, .status-pill, .step-number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -661,21 +1080,14 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.eyebrow,
-.section-tag {
+.eyebrow, .section-tag {
   width: fit-content;
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   padding: 0.45rem 0.85rem;
   background: rgba(37, 99, 235, 0.16);
-  border: 1px solid rgba(96, 165, 250, 0.16);
-  color: #90b8ff;
-}
-
-.section-tag.light {
-  background: rgba(255, 255, 255, 0.12);
-  color: #e5f0ff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--sr-border-accent);
+  color: var(--sr-accent-text);
 }
 
 .hero-content h2 {
@@ -683,7 +1095,7 @@ onMounted(() => {
   line-height: 1.02;
   margin: 1rem 0;
   max-width: 11ch;
-  color: #f8fbff;
+  color: var(--sr-heading);
 }
 
 .hero-content h2 span {
@@ -697,7 +1109,7 @@ onMounted(() => {
   max-width: 640px;
   font-size: 1.06rem;
   line-height: 1.85;
-  color: #aabfd8;
+  color: var(--sr-text-muted);
   margin-bottom: 1.6rem;
 }
 
@@ -714,52 +1126,30 @@ onMounted(() => {
   gap: 0.8rem;
   padding: 0.95rem 1rem;
   border-radius: 18px;
-  background: rgba(11, 24, 48, 0.72);
-  border: 1px solid rgba(125, 211, 252, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 14px 30px rgba(0, 0, 0, 0.2);
+  background: var(--sr-chip-bg);
+  border: 1px solid var(--sr-chip-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 14px 30px var(--sr-shadow-soft);
 }
 
-.feature-chip strong {
-  display: block;
-  color: #edf5ff;
-  margin-bottom: 0.25rem;
-  font-size: 0.95rem;
-}
-
-.feature-chip p {
-  margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.55;
-  color: #97aec7;
-}
+.feature-chip strong { display: block; color: var(--sr-heading); margin-bottom: 0.25rem; font-size: 0.95rem; }
+.feature-chip p { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--sr-text-muted); }
 
 .chip-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-top: 0.4rem;
-  flex-shrink: 0;
-  box-shadow: 0 0 16px currentColor;
+  width: 10px; height: 10px; border-radius: 50%; margin-top: 0.4rem; flex-shrink: 0; box-shadow: 0 0 16px currentColor;
 }
-
 .chip-dot.blue { color: #3b82f6; background: #3b82f6; }
 .chip-dot.cyan { color: #22d3ee; background: #22d3ee; }
 .chip-dot.orange { color: #f97316; background: #f97316; }
 .chip-dot.green { color: #22c55e; background: #22c55e; }
-
-.hero-visual {
-  display: flex;
-  justify-content: center;
-}
 
 .glass-card {
   width: 100%;
   max-width: 620px;
   border-radius: 28px;
   padding: 1.4rem;
-  background: linear-gradient(180deg, rgba(9, 20, 37, 0.86), rgba(12, 24, 45, 0.82));
-  box-shadow: 0 35px 70px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, var(--sr-glass-bg-1), var(--sr-glass-bg-2));
+  box-shadow: 0 35px 70px var(--sr-shadow-strong);
+  border: 1px solid var(--sr-border);
   backdrop-filter: blur(18px);
 }
 
@@ -768,48 +1158,15 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  width: 100%;
   margin-bottom: 1.5rem;
-}
-
-.preview-title {
-  flex: 1;
-}
-
-.preview-title .mini-label {
-  margin: 0 0 0.5rem;
-}
-
-.preview-title h3 {
-  margin: 0;
-}
-
-.status-pill {
-  flex-shrink: 0;
-  align-self: flex-start;
-}
-
-.preview-top h3,
-.activity-header h4,
-.feature-card h3,
-.role-card h3,
-.step-card h3,
-.cta-card h2,
-.contact-card h3 {
-  margin: 0;
 }
 
 .mini-label {
   margin: 0 0 0.35rem;
   font-size: 0.78rem;
-  color: #8ea7c3;
+  color: var(--sr-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-}
-
-.preview-top h3,
-.activity-header h4 {
-  color: #f6fbff;
 }
 
 .status-pill {
@@ -820,67 +1177,31 @@ onMounted(() => {
   border: 1px solid rgba(34, 197, 94, 0.16);
 }
 
-.stats-grid,
-.feature-grid,
-.steps-grid,
-.roles-grid,
-.contact-grid {
+.stats-grid, .feature-grid, .steps-grid, .roles-grid, .contact-grid {
   display: grid;
   gap: 1rem;
 }
 
-.stats-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 1.2rem;
-}
+.stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 1.2rem; }
 
-.stat-card,
-.feature-card,
-.step-card,
-.role-card,
-.contact-card {
+.stat-card, .feature-card, .step-card, .role-card, .contact-card {
   border-radius: 22px;
   padding: 1.1rem;
-  background: rgba(9, 18, 34, 0.84);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.18);
+  background: var(--sr-card-bg);
+  border: 1px solid var(--sr-border-soft);
+  box-shadow: 0 18px 34px var(--sr-shadow-soft);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-.stat-card h4 {
-  margin: 0;
-  font-size: 1.65rem;
-  color: #f8fbff;
+.stat-card:hover, .feature-card:hover, .step-card:hover, .role-card:hover, .contact-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 42px var(--sr-shadow-med);
+  border-color: var(--sr-border-accent-hover);
 }
 
-.stat-card p,
-.activity-item p,
-.feature-card p,
-.step-card p,
-.role-card p,
-.cta-card p,
-.section-heading p,
-.landing-footer p,
-.contact-card p,
-.contact-card li {
-  margin: 0.4rem 0 0;
-  color: #9cb3ce;
-  line-height: 1.65;
-}
-
-.stat-card p,
-.feature-card p,
-.step-card p,
-.role-card p,
-.contact-card p,
-.contact-card li {
-  font-size: 0.95rem;
-}
-
-.feature-card h3,
-.role-card h3,
-.step-card h3,
-.contact-card h3 {
-  color: #eff6ff;
+.stat-card h4 { margin: 0; font-size: 1.65rem; color: var(--sr-heading); }
+.stat-card p, .feature-card p, .step-card p, .role-card p, .contact-card p {
+  margin: 0.4rem 0 0; color: var(--sr-text-muted); font-size: 0.95rem; line-height: 1.65;
 }
 
 .accent-blue { border-top: 4px solid #2563eb; }
@@ -892,690 +1213,307 @@ onMounted(() => {
   margin-top: 1.2rem;
   padding: 1rem;
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(9, 20, 37, 0.95), rgba(6, 16, 31, 0.9));
-  border: 1px solid rgba(59, 130, 246, 0.12);
+  background: linear-gradient(180deg, var(--sr-panel-bg-1), var(--sr-panel-bg-2));
+  border: 1px solid var(--sr-panel-border);
 }
 
-.activity-header span {
-  font-size: 0.88rem;
-  color: #7f9abc;
-}
-
-.activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  margin-top: 1rem;
-}
-
-.activity-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.8rem;
-}
-
-.activity-item strong {
-  color: #eef6ff;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-top: 0.35rem;
-  flex-shrink: 0;
-}
-
+.activity-list { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem; }
+.activity-item { display: flex; align-items: flex-start; gap: 0.8rem; }
+.activity-item strong { color: var(--sr-heading); }
+.dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 0.35rem; flex-shrink: 0; }
 .dot.green { background: #22c55e; }
 .dot.orange { background: #f97316; }
 .dot.blue { background: #3b82f6; }
 
-/* .trust-strip {
-  gap: 1rem;
-  padding-top: 1.15rem;
-  padding-bottom: 1.15rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.08);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-  background: rgba(3, 10, 20, 0.42);
-} */
+.content-section { padding-top: 5rem; padding-bottom: 5rem; }
+.alt-bg { background: linear-gradient(180deg, rgba(4, 12, 24, 0.25), rgba(10, 20, 38, 0.42)); }
 
-.trust-item {
-  flex: 1;
-  min-width: 220px;
-}
+.section-heading { max-width: 820px; margin-bottom: 2rem; }
+.section-heading.center { margin-left: auto; margin-right: auto; text-align: center; }
+.section-heading h2 { margin: 1rem 0 0.85rem; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.15; color: var(--sr-heading); }
 
-.trust-item strong {
-  display: block;
-  margin-bottom: 0.25rem;
-  color: #edf5ff;
-}
-
-.trust-item span {
-  color: #91a8c4;
-}
-
-.content-section {
-  padding-top: 5rem;
-  padding-bottom: 5rem;
-}
-
-.alt-bg {
-  background: linear-gradient(180deg, rgba(4, 12, 24, 0.25), rgba(10, 20, 38, 0.42));
-}
-
-.section-heading {
-  max-width: 820px;
-  margin-bottom: 2rem;
-}
-
-.section-heading.center {
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-}
-
-.section-heading h2 {
-  margin: 1rem 0 0.85rem;
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.15;
-  color: #f8fbff;
-}
-
-.feature-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.feature-card,
-.role-card,
-.step-card,
-.contact-card,
-.feature-chip,
-.stat-card {
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-}
-
-.feature-card:hover,
-.role-card:hover,
-.step-card:hover,
-.stat-card:hover,
-.contact-card:hover,
-.feature-chip:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 42px rgba(0, 0, 0, 0.28);
-  border-color: rgba(96, 165, 250, 0.18);
-}
-
+.feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .feature-icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
+  width: 54px; height: 54px; border-radius: 18px; display: grid; place-items: center;
+  font-size: 1.4rem; margin-bottom: 1rem; background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(34, 211, 238, 0.16));
+}
+
+.steps-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.step-number { width: fit-content; padding: 0.45rem 0.7rem; font-size: 0.85rem; margin-bottom: 1rem; background: rgba(37, 99, 235, 0.16); color: var(--sr-accent-text); border: 1px solid var(--sr-border-accent); }
+
+.roles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.placeholder-note {
+  max-width: 820px; margin: -1.2rem auto 2rem; text-align: center; font-size: 0.85rem;
+  color: var(--sr-text-faint); background: var(--sr-chip-bg); border: 1px dashed var(--sr-border-accent); border-radius: 14px; padding: 0.7rem 1rem;
+}
+
+.gallery-heading { max-width: 820px; margin: 2.5rem auto 1.2rem; text-align: center; }
+.gallery-heading h3 { margin: 0 0 0.4rem; color: var(--sr-heading); font-size: 1.4rem; }
+
+/* ---- DONATION DRIVE SECTION ---- */
+.donate-layout { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 1.2rem; align-items: start; }
+.donate-summary { display: flex; flex-direction: column; gap: 1rem; }
+.donate-stat {
+  border-radius: 22px; padding: 1.4rem; background: var(--sr-card-bg); border: 1px solid var(--sr-border-soft); box-shadow: 0 18px 34px var(--sr-shadow-soft); border-top: 4px solid #2563eb;
+}
+.donate-stat.urgent { border-top-color: #f97316; }
+.donate-stat h4 { margin: 0; font-size: 2.2rem; color: var(--sr-heading); }
+.donate-stat p { margin: 0.35rem 0 0; color: var(--sr-text-muted); }
+
+.donate-needs-card {
+  border-radius: 22px; padding: 1.4rem; background: var(--sr-card-bg); border: 1px solid var(--sr-border-soft); box-shadow: 0 18px 34px var(--sr-shadow-soft);
+}
+.donate-needs-card h3 { margin: 0 0 1rem; color: var(--sr-heading); }
+.donate-needs-list { list-style: none; margin: 0 0 1.4rem; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.donate-needs-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.75rem 0.9rem; border-radius: 14px; background: var(--sr-btn-secondary-bg); border: 1px solid var(--sr-border-faint); flex-wrap: wrap;
+}
+.need-name { font-weight: 700; color: var(--sr-heading); }
+.need-qty { color: var(--sr-text-muted); font-size: 0.88rem; }
+.need-pill { padding: 0.3rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
+.need-pill.urgent { background: rgba(251,113,133,.16); color: #fb7185; }
+.need-pill.high { background: rgba(251,191,36,.16); color: #fbbf24; }
+.need-pill.medium { background: rgba(56,189,248,.16); color: #38bdf8; }
+.need-pill.low { background: rgba(52,211,153,.16); color: #34d399; }
+
+.donate-cta { width: 100%; justify-content: center; display: flex; }
+.donate-note { margin: 0.8rem 0 0; font-size: 0.82rem; text-align: center; color: var(--sr-text-faint); }
+
+/* ---- CTA & CONTACT SECTIONS ---- */
+.cta-section { padding-top: 2rem; padding-bottom: 5rem; }
+.cta-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 2rem; border-radius: 30px; color: white; background: linear-gradient(135deg, #103b8d, #1d4ed8 45%, #0ea5e9 100%); box-shadow: 0 30px 60px var(--sr-shadow-med); border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.contact-section { padding-top: 0.5rem; padding-bottom: 3rem; }
+.contact-shell { padding: 2rem; border-radius: 32px; background: linear-gradient(180deg, var(--sr-shell-bg-1), var(--sr-shell-bg-2)); border: 1px solid var(--sr-border); box-shadow: 0 26px 54px var(--sr-shadow-med); }
+.contact-intro { max-width: 760px; margin-bottom: 1.5rem; }
+.contact-intro h2 { margin: 1rem 0 0.7rem; font-size: clamp(1.8rem, 4vw, 2.7rem); color: var(--sr-heading); }
+
+.contact-grid.three-division-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
+.primary-contact-card { background: linear-gradient(135deg, var(--sr-primary-card-bg-1), var(--sr-shell-bg-1)); }
+.contact-kicker { margin-bottom: 1rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sr-accent-text); }
+
+.contact-details-list { display: flex; flex-direction: column; gap: 0.95rem; margin-top: 1rem; }
+.contact-details-list.compact { gap: 0.85rem; }
+.contact-line { display: flex; align-items: flex-start; gap: 0.85rem; padding: 0.95rem 1rem; border-radius: 18px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--sr-border-faint); }
+.contact-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; font-size: 1rem; background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(34, 211, 238, 0.16)); }
+.contact-line label { display: block; margin-bottom: 0.3rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sr-text-faint); }
+.contact-line a, .contact-line p { display: block; margin: 0; line-height: 1.55; }
+.contact-line a { color: var(--sr-heading); font-weight: 700; text-decoration: none; word-break: break-word; }
+
+.contact-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.8rem; }
+.contact-btn { text-decoration: none; }
+.dark-outline { background: transparent; color: var(--sr-heading); border: 1px solid rgba(255, 255, 255, 0.18); }
+.wide-card { grid-column: 1 / -1; }
+
+.btn { border: none; border-radius: 999px; padding: 0.8rem 1.2rem; font-weight: 700; cursor: pointer; transition: 0.25s ease; }
+.btn.large { padding: 0.95rem 1.4rem; font-size: 1rem; }
+.btn.primary { color: white; background: linear-gradient(135deg, #2563eb, #0ea5e9); box-shadow: 0 18px 34px rgba(37, 99, 235, 0.34); }
+.btn.primary:hover { transform: translateY(-2px); box-shadow: 0 24px 40px rgba(37, 99, 235, 0.38); }
+.btn.secondary, .btn.ghost { background: var(--sr-btn-secondary-bg); color: var(--sr-text); border: 1px solid var(--sr-border-accent); }
+.btn.light { background: white; color: #0f3f8c; }
+.btn.outline-light { background: transparent; color: white; border: 1px solid rgba(255, 255, 255, 0.38); }
+
+.logo-img { width: 50px; height: 50px; object-fit: contain; display: block; border-radius: 8px; }
+
+/* ---- IN-KIND PLEDGE MODAL STYLES ---- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(4, 12, 24, 0.82);
+  backdrop-filter: blur(8px);
   display: grid;
   place-items: center;
-  font-size: 1.4rem;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(34, 211, 238, 0.16));
+  padding: 1rem;
 }
 
-.steps-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.step-card {
+.modal-card {
   position: relative;
-  overflow: hidden;
+  width: 100%;
+  max-width: 580px;
+  background: var(--sr-panel-bg-1);
+  border: 1px solid var(--sr-border-accent);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.step-number {
-  width: fit-content;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.85rem;
-  margin-bottom: 1rem;
-  background: rgba(37, 99, 235, 0.16);
-  color: #90b8ff;
-  border: 1px solid rgba(96, 165, 250, 0.16);
-}
-
-.roles-grid,
-.contact-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.cta-section {
-  padding-top: 2rem;
-  padding-bottom: 5rem;
-}
-
-.cta-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 2rem;
-  border-radius: 30px;
-  color: white;
-  background: linear-gradient(135deg, #103b8d, #1d4ed8 45%, #0ea5e9 100%);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.cta-card p {
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.contact-section {
-  padding-top: 0.5rem;
-  padding-bottom: 3rem;
-}
-
-.contact-shell {
-  padding: 2rem;
-  border-radius: 32px;
-  background: linear-gradient(180deg, rgba(7, 17, 31, 0.92), rgba(10, 18, 34, 0.86));
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  box-shadow: 0 26px 54px rgba(0, 0, 0, 0.24);
-}
-
-.contact-intro {
-  max-width: 760px;
-  margin-bottom: 1.5rem;
-}
-
-.contact-intro h2 {
-  margin: 1rem 0 0.7rem;
-  font-size: clamp(1.8rem, 4vw, 2.7rem);
-  color: #f8fbff;
-}
-
-.contact-grid {
-  gap: 1rem;
-}
-
-.contact-card ul {
-  list-style: none;
-  padding: 0;
-  margin: 0.5rem 0 0;
-}
-
-.contact-card li + li {
-  margin-top: 0.55rem;
-}
-
-.contact-card strong {
-  color: #eef6ff;
-}
-
-.contact-label {
-  display: inline-flex;
-  width: fit-content;
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  color: #8ab4ff;
-  background: rgba(37, 99, 235, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.14);
-}
-
-.feature-contact {
-  background: linear-gradient(180deg, rgba(14, 28, 51, 0.98), rgba(7, 17, 31, 0.92));
-}
-
-.landing-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-top: 1.5rem;
-  padding-bottom: 2rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.08);
-}
-
-.landing-footer h3 {
-  margin: 0;
-  color: #f8fbff;
-}
-
-.btn {
-  border: none;
-  border-radius: 999px;
-  padding: 0.8rem 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.25s ease;
-}
-
-.btn.large {
-  padding: 0.95rem 1.4rem;
-  font-size: 1rem;
-}
-
-.btn.primary {
-  color: white;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
-  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.34);
-}
-
-.btn.primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 24px 40px rgba(37, 99, 235, 0.38);
-}
-
-.btn.secondary,
-.btn.ghost {
-  background: rgba(10, 20, 38, 0.72);
-  color: #e8f1ff;
-  border: 1px solid rgba(96, 165, 250, 0.16);
-}
-
-.btn.light {
-  background: white;
-  color: #0f3f8c;
-}
-
-.btn.outline-light {
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1.2rem;
   background: transparent;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.38);
+  border: none;
+  font-size: 1.8rem;
+  color: var(--sr-text-muted);
+  cursor: pointer;
 }
 
-.btn.secondary:hover,
-.btn.ghost:hover,
-.btn.light:hover,
-.btn.outline-light:hover {
-  transform: translateY(-2px);
+.modal-header { margin-bottom: 1.2rem; }
+.modal-header h3 { margin: 0.5rem 0 0.2rem; color: var(--sr-heading); }
+.modal-header p { margin: 0; color: var(--sr-text-muted); font-size: 0.9rem; }
+
+.pledge-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-group label { font-size: 0.82rem; font-weight: 700; color: var(--sr-accent-text); }
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: var(--sr-card-bg);
+  border: 1px solid var(--sr-border-soft);
+  color: var(--sr-heading);
+  font-family: inherit;
+  font-size: 0.95rem;
 }
 
-@media (max-width: 1180px) {
-  .hero-section,
-  .cta-card {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-  }
+.form-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
 
-  .feature-grid,
-  .roles-grid,
-  .contact-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 0.5rem; }
+.modal-actions.center { justify-content: center; }
 
-  .steps-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.pledge-success-view { text-align: center; padding: 1.5rem 0; }
+.success-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+.pledge-success-view h3 { margin: 0.5rem 0; color: var(--sr-heading); }
+.ref-code { font-size: 1.1rem; color: var(--sr-accent-text); }
+.success-text { margin: 1rem 0 1.5rem; color: var(--sr-text-muted); line-height: 1.6; font-size: 0.95rem; }
 
-  .landing-header {
-    flex-wrap: wrap;
-  }
+@media (max-width: 1024px) {
+  .contact-grid.three-division-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 860px) {
-  .hero-feature-chips,
-  .feature-grid,
-  .steps-grid,
-  .roles-grid,
-  .contact-grid,
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-content h2 {
-    max-width: 100%;
-  }
+  .donate-layout, .hero-section, .cta-card { grid-template-columns: 1fr; }
+  .feature-grid, .steps-grid, .roles-grid, .contact-grid, .stats-grid { grid-template-columns: 1fr; }
+  .wide-card { grid-column: auto; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+  .contact-grid.three-division-grid { grid-template-columns: 1fr; }
+}
+
+
+
+/* ---- MOBILE & TABLET LAYOUT FIXES ---- */
+
+@media (max-width: 860px) {
+  /* 1. Prevent screen clipping & edge crowding */
   .landing-header,
-  .landing-footer,
-  .trust-strip {
-    flex-direction: column;
-    align-items: flex-start;
+  .hero-section,
+  .content-section,
+  .cta-section,
+  .contact-section {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+
+  /* 2. Header alignment and link collapse */
+  .landing-header {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
   }
 
   .nav-links {
+    display: none; /* Hide standard links to prevent header crowding */
+  }
+
+  .nav-actions {
+    margin-left: auto;
+  }
+
+  /* 3. Hero layout & typography scaling */
+  .hero-section {
+    grid-template-columns: 1fr !important;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    gap: 2rem;
+  }
+
+  .hero-content h2, 
+  .cta-card h2 {
+    font-size: clamp(1.85rem, 7vw, 2.75rem) !important;
+    line-height: 1.25;
+  }
+
+  .hero-feature-chips {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem;
+  }
+
+  .hero-actions {
+    flex-direction: column;
     width: 100%;
-    overflow-x: auto;
-    padding-bottom: 0.2rem;
-    flex-wrap: nowrap;
   }
 
-  .nav-links::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  .nav-links::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.24);
-    border-radius: 999px;
-  }
-
-  .nav-actions,
-  .hero-actions,
-  .cta-actions,
-  .footer-links {
-    width: 100%;
-  }
-
-  .nav-actions .btn,
   .hero-actions .btn,
   .cta-actions .btn {
     width: 100%;
     justify-content: center;
   }
 
-  .hero-section {
-    padding-top: 2.8rem;
+  /* 4. Multi-column grid conversions */
+  .stats-grid,
+  .feature-grid,
+  .steps-grid,
+  .roles-grid,
+  .contact-grid,
+  .three-division-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem;
   }
 
-
-  .cta-card,
-  .contact-shell {
-    padding: 1.3rem;
-  }
-}
-
-
-
-
-.contact-section {
-  padding-top: 0.5rem;
-  padding-bottom: 3rem;
-}
-
-.contact-shell {
-  padding: 2rem;
-  border-radius: 32px;
-  background: linear-gradient(180deg, rgba(7, 17, 31, 0.92), rgba(10, 18, 34, 0.86));
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  box-shadow: 0 26px 54px rgba(0, 0, 0, 0.24);
-}
-
-.contact-intro {
-  max-width: 760px;
-  margin-bottom: 1.5rem;
-}
-
-.contact-intro h2 {
-  margin: 1rem 0 0.7rem;
-  font-size: clamp(1.8rem, 4vw, 2.7rem);
-  color: #f8fbff;
-}
-
-.contact-grid {
-  gap: 1rem;
-}
-
-.contact-grid.redesigned {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: stretch;
-}
-
-.wide-card {
-  grid-column: 1 / -1;
-}
-
-.primary-contact-card {
-  background: linear-gradient(135deg, rgba(17, 39, 71, 0.98), rgba(7, 17, 31, 0.92));
-}
-
-.contact-card {
-  border-radius: 22px;
-  padding: 1.2rem;
-  background: rgba(9, 18, 34, 0.84);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.18);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-}
-
-.contact-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 42px rgba(0, 0, 0, 0.28);
-  border-color: rgba(96, 165, 250, 0.18);
-}
-
-
-
-.contact-kicker {
-margin-bottom: 30px;
-  /* margin: 0 0 0.45rem; */
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #8ab4ff;
-}
-
-.contact-summary {
-  margin: 0.55rem 0 0;
-  max-width: 760px;
-  color: #9eb6d1;
-  line-height: 1.65;
-}
-
-.contact-badge {
-  align-self: flex-start;
-  white-space: nowrap;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.38rem 0.72rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #dbeafe;
-  background: rgba(37, 99, 235, 0.16);
-  border: 1px solid rgba(96, 165, 250, 0.16);
-  white-space: nowrap;
-}
-
-.primary-contact-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.contact-details-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.95rem;
-  margin-top: 1rem;
-}
-
-.contact-details-list.three-up {
- display: grid;
- grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
- gap: 0.95rem;
-}
-
-.contact-details-list.compact {
-  gap: 0.85rem;
-}
-
-.preview-top h3,
-.contact-hero h3 {
-  line-height: 1.2;
-  max-width: 18ch;
-}
-
-.contact-summary {
-  max-width: 60ch;
-  line-height: 1.65;
-}
-
-.contact-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-  padding: 0.95rem 1rem;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(148, 163, 184, 0.08);
-}
-
-.contact-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  font-size: 1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(34, 211, 238, 0.16));
-}
-
-.contact-line label {
-  display: block;
-  margin-bottom: 0.3rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #8ea7c3;
-}
-
-.contact-line a,
-.contact-line p {
-  display: block;
-  margin: 0;
-  line-height: 1.55;
-}
-
-.contact-line a {
-  color: #f8fbff;
-  font-weight: 700;
-  text-decoration: none;
-  word-break: break-word;
-}
-
-.contact-line a:hover {
-  color: #8ec5ff;
-}
-
-.contact-actions {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-  margin-top: 0.2rem;
-}
-
-.contact-btn {
-  text-decoration: none;
-}
-
-.dark-outline {
-  background: transparent;
-  color: #eef6ff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.support-card {
-  min-height: 100%;
-}
-
-.contact-note-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  margin-top: 1rem;
-}
-
-.contact-note-list p {
-  margin: 0;
-  color: #9cb3ce;
-  line-height: 1.7;
-}
-
-.contact-note-list strong {
-  color: #eef6ff;
-}
-
-
-.preview-top,
-.contact-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.preview-top > div,
-.contact-hero > div {
-  flex: 1 1 260px;
-  min-width: 0;
-}
-
-
-
-.status-pill,
-.contact-badge {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  align-self: flex-start;
-}
-
-.preview-top {
-  margin-bottom: 1rem;
-}
-
-.contact-hero {
-  margin-bottom: 1rem;
-}
-
-.logo-img {
-  width: 50px;
-  height:  50px;
-  object-fit: contain;
-  display: block;
-  border-radius: 8px;
-}
-
-
-@media (max-width: 860px) {
-  .contact-grid.redesigned {
-    grid-template-columns: 1fr;
-  }
-
-  .wide-card {
-    grid-column: auto;
-  }
-
-  .contact-details-list.three-up {
-    grid-template-columns: 1fr;
-  }
-
-  .contact-hero {
+  /* 5. CTA banner stack */
+  .cta-card {
     flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 760px) {
-  .contact-shell {
-    padding: 1.3rem;
-  }
-
-  .contact-actions {
-    flex-direction: column;
-  }
-
-  .contact-actions .btn,
-  .contact-actions .contact-btn {
-    margin-top: 70px;
-    width: 100%;
+    align-items: stretch;
     text-align: center;
-    justify-content: center;
+    padding: 1.75rem 1.25rem;
   }
-}
 
-@media (max-width: 768px) {
-  .preview-top,
-  .contact-hero {
+  .cta-actions {
     flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .status-pill,
-  .contact-badge {
-    align-self: flex-start;
+    width: 100%;
+    margin-top: 1rem;
   }
 }
+
+@media (max-width: 640px) {
+  /* 6. Mobile Modal & Form optimization */
+  .modal-backdrop {
+    padding: 0.5rem;
+    align-items: flex-end; /* Sheet presentation on mobile */
+  }
+
+  .modal-card {
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 1.25rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+
+  .glass-card {
+    padding: 1.1rem;
+    border-radius: 16px;
+  }
+}
+
 </style>

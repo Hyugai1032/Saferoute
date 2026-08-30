@@ -18,6 +18,44 @@ from auth_app.models import Municipality, Barangay
 from auth_app.permissions import IsStaffOrHigher, IsMunicipalAdminOrHigher
 
 
+import random
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Donation, DonationNeed
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def public_pledge_donation(request):
+    data = request.data
+    
+    ref_code = f"PLG-{random.randint(1000, 9999)}"
+    
+    try:
+        need_obj = DonationNeed.objects.filter(id=data.get('need_id')).first()
+        
+        pledge = DonationPledge.objects.create(
+            need=need_obj,
+            donor_name=data.get('donor_name'),
+            contact_number=data.get('contact_number'),
+            quantity=data.get('quantity', 1),
+            dropoff_date=data.get('dropoff_date'),
+            notes=data.get('notes', ''),
+            reference_code=ref_code,
+            status='PENDING'
+        )
+        
+        return Response({
+            "message": "Pledge recorded successfully",
+            "reference_code": pledge.reference_code
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 class EvacuationCenterViewSet(viewsets.ModelViewSet):
     serializer_class = EvacuationCenterSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -605,7 +643,7 @@ class EvacueeViewSet(viewsets.ModelViewSet):
 
 class DonationNeedViewSet(viewsets.ModelViewSet):
     serializer_class = DonationNeedSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
 
     filterset_fields = [
@@ -634,6 +672,20 @@ class DonationNeedViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = DonationNeed.objects.select_related("center", "requested_by").all()
+
+        # 1. Check if the user is unauthenticated or anonymous (Public Landing Page)
+        if not user or user.is_anonymous:
+            return DonationNeed.objects.all() 
+
+        # 2. Handle authenticated roles safely
+        if getattr(user, 'role', None) == "EVAC_CENTER_STAFF":
+            # Return needs specific to staff's assigned center (if applicable)
+            return DonationNeed.objects.filter(center=user.assigned_center)
+        # 3. Default fallback (Admins / Superusers)
+        return DonationNeed.objects.all()
+
+
+
 
         if user.role == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
@@ -665,7 +717,8 @@ class DonationNeedViewSet(viewsets.ModelViewSet):
 
 class DonationViewSet(viewsets.ModelViewSet):
     serializer_class = DonationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny] # 👈 ALLOW PUBLIC PLEDGES
+    authentication_classes = []                 # 👈 IGNORE STALE/MISSING TOKENS FOR PUBLIC POST
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
 
     filterset_fields = [
@@ -693,15 +746,21 @@ class DonationViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        user = self.request.user
+        user = getattr(self.request, 'user', None)
         qs = Donation.objects.select_related("center", "need", "received_by").all()
 
-        if user.role == "EVAC_CENTER_STAFF":
+        # 1. Public / Guest users (Unauthenticated)
+        if user is None or not getattr(user, 'is_authenticated', False):
+            return qs
+
+        # 2. Staff filtering
+        if getattr(user, 'role', None) == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
                 return qs.none()
             return qs.filter(center_id=user.assigned_center_id)
 
-        if user.role == "MUNICIPAL_ADMIN":
+        # 3. Municipal Admin filtering
+        if getattr(user, 'role', None) == "MUNICIPAL_ADMIN":
             if not user.municipality_id:
                 return qs.none()
             return qs.filter(center__municipality_id=user.municipality_id)
@@ -709,28 +768,31 @@ class DonationViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
+        user = getattr(self.request, 'user', None)
         center = serializer.validated_data.get("center")
         need = serializer.validated_data.get("need")
-        status_value = serializer.validated_data.get("status", "RECEIVED")
+        status_value = serializer.validated_data.get("status", "PLEDGED") # Default to PLEDGED for public
         quantity = serializer.validated_data.get("quantity", 0)
 
-        if user.role == "EVAC_CENTER_STAFF":
-            if not user.assigned_center_id:
-                raise PermissionDenied("Staff has no assigned center.")
-            if center.id != user.assigned_center_id:
-                raise PermissionDenied("You can only record donations for your assigned center.")
+        # Only enforce role permissions if an authenticated staff/admin is creating this record
+        if user and getattr(user, 'is_authenticated', False):
+            if getattr(user, 'role', None) == "EVAC_CENTER_STAFF":
+                if not user.assigned_center_id:
+                    raise PermissionDenied("Staff has no assigned center.")
+                if center and center.id != user.assigned_center_id:
+                    raise PermissionDenied("You can only record donations for your assigned center.")
 
-        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
-            if center.municipality_id != user.municipality_id:
-                raise PermissionDenied("You can only record donations in your municipality.")
+            if getattr(user, 'role', None) in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+                if center and center.municipality_id != user.municipality_id:
+                    raise PermissionDenied("You can only record donations in your municipality.")
 
+        is_received = status_value == "RECEIVED"
         donation = serializer.save(
-            received_by=user if status_value == "RECEIVED" else None,
-            received_at=timezone.now() if status_value == "RECEIVED" else None,
+            received_by=user if (user and getattr(user, 'is_authenticated', False) and is_received) else None,
+            received_at=timezone.now() if is_received else None,
         )
 
-        if need and status_value == "RECEIVED":
+        if need and is_received:
             need.quantity_received = int(need.quantity_received or 0) + int(quantity or 0)
             need.save()
 
@@ -759,6 +821,7 @@ class DonationViewSet(viewsets.ModelViewSet):
             new_need.quantity_received = int(new_need.quantity_received or 0) + int(new_quantity or 0)
             new_need.save()
 
+            
 class DonationDistributionViewSet(viewsets.ModelViewSet):
     serializer_class = DonationDistributionSerializer
     permission_classes = [permissions.IsAuthenticated]

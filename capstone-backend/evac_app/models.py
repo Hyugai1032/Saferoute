@@ -6,6 +6,7 @@ from auth_app.models import Municipality, CustomUser, Barangay
 
 # Create your models here.
 
+
 class EvacuationCenter(models.Model):
     STATUS_CHOICES = [
         ('PERMANENT', 'Permanent'),
