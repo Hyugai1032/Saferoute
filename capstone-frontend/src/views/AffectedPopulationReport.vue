@@ -27,9 +27,6 @@
                 Export to Excel
             </button>
 
-            <button class="btn-secondary" @click="printReport" :disabled="!rows.length">
-                Print
-            </button>
         </div>
       </div>
 
