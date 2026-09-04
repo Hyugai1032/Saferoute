@@ -4,6 +4,8 @@ from datetime import timedelta
 from django.utils import timezone
 from django.apps import apps
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models 
 from django.db.models import F
 from django.core.mail import send_mail
@@ -261,6 +263,167 @@ class RegisterView(generics.CreateAPIView):
             "user_id": user.id,
             "role": user.role
         })
+
+def send_password_reset_otp_email(email, code):
+    send_mail(
+        subject="Your SafeRoute password reset code",
+        message=(
+            f"Your password reset code is: {code}\n\n"
+            f"This code expires in {OTP_EXPIRY_MINUTES} minutes. "
+            "If you didn't request this, you can safely ignore this email — "
+            "your password will not be changed."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
+class SendPasswordResetOTPView(APIView):
+    """
+    Issues a one-time code for the password-reset flow.
+ 
+    Deliberately returns the SAME generic success response whether or not an
+    account exists for the given email, so the endpoint can't be used to
+    enumerate registered accounts. The OTP row (and cooldown/rate-limit) is
+    only ever created when a matching account exists.
+    """
+    permission_classes = [AllowAny]
+ 
+    GENERIC_RESPONSE = {
+        "detail": "If an account exists for this email, a verification code has been sent.",
+        "expires_in": OTP_EXPIRY_MINUTES * 60,
+    }
+ 
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        if not email:
+            return Response({"email": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        user = CustomUser.objects.filter(email__iexact=email).first()
+ 
+        # No account -> pretend everything is fine, don't create an OTP, don't send mail.
+        if not user:
+            return Response(self.GENERIC_RESPONSE)
+ 
+        existing = (
+            EmailOTP.objects
+            .filter(email__iexact=email, purpose="RESET_PASSWORD")
+            .order_by("-created_at")
+            .first()
+        )
+        if existing:
+            wait_left = (
+                existing.created_at + timedelta(seconds=OTP_RESEND_COOLDOWN_SECONDS) - timezone.now()
+            ).total_seconds()
+            if wait_left > 0:
+                # NOTE: this 429 only ever fires for real accounts, which is a very
+                # minor enumeration signal (an attacker could infer existence by
+                # spamming requests and checking for 429 vs 200). Acceptable for
+                # most apps; switch to always-200 + silent no-op if you need to
+                # fully close that gap.
+                return Response(
+                    {"detail": f"Please wait {int(wait_left)}s before requesting another code."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+ 
+        code = EmailOTP.generate_code()
+        otp = EmailOTP(
+            email=email,
+            purpose="RESET_PASSWORD",
+            expires_at=timezone.now() + timedelta(minutes=OTP_EXPIRY_MINUTES),
+        )
+        otp.set_code(code)
+        otp.save()
+ 
+        try:
+            send_password_reset_otp_email(email, code)
+        except Exception:
+            otp.delete()
+            return Response(
+                {"detail": "Failed to send verification email. Please try again."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+ 
+        return Response(self.GENERIC_RESPONSE)
+ 
+ 
+class ResetPasswordView(APIView):
+    """
+    Verifies the OTP and sets the new password in a single call.
+    Mirrors VerifyRegisterOTPView's attempt/expiry/lockout logic, then
+    applies the new password immediately on success.
+    """
+    permission_classes = [AllowAny]
+ 
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        code = (request.data.get("otp_code") or "").strip()
+        new_password = request.data.get("new_password")
+ 
+        if not email or not code or not new_password:
+            return Response(
+                {"detail": "Email, verification code, and new password are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+ 
+        # Enforce your project's password rules (length, common-password check, etc.)
+        try:
+            validate_password(new_password)
+        except DjangoValidationError as e:
+            return Response({"new_password": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        otp = (
+            EmailOTP.objects
+            .filter(email__iexact=email, purpose="RESET_PASSWORD")
+            .order_by("-created_at")
+            .first()
+        )
+ 
+        if not otp:
+            return Response(
+                {"otp_code": "No verification code found for this email. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+ 
+        if otp.is_expired():
+            return Response(
+                {"otp_code": "This code has expired. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+ 
+        if otp.attempts >= OTP_MAX_ATTEMPTS:
+            return Response(
+                {"otp_code": "Too many incorrect attempts. Please request a new code."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+ 
+        if not otp.check_code(code):
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            remaining = OTP_MAX_ATTEMPTS - otp.attempts
+            return Response(
+                {"otp_code": f"Incorrect code. {remaining} attempt(s) remaining."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+ 
+        user = CustomUser.objects.filter(email__iexact=email).first()
+        if not user:
+            # OTP was only ever created for an existing account, so this shouldn't
+            # happen in practice (e.g. account deleted mid-flow) — guard anyway.
+            otp.delete()
+            return Response({"detail": "Unable to reset password."}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+ 
+        # OTP is single-use
+        otp.delete()
+ 
+        # Optional but recommended: if you're using JWT (SimpleJWT etc.), blacklist
+        # this user's outstanding refresh tokens here so old sessions can't
+        # continue using a password that's just been changed.
+ 
+        return Response({"detail": "Password has been reset successfully."})
 
 
 class UserProfileView(APIView):

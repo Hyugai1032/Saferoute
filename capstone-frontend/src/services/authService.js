@@ -55,3 +55,34 @@ export const getUserProfile = async () => {
     throw error.response?.data;
   }
 };
+
+/**
+ * Step 1 of password reset: request a 6-digit OTP be emailed to the user.
+ * Matches SendPasswordResetOTPView — always resolves with a generic success
+ * message, whether or not the email is registered.
+ */
+export const requestPasswordResetOtp = async (email) => {
+  try {
+    const response = await axios.post(API_URL + 'auth/password-reset/send-otp/', { email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Unable to send reset code' };
+  }
+};
+
+/**
+ * Step 2 of password reset: verify the OTP and set a new password.
+ * Matches ResetPasswordView, which expects { email, otp_code, new_password }.
+ */
+export const resetPasswordWithOtp = async ({ email, otp, newPassword }) => {
+  try {
+    const response = await axios.post(API_URL + 'auth/password-reset/reset/', {
+      email,
+      otp_code: otp,
+      new_password: newPassword
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Unable to reset password' };
+  }
+};

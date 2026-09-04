@@ -16,7 +16,9 @@ from .api_views import (
     UpdateMeView,
     NearbyHazardAlertsView,
     SendRegisterOTPView,
-    VerifyRegisterOTPView
+    VerifyRegisterOTPView,
+    SendPasswordResetOTPView,
+    ResetPasswordView,
 )
 
 from .api_views import HazardReportView   # ✅ IMPORTANT
@@ -34,6 +36,8 @@ router.register(r'gis-layers', GisLayerViewSet, basename="gis-layers")
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/password-reset/send-otp/', SendPasswordResetOTPView.as_view(), name='password-reset-send-otp'),
+    path('auth/password-reset/reset/', ResetPasswordView.as_view(), name='password-reset-confirm'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("user/profile/", UserProfileView.as_view(), name="user-profile"),
     path('hazards/', HazardReportView.as_view()),

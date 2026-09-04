@@ -500,10 +500,20 @@ async function fetchCenterRisk(centerId) {
   return await res.json()
 }
 
+const fetchBulkCenterRisk = async (ids) => {
+  const response = await fetch(
+    `${API_BASE}analytics/centers/congestion-risk-bulk/?center_ids=${ids.join(',')}&window=${windowMinutes.value}&horizon=${horizonMinutes.value}`,
+    { headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` } }
+  )
+  if (!response.ok) throw new Error(`Bulk risk fetch failed: ${response.status}`)
+  return await response.json()
+}
+
 async function loadSelectedCenterRisk() {
   if (!selectedCenterId.value) return
   try {
-    selectedRisk.value = await fetchCenterRisk(selectedCenterId.value)
+    const results = await fetchBulkCenterRisk([selectedCenterId.value]) // wrap in array
+    selectedRisk.value = results[0] || null                             // bulk returns an array
   } catch (e) {
     console.error(e)
     selectedRisk.value = null
@@ -514,16 +524,13 @@ async function refreshCongestion() {
   try {
     if (!centers.value.length) await fetchCenters()
 
-    const results = await Promise.all(
-      centers.value.map(c => fetchCenterRisk(c.id).catch(() => null))
-    )
-
-    centerRisks.value = results.filter(Boolean)   // ✅ MISSING LINE
+    centerRisks.value = await fetchBulkCenterRisk(centers.value.map(c => c.id)) // one call, all ids
     currentPage.value = 1
 
     await loadSelectedCenterRisk()
   } catch (e) {
     console.error('Failed to refresh congestion:', e)
+    centerRisks.value = []
   }
 }
 

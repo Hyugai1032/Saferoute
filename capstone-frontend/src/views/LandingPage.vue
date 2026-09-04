@@ -584,9 +584,11 @@ const router = useRouter()
 
 const donationNeeds = ref([]);
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+
 const fetchDonationNeeds = async () => {
   try {
-    const res = await fetch('http://127.0.0.1:8000/api/evac_centers/donation-needs/');
+    const res = await fetch(`${API_BASE}evac_centers/donation-needs/`);
     if (res.ok) {
       const data = await res.json();
       // Unpacks paginated response results or defaults to array

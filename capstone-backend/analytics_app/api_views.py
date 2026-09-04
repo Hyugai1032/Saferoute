@@ -5,6 +5,7 @@ import joblib
 import requests
 import pandas as pd
 import numpy as np
+from rest_framework.throttling import ScopedRateThrottle
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -175,6 +176,8 @@ def predict_weather_view(request):
     
 class CenterCongestionRiskView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'congestion'
+    throttle_classes = [ScopedRateThrottle]
 
     def get(self, request, center_id: int):
         # Optional query params:
@@ -200,6 +203,32 @@ class CenterCongestionRiskView(APIView):
 
         status_code = 200 if "error" not in result else 400
         return Response(result, status=status_code)
+
+class BulkCongestionRiskView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'congestion'
+
+    def get(self, request):
+        ids_param = request.query_params.get("center_ids", "")
+        try:
+            center_ids = [int(i) for i in ids_param.split(",") if i.strip()]
+        except ValueError:
+            return Response({"detail": "center_ids must be a comma-separated list of integers."}, status=400)
+
+        window = max(5, min(int(request.query_params.get("window", 60)), 24 * 60))
+        horizon = max(5, min(int(request.query_params.get("horizon", 60)), 6 * 60))
+
+        centers = EvacuationCenter.objects.filter(id__in=center_ids)
+        results = [
+            compute_congestion_risk(
+                center=center,
+                EvacuationLogModel=EvacuationLog,
+                params=CongestionParams(window_minutes=window, horizon_minutes=horizon),
+            )
+            for center in centers
+        ]
+        return Response(results)
     
 class AnalyticsStatsView(APIView):
     permission_classes = [IsAuthenticated]

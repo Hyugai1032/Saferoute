@@ -35,7 +35,8 @@
 
         <!-- Right Section -->
         <div class="login-right">
-          <div class="login-form">
+          <!-- LOGIN VIEW -->
+          <div class="login-form" v-if="authView === 'login'">
             <h2 class="form-title">Welcome Back</h2>
             <p class="form-subtitle">Sign in to access your account</p>
 
@@ -77,7 +78,7 @@
                   <span class="checkmark"></span>
                   Remember me
                 </label>
-                <a href="#" class="forgot-password">Forgot password?</a>
+                <a href="#" class="forgot-password" @click.prevent="goToForgotPassword">Forgot password?</a>
               </div>
 
               <button class="login-btn" type="submit" :disabled="loading">
@@ -100,6 +101,137 @@
               </div>
             </form>
           </div>
+
+          <!-- FORGOT PASSWORD: STEP 1 - REQUEST OTP -->
+          <div class="login-form" v-else-if="authView === 'forgot-request'">
+            <button type="button" class="back-btn" @click="goToLogin">
+              <i class="fas fa-arrow-left"></i> Back to sign in
+            </button>
+
+            <h2 class="form-title">Forgot Password</h2>
+            <p class="form-subtitle">Enter your email and we'll send you a code to reset your password</p>
+
+            <p v-if="forgotError" class="form-error">{{ forgotError }}</p>
+
+            <form @submit.prevent="handleRequestOtp">
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <div class="input-group">
+                  <i class="fas fa-user input-icon"></i>
+                  <input
+                    type="email"
+                    class="form-input"
+                    placeholder="Enter your email"
+                    v-model="forgotForm.email"
+                    required
+                  >
+                </div>
+              </div>
+
+              <button class="login-btn" type="submit" :disabled="forgotLoading">
+                <span v-if="!forgotLoading">
+                  <i class="fas fa-paper-plane"></i>
+                  Send Code
+                </span>
+                <span v-else>
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Sending...
+                </span>
+              </button>
+            </form>
+          </div>
+
+          <!-- FORGOT PASSWORD: STEP 2 - ENTER OTP + NEW PASSWORD -->
+          <div class="login-form" v-else-if="authView === 'forgot-reset'">
+            <button type="button" class="back-btn" @click="goToForgotPassword">
+              <i class="fas fa-arrow-left"></i> Use a different email
+            </button>
+
+            <h2 class="form-title">Enter Code</h2>
+            <p class="form-subtitle">
+              We sent a 6-digit code to <strong>{{ forgotForm.email }}</strong>
+            </p>
+
+            <p v-if="forgotError" class="form-error">{{ forgotError }}</p>
+            <p v-if="forgotSuccess" class="form-success">{{ forgotSuccess }}</p>
+
+            <form @submit.prevent="handleResetPassword">
+              <div class="form-group">
+                <label class="form-label">Verification Code</label>
+                <div class="input-group">
+                  <i class="fas fa-key input-icon"></i>
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="6"
+                    autocomplete="one-time-code"
+                    class="form-input otp-input"
+                    placeholder="6-digit code"
+                    v-model="forgotForm.otp"
+                    required
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="input-group">
+                  <i class="fas fa-lock input-icon"></i>
+                  <input
+                    :type="showPassword ? 'text' : 'password'"
+                    class="form-input"
+                    placeholder="Enter new password"
+                    v-model="forgotForm.newPassword"
+                    minlength="8"
+                    required
+                  >
+                  <button type="button" class="password-toggle" @click="togglePasswordVisibility">
+                    <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <div class="input-group">
+                  <i class="fas fa-lock input-icon"></i>
+                  <input
+                    :type="showPassword ? 'text' : 'password'"
+                    class="form-input"
+                    placeholder="Confirm new password"
+                    v-model="forgotForm.confirmPassword"
+                    minlength="8"
+                    required
+                  >
+                </div>
+              </div>
+
+              <button class="login-btn" type="submit" :disabled="forgotLoading">
+                <span v-if="!forgotLoading">
+                  <i class="fas fa-check"></i>
+                  Reset Password
+                </span>
+                <span v-else>
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Resetting...
+                </span>
+              </button>
+
+              <div style="text-align: center;">
+                <p>
+                  Didn't get a code?
+                  <a
+                    href="#"
+                    class="forgot-password"
+                    :class="{ disabled: resendCooldown > 0 }"
+                    @click.prevent="resendCooldown === 0 && handleRequestOtp()"
+                  >
+                    {{ resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code' }}
+                  </a>
+                </p>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -108,7 +240,7 @@
 
 <script setup>
 
-import { login, getUserProfile } from '../../services/authService';
+import { login, getUserProfile, requestPasswordResetOtp, resetPasswordWithOtp } from '../../services/authService';
 
 </script>
 
@@ -124,6 +256,20 @@ export default {
       },
       showPassword: false,
       loading: false,
+
+      // Forgot password / OTP reset flow
+      authView: 'login', // 'login' | 'forgot-request' | 'forgot-reset'
+      forgotForm: {
+        email: '',
+        otp: '',
+        newPassword: '',
+        confirmPassword: ''
+      },
+      forgotLoading: false,
+      forgotError: '',
+      forgotSuccess: '',
+      resendCooldown: 0,
+      resendTimerHandle: null,
       features: [
         {
           id: 1,
@@ -160,7 +306,131 @@ export default {
     togglePasswordVisibility() {
       this.showPassword = !this.showPassword
     },
-    
+
+    goToForgotPassword() {
+      this.forgotError = ''
+      this.forgotSuccess = ''
+      this.forgotForm.otp = ''
+      this.forgotForm.newPassword = ''
+      this.forgotForm.confirmPassword = ''
+      this.clearResendCooldown()
+      this.authView = 'forgot-request'
+    },
+
+    goToLogin() {
+      this.forgotError = ''
+      this.forgotSuccess = ''
+      this.clearResendCooldown()
+      this.authView = 'login'
+    },
+
+    clearResendCooldown() {
+      if (this.resendTimerHandle) {
+        clearInterval(this.resendTimerHandle)
+        this.resendTimerHandle = null
+      }
+      this.resendCooldown = 0
+    },
+
+    startResendCooldown(seconds = 60) {
+      this.clearResendCooldown()
+      this.resendCooldown = seconds
+      this.resendTimerHandle = setInterval(() => {
+        this.resendCooldown -= 1
+        if (this.resendCooldown <= 0) {
+          this.clearResendCooldown()
+        }
+      }, 1000)
+    },
+
+    // Backend errors thrown by authService are plain objects, not Error instances,
+    // and can come back in a few shapes:
+    //   { message: '...' } / { error: '...' } / { detail: '...' }
+    //   { otp_code: '...' } or { new_password: ['...'] }  (DRF field-level errors)
+    getErrorMessage(error, fallback) {
+      if (!error) return fallback
+      if (typeof error === 'string') return error
+      if (error.message) return error.message
+      if (error.detail) return error.detail
+      if (error.error) return error.error
+
+      const firstKey = Object.keys(error)[0]
+      if (firstKey) {
+        const value = error[firstKey]
+        if (Array.isArray(value) && value.length) return value[0]
+        if (typeof value === 'string') return value
+      }
+
+      return fallback
+    },
+
+    async handleRequestOtp() {
+      if (!this.forgotForm.email) {
+        this.forgotError = 'Please enter your email address.'
+        return
+      }
+
+      this.forgotError = ''
+      this.forgotSuccess = ''
+      this.forgotLoading = true
+
+      try {
+        await requestPasswordResetOtp(this.forgotForm.email)
+        this.forgotSuccess = 'If an account exists for that email, a code has been sent.'
+        this.authView = 'forgot-reset'
+        this.startResendCooldown(60) // matches backend OTP_RESEND_COOLDOWN_SECONDS
+      } catch (error) {
+        console.error('Request OTP error:', error)
+        // Avoid confirming/denying whether an email exists
+        this.forgotError = this.getErrorMessage(error, 'Something went wrong. Please try again.')
+      } finally {
+        this.forgotLoading = false
+      }
+    },
+
+    async handleResetPassword() {
+      this.forgotError = ''
+      this.forgotSuccess = ''
+
+      if (!/^\d{6}$/.test(this.forgotForm.otp)) {
+        this.forgotError = 'Please enter the 6-digit code.'
+        return
+      }
+
+      if (this.forgotForm.newPassword.length < 8) {
+        this.forgotError = 'Password must be at least 8 characters.'
+        return
+      }
+
+      if (this.forgotForm.newPassword !== this.forgotForm.confirmPassword) {
+        this.forgotError = 'Passwords do not match.'
+        return
+      }
+
+      this.forgotLoading = true
+
+      try {
+        await resetPasswordWithOtp({
+          email: this.forgotForm.email,
+          otp: this.forgotForm.otp,
+          newPassword: this.forgotForm.newPassword
+        })
+
+        // Pre-fill login form and hand back to sign-in
+        this.credentials.email = this.forgotForm.email
+        this.credentials.password = ''
+        this.clearResendCooldown()
+        this.authView = 'login'
+        this.forgotSuccess = ''
+        alert('Your password has been reset. Please sign in with your new password.')
+      } catch (error) {
+        console.error('Reset password error:', error)
+        this.forgotError = this.getErrorMessage(error, 'Could not reset password. Please check the code and try again.')
+      } finally {
+        this.forgotLoading = false
+      }
+    },
+
     async handleLogin() {
       this.loading = true
       
@@ -214,7 +484,7 @@ export default {
         this.$emit('login-success', userData);
       } catch (error) {
         console.error('Login error:', error);
-        alert(error.message || 'Login failed. Please try again.');
+        alert(this.getErrorMessage(error, 'Login failed. Please try again.'));
       } finally {
         this.loading = false;
       }
@@ -248,6 +518,10 @@ export default {
     shapes.forEach((shape, index) => {
       shape.style.animation = `float ${3 + index}s ease-in-out infinite`
     })
+  },
+
+  beforeUnmount() {
+    this.clearResendCooldown()
   }
 }
 </script>
@@ -467,6 +741,58 @@ export default {
   margin-bottom: 6px;
   color: white;
   text-align: center;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-light, #a0aec0);
+  cursor: pointer;
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+  padding: 0;
+  transition: color 0.25s ease;
+}
+
+.back-btn:hover {
+  color: white;
+}
+
+.otp-input {
+  letter-spacing: 6px;
+  font-weight: 600;
+}
+
+.form-error {
+  background: rgba(229, 62, 62, 0.15);
+  border: 1px solid rgba(229, 62, 62, 0.3);
+  color: #feb2b2;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.form-success {
+  background: rgba(56, 161, 105, 0.15);
+  border: 1px solid rgba(56, 161, 105, 0.3);
+  color: #9ae6b4;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.forgot-password.disabled {
+  color: var(--text-light, #a0aec0);
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .form-subtitle {

@@ -197,7 +197,6 @@ const fetchCenters = async () => {
     console.log('raw center sample:', rawCenters[0])
     centers.value = rawCenters.map(normalizeCenter)
 
-    console.log('Centers loaded:', centers.value)
   } catch (err) {
     console.error('Dashboard fetch error:', err)
     error.value = err.message || 'Failed to load dashboard data.'
@@ -269,23 +268,24 @@ const fetchCenterRisk = async (centerId) => {
   return await response.json()
 }
 
+const fetchBulkCenterRisk = async (ids) => {
+  const response = await fetch(
+    `${API_BASE}analytics/centers/congestion-risk-bulk/?center_ids=${ids.join(',')}&window=60&horizon=60`,
+    { method: 'GET', headers: getAuthHeaders() }
+  )
+  if (!response.ok) throw new Error(`Bulk risk fetch failed: ${response.status}`)
+  return await response.json()
+}
+
 const refreshDashboardRisks = async () => {
   if (!centers.value.length) return
 
-  const results = await Promise.all(
-    centers.value.map(center => fetchCenterRisk(center.id).catch(() => null))
-  )
-
-  centerRisks.value = results.filter(Boolean)
-  console.log(
-  'center ids sample:',
-  centers.value.slice(0, 5).map(c => ({ id: c.id, type: typeof c.id, lat: c.lat, lon: c.lon }))
-)
-
-console.log(
-  'risk ids sample:',
-  centerRisks.value.slice(0, 5).map(r => ({ center_id: r.center_id, type: typeof r.center_id }))
-)
+  try {
+    centerRisks.value = await fetchBulkCenterRisk(centers.value.map(c => c.id))
+  } catch (err) {
+    console.error('Bulk risk fetch failed:', err)
+    centerRisks.value = []
+  }
 }
 
 const getOccupancyPercentage = (center) => {
