@@ -775,7 +775,7 @@ const submitPledge = async () => {
       status: 'PLEDGED'
     }
 
-    const res = await fetch('http://127.0.0.1:8000/api/evac_centers/donations/', {
+    const res = await fetch(`${API_BASE}evac_centers/donations/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

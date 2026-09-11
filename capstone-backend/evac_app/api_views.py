@@ -13,6 +13,7 @@ from django.utils import timezone
 from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed, EvacuationReason
 from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer, EvacuationReasonSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, dms_to_decimal
+from .utils.geo import get_request_ip, ip_likely_in_oriental_mindoro
 from django.db import transaction
 from auth_app.models import Municipality, Barangay
 from auth_app.permissions import IsStaffOrHigher, IsMunicipalAdminOrHigher
@@ -24,16 +25,29 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Donation, DonationNeed
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def public_pledge_donation(request):
     data = request.data
-    
+
+    client_ip = get_request_ip(request)
+    in_region = ip_likely_in_oriental_mindoro(client_ip)
+
+    # Hard block only when we're confident it's NOT PH/Mindoro.
+    # `None` (inconclusive) is treated as "allow, but flag".
+    if in_region is False:
+        return Response(
+            {"error": "Pledges are currently limited to donors within Oriental Mindoro."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
     ref_code = f"PLG-{random.randint(1000, 9999)}"
-    
+
     try:
         need_obj = DonationNeed.objects.filter(id=data.get('need_id')).first()
-        
+
         pledge = DonationPledge.objects.create(
             need=need_obj,
             donor_name=data.get('donor_name'),
@@ -42,18 +56,18 @@ def public_pledge_donation(request):
             dropoff_date=data.get('dropoff_date'),
             notes=data.get('notes', ''),
             reference_code=ref_code,
-            status='PENDING'
+            status='PENDING',
+            source_ip=client_ip,                # add this field for audit trail
+            ip_region_flagged=(in_region is None),  # flag inconclusive ones for staff review
         )
-        
+
         return Response({
             "message": "Pledge recorded successfully",
             "reference_code": pledge.reference_code
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
 
 
 class EvacuationCenterViewSet(viewsets.ModelViewSet):
@@ -887,3 +901,45 @@ class DonationDistributionViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("You can only distribute donations in your municipality.")
 
         serializer.save(distributed_by=user)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def public_pledge_donation(request):
+    data = request.data
+
+    client_ip = get_request_ip(request)
+    in_region = ip_likely_in_oriental_mindoro(client_ip)
+
+    # Hard block only when we're confident it's NOT PH/Mindoro.
+    # `None` (inconclusive) is treated as "allow, but flag".
+    if in_region is False:
+        return Response(
+            {"error": "Pledges are currently limited to donors within Oriental Mindoro."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    ref_code = f"PLG-{random.randint(1000, 9999)}"
+
+    try:
+        need_obj = DonationNeed.objects.filter(id=data.get('need_id')).first()
+
+        pledge = DonationPledge.objects.create(
+            need=need_obj,
+            donor_name=data.get('donor_name'),
+            contact_number=data.get('contact_number'),
+            quantity=data.get('quantity', 1),
+            dropoff_date=data.get('dropoff_date'),
+            notes=data.get('notes', ''),
+            reference_code=ref_code,
+            status='PENDING',
+            source_ip=client_ip,                # add this field for audit trail
+            ip_region_flagged=(in_region is None),  # flag inconclusive ones for staff review
+        )
+
+        return Response({
+            "message": "Pledge recorded successfully",
+            "reference_code": pledge.reference_code
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
