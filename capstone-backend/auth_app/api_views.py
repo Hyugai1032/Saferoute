@@ -220,6 +220,10 @@ class VerifyRegisterOTPView(APIView):
 
         return Response({"detail": "Email verified."})
 
+# At least 8 chars, one uppercase, one lowercase, one digit, one symbol.
+# (Actual enforcement lives in RegisterSerializer.validate_password.)
+ 
+ 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (permissions.AllowAny,)
@@ -263,7 +267,7 @@ class RegisterView(generics.CreateAPIView):
             "user_id": user.id,
             "role": user.role
         })
-
+    
 def send_password_reset_otp_email(email, code):
     send_mail(
         subject="Your SafeRoute password reset code",

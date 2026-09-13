@@ -1,26 +1,51 @@
+import re
 from rest_framework import serializers
 from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay, GisLayer
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, NotFound
 from django.apps import apps
 EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
-
+ 
+# At least 8 chars, one uppercase, one lowercase, one digit, one symbol.
+PASSWORD_REGEX = re.compile(
+    r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$"
+)
+PASSWORD_REQUIREMENTS_MESSAGE = (
+    "Password must be at least 8 characters and include an uppercase letter, "
+    "a lowercase letter, a number, and a symbol."
+)
+ 
+ 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-
+ 
     class Meta:
         model = CustomUser
         fields = ['email', 'first_name', 'last_name', 'password', 'contact_number', 'municipality']
-
+ 
+    def validate_password(self, value):
+        if not PASSWORD_REGEX.match(value):
+            raise serializers.ValidationError(PASSWORD_REQUIREMENTS_MESSAGE)
+ 
+        # Also run Django's configured AUTH_PASSWORD_VALIDATORS (common-password
+        # checks, similarity-to-user-attributes checks, etc.) on top of the regex.
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+ 
+        return value
+ 
     def create(self, validated_data):
         # Remove non-model fields that may be included in request/serializer
         validated_data.pop("status", None)
-
+ 
         # If your serializer has password confirmation, remove it too
         validated_data.pop("password2", None)
-
+ 
         return CustomUser.objects.create_user(**validated_data)
     
 
