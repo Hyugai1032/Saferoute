@@ -25,11 +25,45 @@
       <button class="btn ghost" @click="goToLogin">Login</button>
       <button class="btn primary" @click="goToRegister">Get Started</button>
     </div>
+
+    <button
+      class="menu-toggle"
+      :class="{ open: isMenuOpen }"
+      @click="toggleMenu"
+      :aria-expanded="isMenuOpen"
+      aria-label="Toggle navigation menu"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <transition name="mobile-menu">
+      <div v-if="isMenuOpen" class="mobile-menu">
+        <nav class="mobile-nav-links">
+          <button @click="goToSection('features')">Features</button>
+          <button @click="goToSection('how-it-works')">How it Works</button>
+          <button @click="goToSection('roles')">Users</button>
+          <button
+            @click="goToGISMap"
+            :class="{ active: isGISMap }"
+          >
+            GIS Map
+          </button>
+          <button @click="goToSection('contact')">Contact</button>
+        </nav>
+
+        <div class="mobile-nav-actions">
+          <button class="btn ghost" @click="goToLogin">Login</button>
+          <button class="btn primary" @click="goToRegister">Get Started</button>
+        </div>
+      </div>
+    </transition>
   </header>
 </template>
  
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import saferouteLogo from '@/assets/saferoute-logo.png'
  
@@ -38,11 +72,20 @@ const route = useRoute()
  
 const isHome = computed(() => route.path === '/')
 const isGISMap = computed(() => route.path === '/gis-map')
+
+const isMenuOpen = ref(false)
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value
+}
+const closeMenu = () => {
+  isMenuOpen.value = false
+}
  
 // Section buttons (Features / How it Works / Users / Contact) only exist on
 // the landing page. From any other route, navigate home first and pass the
 // target section as a hash so LandingPage can scroll to it once mounted.
 const goToSection = (id) => {
+  closeMenu()
   if (isHome.value) {
     const el = document.getElementById(id)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -52,6 +95,7 @@ const goToSection = (id) => {
 }
  
 const goHome = () => {
+  closeMenu()
   if (isHome.value) {
     goToSection('hero')
   } else {
@@ -59,9 +103,16 @@ const goHome = () => {
   }
 }
  
-const goToLogin = () => router.push('/auth/login')
-const goToRegister = () => router.push('/auth/register')
+const goToLogin = () => {
+  closeMenu()
+  router.push('/auth/login')
+}
+const goToRegister = () => {
+  closeMenu()
+  router.push('/auth/register')
+}
 const goToGISMap = () => {
+  closeMenu()
   if (!isGISMap.value) router.push('/gis-map')
 }
 </script>
