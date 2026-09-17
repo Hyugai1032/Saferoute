@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'analytics_app',
     'rest_framework',
     'corsheaders',  # For handling CORS from Vue
+    'storages'
 ]
 
 MIDDLEWARE = [
@@ -210,13 +211,13 @@ CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 CORS_ALLOW_HEADERS = ['*']  # Or specify: ['Content-Type', 'Authorization']
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "https://saferoute-topaz.vercel.app",
+    os.environ.get("FRONTEND_LINK"),
     "http://localhost:5173"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://saferoute-topaz.vercel.app",
-    "https://saferoute-production-319f.up.railway.app",
+    os.environ.get("FRONTEND_LINK"),
+    os.environ.get("BACKEND_LINK"),
 ]
 
 RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY")

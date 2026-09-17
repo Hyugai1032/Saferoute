@@ -110,6 +110,7 @@ const routes = [
     children: [
       { path: "", redirect: "/staff/dashboard" }, 
       { path: "dashboard", name: "StaffDashboard", component: StaffDashboard },
+      { path: "hazard_report", name: "StaffHazardReport", component: HazardReport },
       { path: "logs", name: "StaffLogs", component: StaffLogs },
       { path: "evacuees", name: "StaffEvacuees", component: StaffEvacuees },
       { path: "map", name: "StaffMap", component: GISMap },
