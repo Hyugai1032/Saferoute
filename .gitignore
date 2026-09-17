@@ -10,6 +10,7 @@ capstone-backend/staticfiles/
 capstone-backend/media/
 capstone-backend/models_kaggle_only/
 capstone-backend/db.sqlite3
+capstone-backend/saferoute/
 
 # Misc
 .env
