@@ -771,7 +771,8 @@ class DonationViewSet(viewsets.ModelViewSet):
         if getattr(user, 'role', None) == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
                 return qs.none()
-            return qs.filter(center_id=user.assigned_center_id)
+            # Staff should not see pledged (not-yet-received) donations
+            return qs.filter(center_id=user.assigned_center_id).exclude(status="PLEDGED")
 
         # 3. Municipal Admin filtering
         if getattr(user, 'role', None) == "MUNICIPAL_ADMIN":
