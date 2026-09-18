@@ -34,6 +34,7 @@
 
         <!-- Right Section -->
         <div class="login-right">
+          <router-link to="/" class="terms-link">Go Back</router-link>
           <div class="login-form">
             <h2 class="form-title">Register</h2>
             <p class="form-subtitle">Fill in your details below</p>
@@ -290,6 +291,8 @@ export default {
       ]
     };
   },
+
+
 
   computed: {
     isEmailValid() {

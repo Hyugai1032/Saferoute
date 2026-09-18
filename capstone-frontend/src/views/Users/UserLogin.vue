@@ -35,6 +35,7 @@
 
         <!-- Right Section -->
         <div class="login-right">
+          <router-link to="/" class="terms-link">Go Back</router-link>
           <!-- LOGIN VIEW -->
           <div class="login-form" v-if="authView === 'login'">
             <h2 class="form-title">Welcome Back</h2>
