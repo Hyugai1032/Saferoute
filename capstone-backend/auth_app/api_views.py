@@ -1059,7 +1059,7 @@ class ORSRouteView(APIView):
         recent_hours = int(body.get("recent_hours", 48))
         hazard_radius_m = int(body.get("hazard_radius_m", 150))
 
-        ors_url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+        ors_url = "https://api.heigit.org/openrouteservice/v2/directions/driving-car/geojson"
         headers = {
             "Authorization": ors_key,  # ORS uses Authorization header :contentReference[oaicite:1]{index=1}
             "Content-Type": "application/json",
@@ -1223,7 +1223,7 @@ class SuggestNearestAvailableCenterView(APIView):
         candidates = candidates[:candidate_limit]
 
         # --- ROUTE USING ORS ---
-        ors_url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+        ors_url = "https://api.heigit.org/openrouteservice/v2/directions/driving-car/geojson"
         headers = {
             "Authorization": ors_key,
             "Content-Type": "application/json"

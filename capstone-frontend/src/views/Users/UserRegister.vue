@@ -444,7 +444,7 @@ export default {
     },
 
     loadRecaptcha() {
-      const siteKey = import.meta.env.RECAPTCHA_SITE_KEY;
+      const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
       if (!siteKey) {
         console.error("RECAPTCHA_SITE_KEY is not set; captcha will not render.");
         this.captchaError = "Captcha is unavailable right now. Please try again later.";
