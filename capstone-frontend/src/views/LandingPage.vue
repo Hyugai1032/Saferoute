@@ -311,10 +311,10 @@
           <h3>Municipal Admin</h3>
           <p>Manages local evacuation operations, hazard reviews, and municipality-based monitoring.</p>
         </div>
-        <div class="role-card">
+        <!-- <div class="role-card">
           <h3>Response Team</h3>
           <p>Reviews field information, coordinates action, and supports real-time response decisions.</p>
-        </div>
+        </div> -->
         <div class="role-card">
           <h3>Evacuation Center Staff</h3>
           <p>Updates center-level records, manages evacuee logs, and helps maintain operational accuracy.</p>

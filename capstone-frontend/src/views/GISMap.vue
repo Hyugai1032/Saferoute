@@ -301,7 +301,7 @@ const createHazardIcon = (hazard) => {
   return L.divIcon({
     className: 'hazard-marker',
     html: `⚠️`,
-    iconSize: [30, 30],
+    iconSize: [50, 50],
     iconAnchor: [15, 15],
   })
 }
