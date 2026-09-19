@@ -142,9 +142,7 @@ const normalizeCenter = (center) => ({
 
   capacity: Number(
     center.capacity ??
-    center.family_capacity_max ??
-    center.individual_capacity_max ??
-    0
+    (Number(center.family_capacity_max || 0) + Number(center.individual_capacity_max || 0))
   ),
 
   occupants: Number(
@@ -178,12 +176,16 @@ const normalizeCenter = (center) => ({
   ),
 })
 
-const fetchCenters = async () => {
-  loading.value = true
-  error.value = ''
+// The full /evac-centers/ endpoint includes capacity, current_total and coordinates.
+// (/evacuation-centers/ is the lightweight dropdown endpoint and does not.)
+// Follows DRF `next` links in case global pagination is enabled.
+const fetchAllPages = async (url) => {
+  const all = []
+  let next = url
+  let pages = 0
 
-  try {
-    const response = await fetch(`${API_BASE}evac_centers/evacuation-centers/`, {
+  while (next && pages < 50) {
+    const response = await fetch(next, {
       method: 'GET',
       headers: getAuthHeaders()
     })
@@ -193,10 +195,24 @@ const fetchCenters = async () => {
     }
 
     const data = await response.json()
-    const rawCenters = Array.isArray(data) ? data : (data.results || [])
-    console.log('raw center sample:', rawCenters[0])
-    centers.value = rawCenters.map(normalizeCenter)
 
+    if (Array.isArray(data)) return [...all, ...data]
+
+    all.push(...(data.results || data.centers || []))
+    next = data.next
+    pages++
+  }
+
+  return all
+}
+
+const fetchCenters = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const rawCenters = await fetchAllPages(`${API_BASE}evac_centers/evac-centers/`)
+    centers.value = rawCenters.map(normalizeCenter)
   } catch (err) {
     console.error('Dashboard fetch error:', err)
     error.value = err.message || 'Failed to load dashboard data.'
@@ -428,9 +444,6 @@ const riskLevel = computed(() =>
 
 const sortedCenters = computed(() => statusCenters.value)
 
-const selectCenter = (center) => {
-  console.log('Selected center:', center)
-}
 
 const showCriticalCenters = () => {
   alert(

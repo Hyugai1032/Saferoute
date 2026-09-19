@@ -8,7 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from django.db.models import Sum, Max, ProtectedError
+from django.db.models import Sum, Max, ProtectedError, OuterRef, Subquery
 from django.utils import timezone
 from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed, EvacuationReason
 from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer, EvacuationReasonSerializer
@@ -104,9 +104,22 @@ class EvacuationCenterViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = EvacuationCenter.objects.select_related(
-            "municipality", "barangay"
-        ).all().order_by("-created_at")
+
+        latest_log = (
+            EvacuationLog.objects
+            .filter(center_id=OuterRef("pk"))
+            .order_by("-date_recorded", "-id")
+        )
+
+        qs = (
+            EvacuationCenter.objects
+            .select_related("municipality", "barangay")
+            .annotate(
+                latest_total_current=Subquery(latest_log.values("total_current")[:1]),
+                latest_total_current_families=Subquery(latest_log.values("total_current_families")[:1]),
+            )
+            .order_by("-created_at")
+        )
 
         if user.role == "MUNICIPAL_ADMIN":
             if not user.municipality_id:

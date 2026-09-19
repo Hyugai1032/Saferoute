@@ -54,11 +54,15 @@ class EvacuationCenterSerializer(serializers.ModelSerializer):
         )
 
     def get_current_total(self, center):
-        log = self._latest_log(center)
+        if hasattr(center, "latest_total_current"):
+            return int(center.latest_total_current or 0)
+        log = self._latest_log(center)          # fallback
         return int(log.total_current) if log else 0
 
     def get_current_families(self, center):
-        log = self._latest_log(center)
+        if hasattr(center, "latest_total_current_families"):
+            return int(center.latest_total_current_families or 0)
+        log = self._latest_log(center)          # fallback
         return int(log.total_current_families) if log else 0
 
     def get_congestion_percent(self, center):
