@@ -199,7 +199,11 @@ const fetchAllPages = async (url) => {
     if (Array.isArray(data)) return [...all, ...data]
 
     all.push(...(data.results || data.centers || []))
+    // Behind a proxy (Railway), Django can emit `next` as http://. Upgrade it
+    // so the browser doesn't block it as mixed content.
     next = data.next
+      ? data.next.replace(/^http:\/\//, window.location.protocol === 'https:' ? 'https://' : 'http://')
+      : null
     pages++
   }
 
