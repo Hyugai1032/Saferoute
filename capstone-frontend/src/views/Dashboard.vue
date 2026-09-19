@@ -193,8 +193,6 @@ const fetchCenters = async () => {
     }
 
     const data = await response.json()
-    const rawCenters = Array.isArray(data) ? data : (data.results || [])
-    console.log('raw center sample:', rawCenters[0])
     centers.value = rawCenters.map(normalizeCenter)
 
   } catch (err) {
@@ -428,9 +426,6 @@ const riskLevel = computed(() =>
 
 const sortedCenters = computed(() => statusCenters.value)
 
-const selectCenter = (center) => {
-  console.log('Selected center:', center)
-}
 
 const showCriticalCenters = () => {
   alert(
