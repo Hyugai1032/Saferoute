@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     'analytics_app',
     'rest_framework',
     'corsheaders',  # For handling CORS from Vue
-    'storages'
+    'storages',
+    'anymail'
 ]
 
 MIDDLEWARE = [
@@ -231,13 +232,12 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = "auth_app.CustomUser"
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+ANYMAIL = {
+    "BREVO_API_KEY": os.environ["BREVO_API_KEY"],
+}
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")  # must be your verified sender
+EMAIL_TIMEOUT = 10
 
 if os.environ.get("AWS_STORAGE_BUCKET_NAME"):
     # Railway Bucket is connected — use S3-compatible storage
