@@ -325,13 +325,13 @@ async loadMyProfile() {
 
     async getCurrentLocation() {
       this.gettingLocation = true
-      
+
       if (!navigator.geolocation) {
         alert('Geolocation is not supported by your browser')
         this.gettingLocation = false
         return
       }
-      
+
       try {
         const position = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -340,18 +340,47 @@ async loadMyProfile() {
             maximumAge: 0
           })
         })
-        
+
         this.formData.latitude = position.coords.latitude.toFixed(6)
         this.formData.longitude = position.coords.longitude.toFixed(6)
-        
-        // Reverse geocoding would go here in a real implementation
-        this.formData.address = 'Location detected (reverse geocoding needed)'
-        
+
+        // Reverse geocode the coordinates into a readable address
+        await this.reverseGeocode(this.formData.latitude, this.formData.longitude)
+
       } catch (error) {
         console.error('Error getting location:', error)
         alert('Unable to retrieve your location. Please enter it manually.')
       } finally {
         this.gettingLocation = false
+      }
+    },
+
+    async reverseGeocode(lat, lon) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+          {
+            headers: {
+              // Nominatim's usage policy asks for a way to identify your app.
+              // A Referer header is sent automatically by the browser; this is a courtesy.
+              'Accept-Language': 'en'
+            }
+          }
+        )
+
+        if (!res.ok) throw new Error(`Geocoding failed: ${res.status}`)
+
+        const data = await res.json()
+
+        if (data && data.display_name) {
+          this.formData.address = data.display_name
+        } else {
+          this.formData.address = `${lat}, ${lon}`
+        }
+      } catch (err) {
+        console.error('Reverse geocoding failed:', err)
+        // Fall back gracefully instead of leaving a dev-facing placeholder
+        this.formData.address = `${lat}, ${lon} (address lookup failed, please edit manually)`
       }
     },
     

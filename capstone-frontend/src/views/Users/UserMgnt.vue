@@ -590,11 +590,12 @@ async fetchCenters(municipalityId = null) {
 .title-wrap p{ margin:6px 0 0; color:var(--muted); font-size:13px; }
 
 .content{
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-width:0;                  /* added */
 }
-
+.users-table{ margin-top:2px; min-width:0; }  /* added min-width */
 
 /* ===== STATS ===== */
 .stats-cards{
@@ -731,16 +732,18 @@ select:focus, .search:focus-within{
 
 .table-container{
   border-radius:18px;
-  overflow:hidden;
+  overflow-x:auto;              /* was: overflow:hidden */
+  overflow-y:hidden;
+  -webkit-overflow-scrolling: touch;
   border:1px solid var(--border2);
   background: var(--panel2);
   box-shadow: 0 20px 48px rgba(0,0,0,.48);
 }
-table{ width:100%; border-collapse:collapse; }
-th, td{
-  padding: 14px 14px;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  vertical-align: middle;
+
+table{
+  width:100%;
+  min-width: 900px;             /* added: table stops shrinking below this, so the container scrolls */
+  border-collapse:collapse;
 }
 th{
   background: rgba(5,8,18,.85);

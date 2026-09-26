@@ -168,7 +168,7 @@
               </button>
 
               <button class="action-btn secondary" @click="routeToCenter(selectedCenter, false)">
-                🧭 Route (Fastest)
+                🧭 Route (Shortest)
               </button>
 
               <button class="action-btn secondary" @click="clearRoute">
