@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-container">
+  <div ref="dashRoot" class="dashboard-container">
     <div class="main-content">
 
       <!-- Dashboard Header with Logout -->
@@ -68,7 +68,7 @@
           </div>
           
           <div class="centers-list">
-            <div v-for="center in top5StatusCenters" :key="center.id" class="center-item" @click="selectCenter(center)">
+            <div v-for="center in topStatusCenters" :key="center.id" class="center-item" @click="selectCenter(center)">
               <div class="center-header">
                 <h4>{{ center.name }}</h4>
                 <span class="status-indicator" :class="getStatusLevel(center)"></span>
@@ -120,7 +120,10 @@ const centerRisks = ref([])
 const loading = ref(false)
 const error = ref('')
 const mapCenters = ref([])
+const dashRoot = ref(null)
+const listCount = ref(5)
 let quickMap = null
+let mapResizeObserver = null
 let mapLayerGroup = null
 
 const getAuthHeaders = () => {
@@ -411,10 +414,22 @@ const statusCenters = computed(() => {
   })
 })
 
-const top5StatusCenters = computed(() =>
+// How many centers to list: always at least 5 (as before), more on
+// screens that are taller relative to their scale (16:10, 4:3, etc.).
+const updateListCount = () => {
+  if (!dashRoot.value) return
+  if (window.innerWidth <= 1200) { listCount.value = 5; return } // stacked layout
+  const unit = parseFloat(getComputedStyle(dashRoot.value).fontSize) || 16
+  const viewportEm = window.innerHeight / unit
+  const CHROME_EM = 27 // header + metric cards + paddings
+  const ROW_EM = 9     // one center card incl. gap
+  listCount.value = Math.min(12, Math.max(5, Math.floor((viewportEm - CHROME_EM) / ROW_EM)))
+}
+
+const topStatusCenters = computed(() =>
   [...statusCenters.value]
     .sort((a, b) => getPredictedPercentage(b) - getPredictedPercentage(a))
-    .slice(0, 5)
+    .slice(0, listCount.value)
 )
 
 const totalEvacuees = computed(() =>
@@ -505,6 +520,15 @@ const initializeQuickMap = async () => {
 
   updateMapMarkers()
   safeQuickMapInvalidate()
+
+  // Keep Leaflet in sync whenever its panel changes size (window resize,
+  // switching to a TV, sidebar collapse). This also prevents the dark
+  // empty square / unloaded tiles after a resize.
+  if (mapResizeObserver) mapResizeObserver.disconnect()
+  if (typeof ResizeObserver !== 'undefined') {
+    mapResizeObserver = new ResizeObserver(() => safeQuickMapInvalidate())
+    mapResizeObserver.observe(el)
+  }
 }
 
 const updateMapMarkers = () => {
@@ -577,6 +601,8 @@ watch(statusCenters, () => {
 }, { deep: true })
 
 onMounted(async () => {
+  updateListCount()
+  window.addEventListener('resize', updateListCount)
   await fetchCenters()
   await refreshDashboardRisks()
   await fetchMapOverview()
@@ -584,6 +610,11 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateListCount)
+  if (mapResizeObserver) {
+    mapResizeObserver.disconnect()
+    mapResizeObserver = null
+  }
   if (quickMap) {
     quickMap.stop()
     quickMap.off()
@@ -605,18 +636,37 @@ onBeforeUnmount(() => {
   color: white;
 }
 
+/* ===== LARGE-SCREEN / TV SCALING =====
+   --u is the size of "1rem" for this page. It equals 16px on anything up to
+   1080p (so laptops/desktops look exactly like before) and grows on bigger
+   screens. It uses the SMALLER of width-based and height-based scaling, so
+   16:9, 16:10, 21:9 and 4:3 displays all get a layout that fits.
+   The first font-size line is a fallback for old TV browsers without min()/clamp(). */
 .dashboard-container {
+  --u: 16px;
+  font-size: var(--u);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   color: var(--text-primary); /* CHANGED: was hardcoded white */
   background: var(--bg-page, transparent); /* CHANGED: let theme control page bg */
 }
 
+@supports (font-size: clamp(16px, min(1vw, 1vh), 48px)) {
+  .dashboard-container {
+    --u: clamp(16px, min(0.8333vw, 1.4815vh), 48px);
+  }
+}
+
 
 .main-content {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   flex: 1;
-  padding: 20px;
+  padding: calc(1.25 * var(--u));
   overflow-y: auto;
-  min-height: 100vh;
+  min-height: 0;
   min-width: 0;
 }
 
@@ -624,14 +674,14 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding: 1rem 0;
+  margin-bottom: var(--u);
+  padding: var(--u) 0;
   border-bottom: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
 }
 
 .header-info h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: calc(2 * var(--u));
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -643,40 +693,40 @@ onBeforeUnmount(() => {
 
 .header-info p {
   color: var(--text-secondary); /* CHANGED: was #94a3b8 */
-  margin: 0.5rem 0 0 0;
-  font-size: 1rem;
+  margin: calc(0.5 * var(--u)) 0 0 0;
+  font-size: var(--u);
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--u);
 }
 
 .logout-btn {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
+  padding: calc(0.75 * var(--u)) calc(1.5 * var(--u));
+  border-radius: calc(0.625 * var(--u));
   cursor: pointer;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: calc(0.5 * var(--u));
   transition: all 0.3s;
 }
 
 .logout-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+  transform: translateY(calc(-0.125 * var(--u)));
+  box-shadow: 0 calc(0.625 * var(--u)) calc(1.25 * var(--u)) rgba(239, 68, 68, 0.3);
 }
 
 /* Alert Banner */
 .alert-banner {
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 1rem;
+  padding: var(--u) calc(1.5 * var(--u));
+  border-radius: calc(0.75 * var(--u));
+  margin-bottom: var(--u);
 }
 
 .alert-banner.warning {
@@ -687,11 +737,11 @@ onBeforeUnmount(() => {
 .alert-content {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--u);
 }
 
 .alert-icon {
-  font-size: 1.25rem;
+  font-size: calc(1.25 * var(--u));
 }
 
 .alert-text {
@@ -703,8 +753,8 @@ onBeforeUnmount(() => {
   background: rgba(245, 158, 11, 0.2);
   border: 1px solid rgba(245, 158, 11, 0.4);
   color: #fbbf24;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: calc(0.5 * var(--u)) var(--u);
+  border-radius: calc(0.5 * var(--u));
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -716,19 +766,19 @@ onBeforeUnmount(() => {
 /* Metrics Grid */
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(calc(13.75 * var(--u)), 1fr));
+  gap: var(--u);
+  margin-bottom: calc(1.5 * var(--u));
 }
 
 .metric-card {
   background: var(--surface-elevated); /* CHANGED: was a white-tinted gradient that only worked on dark bg */
   border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
-  border-radius: 16px;
-  padding: 1.5rem;
+  border-radius: calc(1 * var(--u));
+  padding: calc(1.5 * var(--u));
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--u);
   transition: all 0.3s;
   position: relative;
   overflow: hidden;
@@ -741,23 +791,23 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
+  height: calc(0.125 * var(--u));
   background: linear-gradient(90deg, var(--accent-color), transparent);
 }
 
 .metric-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  transform: translateY(calc(-0.25 * var(--u)));
+  box-shadow: 0 calc(1.25 * var(--u)) calc(2.5 * var(--u)) rgba(0, 0, 0, 0.3);
 }
 
 .metric-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: calc(3.75 * var(--u));
+  height: calc(3.75 * var(--u));
+  border-radius: calc(0.75 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: calc(1.5 * var(--u));
 }
 
 .metric-icon.total { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
@@ -770,9 +820,9 @@ onBeforeUnmount(() => {
 }
 
 .metric-value {
-  font-size: 2rem;
+  font-size: calc(2 * var(--u));
   font-weight: 800;
-  margin: 0.25rem 0;
+  margin: calc(0.25 * var(--u)) 0;
   /* CHANGED: this was the main bug — a near-white gradient clipped to
      text (#f1f5f9 -> #cbd5e1). On a light background that's basically
      white-on-white, so the big numbers vanished. Swapped to a solid
@@ -785,13 +835,13 @@ onBeforeUnmount(() => {
 
 .metric-label {
   color: var(--text-secondary); /* CHANGED: was #94a3b8 */
-  font-size: 0.875rem;
+  font-size: calc(0.875 * var(--u));
   margin: 0;
 }
 
 .metric-trend {
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: calc(0.875 * var(--u));
 }
 
 .metric-trend.positive { color: #10b981; }
@@ -799,8 +849,8 @@ onBeforeUnmount(() => {
 .metric-trend.neutral { color: #6b7280; }
 
 .risk-indicator {
-  width: 8px;
-  height: 8px;
+  width: calc(0.5 * var(--u));
+  height: calc(0.5 * var(--u));
   border-radius: 50%;
 }
 
@@ -812,8 +862,16 @@ onBeforeUnmount(() => {
 .content-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
+  gap: calc(1.5 * var(--u));
   align-items: stretch;
+  flex: 1 1 auto; /* fill whatever height is left under the metric cards */
+}
+
+/* Very wide screens (21:9, 32:9 video walls): give the map more room */
+@media (min-aspect-ratio: 2/1) and (min-width: 1201px) {
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  }
 }
 
 .content-panel,
@@ -825,35 +883,41 @@ onBeforeUnmount(() => {
      explicit theme-aware surface so they read correctly in light mode. */
   background: var(--surface-elevated);
   border: 1px solid var(--border-light);
-  border-radius: 16px;
-  padding: 1.5rem;
+  border-radius: calc(1 * var(--u));
+  padding: calc(1.5 * var(--u));
   box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  gap: 1rem; /* CHANGED: added so title + toggle don't collide on narrower panels */
+  margin-bottom: calc(1.5 * var(--u));
+  gap: var(--u); /* CHANGED: added so title + toggle don't collide on narrower panels */
   flex-wrap: wrap; /* CHANGED: lets the toggle drop to its own line instead of overlapping the title */
 }
 
 .panel-header h3 {
   margin: 0;
   color: var(--text-primary); /* CHANGED: was #f1f5f9 */
-  font-size: 1.25rem;
+  font-size: calc(1.25 * var(--u));
 }
 
 .panel-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: calc(0.75 * var(--u));
+}
+
+.btn-primary, .btn-secondary, .toggle-btn {
+  font-size: calc(0.8333 * var(--u));
 }
 
 .btn-primary, .btn-secondary {
-  padding: 0.5rem 1rem;
+  padding: calc(0.5 * var(--u)) var(--u);
   border: none;
-  border-radius: 8px;
+  border-radius: calc(0.5 * var(--u));
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s;
@@ -886,17 +950,17 @@ onBeforeUnmount(() => {
 
 .data-table th {
   background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.05) */
-  padding: 1rem;
+  padding: var(--u);
   text-align: left;
   font-weight: 600;
   color: var(--text-secondary); /* CHANGED: was #94a3b8 */
-  font-size: 0.875rem;
+  font-size: calc(0.875 * var(--u));
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .data-table td {
-  padding: 1rem;
+  padding: var(--u);
   border-bottom: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.05) */
   color: var(--text-primary); /* CHANGED: was #cbd5e1 */
 }
@@ -904,26 +968,26 @@ onBeforeUnmount(() => {
 .name-cell {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: calc(0.75 * var(--u));
 }
 
 .avatar-small {
-  width: 32px;
-  height: 32px;
+  width: calc(2 * var(--u));
+  height: calc(2 * var(--u));
   background: linear-gradient(135deg, #8b5cf6, #a855f7);
-  border-radius: 8px;
+  border-radius: calc(0.5 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: calc(0.75 * var(--u));
   font-weight: 600;
   color: white;
 }
 
 .center-badge, .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  padding: calc(0.25 * var(--u)) calc(0.75 * var(--u));
+  border-radius: calc(1.25 * var(--u));
+  font-size: calc(0.75 * var(--u));
   font-weight: 600;
 }
 
@@ -953,14 +1017,14 @@ onBeforeUnmount(() => {
 
 .action-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: calc(0.5 * var(--u));
 }
 
 .btn-icon {
   background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.1) */
   border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.2) */
-  padding: 0.5rem;
-  border-radius: 6px;
+  padding: calc(0.5 * var(--u));
+  border-radius: calc(0.375 * var(--u));
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -974,21 +1038,21 @@ onBeforeUnmount(() => {
 .centers-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--u);
 }
 
 .center-item {
   background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.03) */
   border: 1px solid var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
-  border-radius: 12px;
-  padding: 1rem;
+  border-radius: calc(0.75 * var(--u));
+  padding: var(--u);
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .center-item:hover {
   background: rgba(255, 255, 255, 0.05);
-  transform: translateX(4px);
+  transform: translateX(calc(0.25 * var(--u)));
   border-color: rgba(59, 130, 246, 0.3);
 }
 
@@ -996,18 +1060,18 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: calc(0.5 * var(--u));
 }
 
 .center-header h4 {
   margin: 0;
   color: var(--text-primary); /* CHANGED: was #f1f5f9 */
-  font-size: 1rem;
+  font-size: var(--u);
 }
 
 .status-indicator {
-  width: 8px;
-  height: 8px;
+  width: calc(0.5 * var(--u));
+  height: calc(0.5 * var(--u));
   border-radius: 50%;
 }
 
@@ -1017,26 +1081,26 @@ onBeforeUnmount(() => {
 
 .center-location {
   color: var(--text-secondary); /* CHANGED: was #94a3b8 */
-  font-size: 0.875rem;
-  margin: 0 0 1rem 0;
+  font-size: calc(0.875 * var(--u));
+  margin: 0 0 var(--u) 0;
 }
 
 .occupancy-info {
-  margin-bottom: 1rem;
+  margin-bottom: var(--u);
 }
 
 .progress-bar {
   width: 100%;
-  height: 8px;
+  height: calc(0.5 * var(--u));
   background: var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
-  border-radius: 4px;
+  border-radius: calc(0.25 * var(--u));
   overflow: hidden;
-  margin-bottom: 0.5rem;
+  margin-bottom: calc(0.5 * var(--u));
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: calc(0.25 * var(--u));
   transition: width 0.3s;
 }
 
@@ -1045,40 +1109,40 @@ onBeforeUnmount(() => {
 .progress-fill.normal { background: linear-gradient(90deg, #10b981, #34d399); }
 
 .occupancy-text {
-  font-size: 0.875rem;
+  font-size: calc(0.875 * var(--u));
   color: var(--text-primary); /* CHANGED: was #cbd5e1 */
 }
 
 .supplies-overview {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: calc(0.5 * var(--u));
 }
 
 .supply-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: calc(0.75 * var(--u));
 }
 
 .supply-label {
-  font-size: 0.75rem;
+  font-size: calc(0.75 * var(--u));
   color: var(--text-secondary); /* CHANGED: was #94a3b8 */
-  min-width: 60px;
+  min-width: calc(3.75 * var(--u));
   text-transform: capitalize;
 }
 
 .supply-bar {
   flex: 1;
-  height: 4px;
+  height: calc(0.25 * var(--u));
   background: var(--border-light); /* CHANGED: was rgba(255,255,255,0.1) */
-  border-radius: 2px;
+  border-radius: calc(0.125 * var(--u));
   overflow: hidden;
 }
 
 .supply-fill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: calc(0.125 * var(--u));
   transition: width 0.3s;
 }
 
@@ -1090,18 +1154,18 @@ onBeforeUnmount(() => {
 .view-toggle {
   display: flex;
   background: var(--surface-elevated); /* CHANGED: was rgba(255,255,255,0.05) */
-  border-radius: 8px;
-  padding: 4px;
+  border-radius: calc(0.5 * var(--u));
+  padding: calc(0.25 * var(--u));
   flex-shrink: 0; /* CHANGED: stop it from squishing against the h3 title */
 }
 
 .toggle-btn {
-  padding: 0.5rem 1rem;
+  padding: calc(0.5 * var(--u)) var(--u);
   border: none;
   background: transparent;
   color: var(--text-secondary); /* CHANGED: was #94a3b8 */
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: calc(0.375 * var(--u));
   transition: all 0.3s;
   white-space: nowrap; /* CHANGED: keep "Full List" from wrapping awkwardly */
 }
@@ -1134,12 +1198,12 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0 !important;
-    padding: 15px;
+    padding: calc(0.9375 * var(--u));
   }
 
   .dashboard-header {
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--u);
     text-align: center;
   }
   
@@ -1154,7 +1218,7 @@ onBeforeUnmount(() => {
   
   .panel-header {
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--u);
     align-items: flex-start;
   }
   
@@ -1166,8 +1230,9 @@ onBeforeUnmount(() => {
 
 /* Quick Map Styles */
 .quick-map-container {
-  height: 900px;
-  border-radius: 12px;
+  flex: 1 1 0;                       /* stretch to the bottom of the panel */
+  min-height: calc(30 * var(--u));   /* never collapse on short screens */
+  border-radius: calc(0.75 * var(--u));
   overflow: hidden;
 }
 

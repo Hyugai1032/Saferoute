@@ -577,6 +577,9 @@ async fetchCenters(municipalityId = null) {
   --green:#22c55e;
   --red:#ef4444;
   padding: 20px;
+  min-width: 0;                 /* lets the page shrink inside flex/grid layouts */
+  max-width: 100%;
+  box-sizing: border-box;
   color: var(--text);
 }
 

@@ -143,6 +143,15 @@
               Mark as Pending
             </button>
           </template>
+
+          <button
+            v-if="canDelete"
+            class="delete-btn"
+            :disabled="deletingId === report.id"
+            @click="deleteReport(report)"
+          >
+            {{ deletingId === report.id ? "Deleting…" : "Delete" }}
+          </button>
         </div>
       </div>
     </div>
@@ -208,6 +217,15 @@
                     Mark as Pending
                   </button>
                 </template>
+
+                <button
+                  v-if="canDelete"
+                  class="delete-btn"
+                  :disabled="deletingId === selected.id"
+                  @click="deleteReport(selected)"
+                >
+                  {{ deletingId === selected.id ? "Deleting…" : "Delete" }}
+                </button>
               </div>
             </div>
 
@@ -261,6 +279,25 @@ const selected = ref(null);
 
 // Lightbox
 const lightboxUrl = ref("");
+
+// Delete
+const deletingId = ref(null);
+
+// Staff share this page with admins, but only admins may delete.
+// (The backend enforces this too - this just hides the button.)
+const currentUser = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("userData") || "{}");
+  } catch {
+    return {};
+  }
+})();
+
+const canDelete = computed(
+  () =>
+    currentUser.userType === "admin" ||
+    ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN"].includes(currentUser.role)
+);
 
 const headerTitle = computed(() => {
   const map = {
@@ -357,6 +394,42 @@ async function updateReportStatus(report, status) {
   } catch (err) {
     console.error(err);
     alert("Failed to update report status.");
+  }
+}
+
+async function deleteReport(report) {
+  if (!canDelete.value || deletingId.value) return;
+
+  const confirmed = confirm(
+    `Permanently delete "${report.title}" (Report #${report.id})?\n\n` +
+    "This will also remove its photos and cannot be undone."
+  );
+  if (!confirmed) return;
+
+  deletingId.value = report.id;
+  try {
+    await api.delete(`hazards/${report.id}/`);
+
+    // Close the preview if we just deleted the report it was showing.
+    if (selected.value?.id === report.id) closePreview();
+
+    // Drop it locally right away, then re-sync with the server.
+    reports.value = reports.value.filter((r) => r.id !== report.id);
+    await loadReports();
+  } catch (err) {
+    console.error(err);
+    const status = err?.response?.status;
+    if (status === 403) {
+      alert(err.response.data?.detail || "You are not allowed to delete this report.");
+    } else if (status === 404) {
+      // Already gone (e.g. deleted by someone else) - just refresh the list.
+      if (selected.value?.id === report.id) closePreview();
+      await loadReports();
+    } else {
+      alert("Failed to delete report.");
+    }
+  } finally {
+    deletingId.value = null;
   }
 }
 
@@ -862,5 +935,33 @@ onBeforeUnmount(() => {
 .pending-btn:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.delete-btn {
+  border: 1px solid rgba(255,90,90,0.45);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #ff8a8a;
+  background: rgba(255,0,0,0.10);
+  transition: 0.2s ease;
+}
+.delete-btn:hover:not(:disabled) {
+  background: rgba(255,60,60,0.24);
+  color: #ffd6d6;
+  box-shadow: 0 0 0 4px rgba(255,90,90,0.16);
+  transform: translateY(-1px);
+}
+.delete-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }
 </style>

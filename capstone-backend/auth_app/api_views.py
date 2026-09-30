@@ -6,7 +6,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import models 
+from django.db import models, transaction
 from django.db.models import F
 from django.core.mail import send_mail
 from rest_framework import generics, permissions, viewsets, filters, status
@@ -520,6 +520,43 @@ class HazardReportView(APIView):
             status=201
         )     
 
+def _collect_file_refs(instance):
+    """Return [(storage, name), ...] for every file/image field on a model instance."""
+    refs = []
+    for f in instance._meta.get_fields():
+        if isinstance(f, models.FileField):
+            value = getattr(instance, f.name, None)
+            if value and value.name:
+                refs.append((value.storage, value.name))
+    return refs
+
+
+def _collect_hazard_files(report):
+    """Collect files on the report itself plus any HazardPhoto rows pointing at it."""
+    refs = _collect_file_refs(report)
+
+    fk = next(
+        (
+            f.name for f in HazardPhoto._meta.get_fields()
+            if getattr(f, "many_to_one", False) and f.related_model is HazardReport
+        ),
+        None,
+    )
+    if fk:
+        for photo in HazardPhoto.objects.filter(**{fk: report}):
+            refs.extend(_collect_file_refs(photo))
+    return refs
+
+
+def _remove_files(refs):
+    for storage, name in refs:
+        try:
+            storage.delete(name)
+        except Exception:
+            # A missing/locked file shouldn't turn a successful delete into an error.
+            pass
+
+
 class HazardReportDetailView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -590,6 +627,22 @@ class HazardReportDetailView(APIView):
             HazardReportSerializer(updated, context={"request": request}).data,
             status=200
         )   
+
+    def delete(self, request, pk):
+        role = getattr(request.user, "role", None)
+        if role not in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN"]:
+            raise PermissionDenied("You are not allowed to delete hazard reports.")
+
+        # get_object is already scoped: municipal admins only reach their own municipality.
+        report = self.get_object(request, pk)
+        file_refs = _collect_hazard_files(report)
+
+        with transaction.atomic():
+            report.delete()  # related photo rows cascade (assuming on_delete=CASCADE)
+            # Only remove files from storage once the DB delete has really committed.
+            transaction.on_commit(lambda: _remove_files(file_refs))
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')

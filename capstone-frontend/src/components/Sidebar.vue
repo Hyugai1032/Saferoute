@@ -100,13 +100,19 @@ const navItems = [
 </script>
 
 <style scoped>
+/* ===== LARGE-SCREEN / TV SCALING =====
+   Same unit as Dashboard.vue: --u is 16px up to 1080p (unchanged look) and
+   grows on bigger screens, following the smaller of width/height so it fits
+   any TV ratio. First value is a fallback for old TV browsers. */
 .sidebar {
-  width: 280px;
+  --u: 16px;
+  font-size: var(--u);
+  width: calc(17.5 * var(--u));
   height: 100vh;
   background: linear-gradient(180deg, 
     rgba(26, 54, 93, 0.95) 0%, 
     rgba(26, 26, 46, 0.98) 100%);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(calc(1.25 * var(--u)));
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   position: fixed;
   left: 0;
@@ -116,8 +122,14 @@ const navItems = [
   overflow: hidden;
 }
 
+@supports (font-size: clamp(16px, min(1vw, 1vh), 48px)) {
+  .sidebar {
+    --u: clamp(16px, min(0.8333vw, 1.4815vh), 48px);
+  }
+}
+
 .sidebar.collapsed {
-  width: 80px;
+  width: calc(5 * var(--u));
 }
 
 .sidebar-glow {
@@ -138,7 +150,7 @@ const navItems = [
 }
 
 .sidebar-content {
-  padding: 1.5rem 1rem;
+  padding: calc(1.5 * var(--u)) var(--u);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -151,8 +163,8 @@ const navItems = [
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: calc(2 * var(--u));
+  padding-bottom: calc(1.5 * var(--u));
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
 }
@@ -160,15 +172,15 @@ const navItems = [
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: calc(0.75 * var(--u));
   flex: 1;
 }
 
 .logo-mark {
   position: relative;
-  width: 52px;
-  height: 52px;
-  min-width: 52px;
+  width: calc(3.25 * var(--u));
+  height: calc(3.25 * var(--u));
+  min-width: calc(3.25 * var(--u));
   flex-shrink: 0;
 }
 
@@ -176,32 +188,32 @@ const navItems = [
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #9fcef6 0%, #95eff4 100%);
-  border-radius: 14px;
+  border-radius: calc(0.875 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   z-index: 2;
   overflow: hidden;
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+  box-shadow: 0 0 calc(1.125 * var(--u)) rgba(34, 211, 238, 0.35);
 }
 
 .logo-img {
-  width: 50px;
-  height:  50px;
+  width: calc(3.125 * var(--u));
+  height:  calc(3.125 * var(--u));
   object-fit: contain;
   display: block;
-  border-radius: 8px;
+  border-radius: calc(0.5 * var(--u));
 }
 
 .logo-pulse {
   position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
+  top: calc(-0.125 * var(--u));
+  left: calc(-0.125 * var(--u));
+  right: calc(-0.125 * var(--u));
+  bottom: calc(-0.125 * var(--u));
   background: linear-gradient(135deg, #4facfe, #00f2fe);
-  border-radius: 16px;
+  border-radius: calc(1 * var(--u));
   opacity: 0.6;
   animation: pulse 2s infinite;
   z-index: 1;
@@ -215,7 +227,7 @@ const navItems = [
 
 .logo-text-hidden {
   opacity: 0;
-  transform: translateX(-10px);
+  transform: translateX(calc(-0.625 * var(--u)));
 }
 
 
@@ -224,15 +236,15 @@ const navItems = [
 .app-name {
   font-weight: 900;
   color: var(--text);
-  font-size: 1.1rem;
+  font-size: calc(1.1 * var(--u));
   background: linear-gradient(135deg, #f1f5f9, #cbd5e1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 0.25rem;
+  margin-bottom: calc(0.25 * var(--u));
 }
 
 .app-tagline {
-  font-size: 0.7rem;
+  font-size: calc(0.7 * var(--u));
   color: var(--muted);
   line-height: 1.2;
 }
@@ -241,9 +253,9 @@ const navItems = [
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: calc(2 * var(--u));
+  height: calc(2 * var(--u));
+  border-radius: calc(0.5 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -255,7 +267,7 @@ const navItems = [
 .collapse-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(14, 165, 255, 0.2);
+  box-shadow: 0 calc(0.25 * var(--u)) calc(0.75 * var(--u)) rgba(14, 165, 255, 0.2);
 }
 
 .collapse-icon {
@@ -270,19 +282,19 @@ const navItems = [
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: calc(0.5 * var(--u));
   flex: 1;
 }
 
 .nav-item {
   color: var(--muted);
-  padding: 0.75rem;
-  border-radius: 12px;
+  padding: calc(0.75 * var(--u));
+  border-radius: calc(0.75 * var(--u));
   text-decoration: none;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: calc(0.75 * var(--u));
   position: relative;
   overflow: hidden;
 }
@@ -296,12 +308,12 @@ const navItems = [
   background: linear-gradient(135deg, rgba(14, 165, 255, 0.1), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
-  border-radius: 12px;
+  border-radius: calc(0.75 * var(--u));
 }
 
 .nav-item:hover {
   color: var(--text);
-  transform: translateX(4px);
+  transform: translateX(calc(0.25 * var(--u)));
 }
 
 .nav-item:hover .nav-item-background {
@@ -311,7 +323,7 @@ const navItems = [
 .nav-item-active {
   color: #0ea5ff !important;
   background: rgba(14, 165, 255, 0.15) !important;
-  border-left: 3px solid #0ea5ff;
+  border-left: calc(0.1875 * var(--u)) solid #0ea5ff;
   transform: translateX(0);
 }
 
@@ -321,8 +333,8 @@ const navItems = [
 
 .nav-icon-wrapper {
   position: relative;
-  width: 24px;
-  height: 24px;
+  width: calc(1.5 * var(--u));
+  height: calc(1.5 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -330,7 +342,7 @@ const navItems = [
 }
 
 .nav-icon {
-  font-size: 1.2rem;
+  font-size: calc(1.2 * var(--u));
   transition: transform 0.3s ease;
 }
 
@@ -340,10 +352,10 @@ const navItems = [
 
 .nav-active-indicator {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 6px;
-  height: 6px;
+  top: calc(-0.125 * var(--u));
+  right: calc(-0.125 * var(--u));
+  width: calc(0.375 * var(--u));
+  height: calc(0.375 * var(--u));
   background: #0ea5ff;
   border-radius: 50%;
   opacity: 0;
@@ -363,7 +375,7 @@ const navItems = [
 
 .nav-text-hidden {
   opacity: 0;
-  transform: translateX(-10px);
+  transform: translateX(calc(-0.625 * var(--u)));
   width: 0;
 }
 
@@ -372,10 +384,10 @@ const navItems = [
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
+  width: calc(0.1875 * var(--u));
   height: 0;
   background: linear-gradient(180deg, #0ea5ff, #4facfe);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0 calc(0.125 * var(--u)) calc(0.125 * var(--u)) 0;
   transition: height 0.3s ease;
 }
 
@@ -386,23 +398,23 @@ const navItems = [
 /* User Section */
 .user-section {
   margin-top: auto;
-  padding-top: 1.5rem;
+  padding-top: calc(1.5 * var(--u));
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: calc(0.75 * var(--u));
   transition: all 0.3s ease;
 }
 
 .user-section-collapsed {
   justify-content: center;
-  padding: 1rem 0;
+  padding: var(--u) 0;
 }
 
 .user-avatar {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: calc(2.5 * var(--u));
+  height: calc(2.5 * var(--u));
   flex-shrink: 0;
 }
 
@@ -410,23 +422,23 @@ const navItems = [
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #8b5cf6, #a855f7);
-  border-radius: 10px;
+  border-radius: calc(0.625 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   color: white;
-  font-size: 0.9rem;
+  font-size: calc(0.9 * var(--u));
 }
 
 .avatar-status {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
+  bottom: calc(-0.125 * var(--u));
+  right: calc(-0.125 * var(--u));
+  width: calc(0.75 * var(--u));
+  height: calc(0.75 * var(--u));
   background: #10b981;
-  border: 2px solid var(--background);
+  border: calc(0.125 * var(--u)) solid var(--background);
   border-radius: 50%;
 }
 
@@ -445,18 +457,18 @@ const navItems = [
 .user-name {
   font-weight: 700;
   color: var(--text);
-  font-size: 0.9rem;
-  margin-bottom: 0.1rem;
+  font-size: calc(0.9 * var(--u));
+  margin-bottom: calc(0.1 * var(--u));
 }
 
 .user-role {
-  font-size: 0.75rem;
+  font-size: calc(0.75 * var(--u));
   color: var(--muted);
-  margin-bottom: 0.1rem;
+  margin-bottom: calc(0.1 * var(--u));
 }
 
 .user-status {
-  font-size: 0.7rem;
+  font-size: calc(0.7 * var(--u));
   color: #10b981;
   font-weight: 600;
 }
@@ -464,14 +476,14 @@ const navItems = [
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .sidebar {
-    width: 280px;
+    width: calc(17.5 * var(--u));
     transition: transform 0.3s ease, width 0.3s ease;
     transform: translateX(0);
   }
 
   .sidebar.collapsed {
     transform: translateX(-100%);
-    width: 280px;
+    width: calc(17.5 * var(--u));
   }
 
   .logo-text-hidden,
