@@ -1,6 +1,6 @@
 import re
 from rest_framework import serializers
-from .models import CustomUser, HazardReport, HazardPhoto, Municipality, Barangay, GisLayer
+from .models import CustomUser, HazardReport, HazardReportLog, HazardPhoto, Municipality, Barangay, GisLayer
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -112,7 +112,6 @@ class HazardReportSerializer(serializers.ModelSerializer):
         ]
 
 # auth_app/serializers.py
-from rest_framework import serializers
 from .models import HazardReport, HazardPhoto
 
 class HazardReportSerializer(serializers.ModelSerializer):
@@ -188,6 +187,26 @@ class HazardReportAdminUpdateSerializer(serializers.ModelSerializer):
             "description",
         ]
     
+class HazardReportLogSerializer(serializers.ModelSerializer):
+    action_label = serializers.CharField(source="get_action_display", read_only=True)
+    report_exists = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HazardReportLog
+        fields = [
+            "id",
+            "action", "action_label", "previous_status", "acted_at",
+            "acted_by_name", "acted_by_role",
+            "report_ref_id", "report_exists",
+            "report_title", "report_hazard_type", "report_severity",
+            "report_address", "report_description",
+            "reporter_name", "municipality_name",
+        ]
+        read_only_fields = fields
+
+    def get_report_exists(self, obj):
+        return obj.report_id is not None
+
 class MunicipalitySerializer(serializers.ModelSerializer):
     """
     Serializer for Municipality model

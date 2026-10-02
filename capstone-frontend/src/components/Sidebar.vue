@@ -87,6 +87,7 @@ const navItems = [
   { to: '/admin/dashboard', name: 'Dashboard', icon: '📊' },
   { to: '/admin/centers', name: 'Evacuation Centers', icon: '🏢' },
   { to: '/admin/hazard_report', name: 'Hazard Reports', icon: '📝' },
+  { to: '/admin/hazard_logs', name: 'Hazard Report Logs', icon: '🧾' },
   { to: '/admin/map', name: 'GIS Map', icon: '🗺️' },
   { to: '/admin/analytics', name: 'Analytics', icon: '📈' },
   ...(isProvincialAdmin ? [

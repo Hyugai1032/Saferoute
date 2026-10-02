@@ -2,12 +2,15 @@ import os
 import requests
 from datetime import timedelta
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models, transaction
 from django.db.models import F
+from django.http import HttpResponse
+from io import BytesIO
 from django.core.mail import send_mail
 from rest_framework import generics, permissions, viewsets, filters, status
 from rest_framework.exceptions import PermissionDenied, NotFound
@@ -18,7 +21,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth.models import AnonymousUser
-from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport, EmailOTP
+from .models import CustomUser, HazardPhoto, Municipality, Barangay, GisLayer, HazardReport, HazardReportLog, EmailOTP, HAZARD_TYPE_CHOICES
 from .serializers import RegisterSerializer
 from .serializers import (UserProfileSerializer, 
                           HazardReportSerializer, 
@@ -34,7 +37,8 @@ from .serializers import (UserProfileSerializer,
                           EvacCenterPinSerializer,
                           HazardPinSerializer,
                           HazardReportAdminUpdateSerializer,
-                          NearbyHazardAlertSerializer)
+                          NearbyHazardAlertSerializer,
+                          HazardReportLogSerializer)
 from evac_app.serializers import EvacuationCenterSerializer
 from .permissions import (
     IsProvincialAdmin, 
@@ -557,6 +561,41 @@ def _remove_files(refs):
             pass
 
 
+def _user_display_name(user):
+    if not user:
+        return ""
+    full = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+    return full or getattr(user, "email", "") or str(user)
+
+
+def log_hazard_action(report, action, user, previous_status="", acted_at=None):
+    """
+    Write one HazardReportLog row. Copies the report/user details onto the row so the
+    history survives later deletion of the report or the account.
+    """
+    mun = getattr(report, "municipality", None)
+    reporter = getattr(report, "reporter", None)
+
+    return HazardReportLog.objects.create(
+        report=report,
+        municipality=mun,
+        acted_by=user,
+        action=action,
+        previous_status=previous_status or "",
+        acted_at=acted_at or timezone.now(),
+        acted_by_name=_user_display_name(user)[:255],
+        acted_by_role=(getattr(user, "role", "") or "")[:50],
+        report_ref_id=report.pk,
+        report_title=(getattr(report, "title", "") or "")[:255],
+        report_hazard_type=str(getattr(report, "hazard_type", "") or "")[:100],
+        report_severity=str(getattr(report, "severity", "") or "")[:20],
+        report_address=str(getattr(report, "address", "") or "")[:500],
+        report_description=getattr(report, "description", "") or "",
+        reporter_name=_user_display_name(reporter)[:255],
+        municipality_name=((getattr(mun, "name", None) or str(mun)) if mun else "")[:255],
+    )
+
+
 class HazardReportDetailView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -594,39 +633,48 @@ class HazardReportDetailView(APIView):
         if role not in ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "EVAC_CENTER_STAFF", "RESPONSE_TEAM"]:
             raise PermissionDenied("You are not allowed to update hazard reports.")
 
+        previous_status = report.status
+
         serializer = HazardReportAdminUpdateSerializer(report, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
 
-        if "status" in serializer.validated_data:
-            updated.reviewed_by = request.user
-            updated.reviewed_at = timezone.now()
+        # Save the update, the review stamps and the log entry together, or not at all.
+        with transaction.atomic():
+            updated = serializer.save()
 
-            new_status = serializer.validated_data["status"]
+            if "status" in serializer.validated_data:
+                updated.reviewed_by = request.user
+                updated.reviewed_at = timezone.now()
 
-            if new_status == "APPROVED":
-                updated.validated_at = timezone.now()
-                updated.dismissed_at = None
+                new_status = serializer.validated_data["status"]
 
-            elif new_status == "DISMISSED":
-                updated.dismissed_at = timezone.now()
-                updated.validated_at = None
+                if new_status == "APPROVED":
+                    updated.validated_at = timezone.now()
+                    updated.dismissed_at = None
 
-            elif new_status == "REPORTED":
-                updated.validated_at = None
-                updated.dismissed_at = None
+                elif new_status == "DISMISSED":
+                    updated.dismissed_at = timezone.now()
+                    updated.validated_at = None
 
-            updated.save(update_fields=[
-                "reviewed_by",
-                "reviewed_at",
-                "validated_at",
-                "dismissed_at",
-            ])
-            
+                elif new_status == "REPORTED":
+                    updated.validated_at = None
+                    updated.dismissed_at = None
+
+                updated.save(update_fields=[
+                    "reviewed_by",
+                    "reviewed_at",
+                    "validated_at",
+                    "dismissed_at",
+                ])
+
+                # Only log real transitions, not a repeated PATCH with the same status.
+                if new_status != previous_status:
+                    log_hazard_action(updated, new_status, request.user, previous_status)
+
         return Response(
             HazardReportSerializer(updated, context={"request": request}).data,
             status=200
-        )   
+        )
 
     def delete(self, request, pk):
         role = getattr(request.user, "role", None)
@@ -638,12 +686,222 @@ class HazardReportDetailView(APIView):
         file_refs = _collect_hazard_files(report)
 
         with transaction.atomic():
+            log_hazard_action(report, HazardReportLog.Action.DELETED, request.user, report.status)
             report.delete()  # related photo rows cascade (assuming on_delete=CASCADE)
             # Only remove files from storage once the DB delete has really committed.
             transaction.on_commit(lambda: _remove_files(file_refs))
 
         return Response(status=status.HTTP_204_NO_CONTENT)
     
+class HazardReportLogListView(APIView):
+    """
+    GET /hazard-logs/
+    Query params: action, severity, q, date_from, date_to (YYYY-MM-DD), page, page_size
+    Provincial admins see every municipality; everyone else only their own.
+    """
+    permission_classes = [IsAuthenticated]
+
+    ALLOWED_ROLES = ["PROVINCIAL_ADMIN", "MUNICIPAL_ADMIN", "EVAC_CENTER_STAFF", "RESPONSE_TEAM"]
+
+    def get_filtered_queryset(self, request):
+        """
+        Role scoping + filters, shared by the list and the Excel export.
+        Returns (queryset, None) or (None, error_response).
+        """
+        user = request.user
+        role = getattr(user, "role", None)
+        if role not in self.ALLOWED_ROLES:
+            raise PermissionDenied("You are not allowed to view hazard report logs.")
+
+        qs = HazardReportLog.objects.all()
+        if role != "PROVINCIAL_ADMIN":
+            if not user.municipality_id:
+                qs = qs.none()
+            else:
+                qs = qs.filter(municipality_id=user.municipality_id)
+
+        params = request.query_params
+
+        action = params.get("action")
+        if action and action.lower() != "all":
+            qs = qs.filter(action=action.upper())
+
+        severity = params.get("severity")
+        if severity and severity.lower() != "all":
+            qs = qs.filter(report_severity__iexact=severity)
+
+        for key, lookup in (("date_from", "acted_at__date__gte"), ("date_to", "acted_at__date__lte")):
+            raw = params.get(key)
+            if raw:
+                parsed = parse_date(raw)
+                if not parsed:
+                    return None, Response({key: "Use the format YYYY-MM-DD."}, status=400)
+                qs = qs.filter(**{lookup: parsed})
+
+        q = (params.get("q") or "").strip()
+        if q:
+            cond = (
+                models.Q(report_title__icontains=q)
+                | models.Q(acted_by_name__icontains=q)
+                | models.Q(reporter_name__icontains=q)
+                | models.Q(report_address__icontains=q)
+            )
+            if q.lstrip("#").isdigit():
+                cond |= models.Q(report_ref_id=int(q.lstrip("#")))
+            qs = qs.filter(cond)
+
+        return qs, None
+
+    def get(self, request):
+        qs, error = self.get_filtered_queryset(request)
+        if error:
+            return error
+
+        params = request.query_params
+        try:
+            page = max(int(params.get("page", 1)), 1)
+            page_size = min(max(int(params.get("page_size", 20)), 1), 100)
+        except ValueError:
+            return Response({"detail": "page and page_size must be integers."}, status=400)
+
+        count = qs.count()
+        start = (page - 1) * page_size
+        rows = qs[start:start + page_size]
+
+        return Response({
+            "count": count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max((count + page_size - 1) // page_size, 1),
+            "results": HazardReportLogSerializer(rows, many=True).data,
+        })
+
+
+class HazardReportLogExportView(HazardReportLogListView):
+    """
+    GET /hazard-logs/export/
+    Same filters and role scoping as the list, but returns EVERY matching entry
+    (not just one page) as an .xlsx file.
+    """
+    MAX_ROWS = 10000
+
+    COLUMNS = [
+        ("Date & Time", 20),
+        ("Report ID", 11),
+        ("Report Title", 32),
+        ("Hazard Type", 18),
+        ("Severity", 11),
+        ("Action", 18),
+        ("Previous Status", 16),
+        ("Done By", 24),
+        ("Role", 24),
+        ("Municipality", 20),
+        ("Reported By", 24),
+        ("Location", 36),
+        ("Description", 60),
+    ]
+
+    STATUS_LABELS = {"REPORTED": "Pending", "APPROVED": "Approved", "DISMISSED": "Dismissed"}
+
+    def get(self, request):
+        qs, error = self.get_filtered_queryset(request)
+        if error:
+            return error
+
+        count = qs.count()
+        if count > self.MAX_ROWS:
+            return Response(
+                {"detail": f"Too many entries to export ({count:,}). "
+                           f"Narrow the date range or filters to {self.MAX_ROWS:,} or fewer."},
+                status=400,
+            )
+
+        try:
+            from openpyxl import Workbook
+            from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+            from openpyxl.styles import Alignment, Font, PatternFill
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            return Response(
+                {"detail": "Excel export is not available: install openpyxl on the server (pip install openpyxl)."},
+                status=501,
+            )
+
+        def clean(value):
+            """Strip characters Excel rejects and make sure text is never treated as a formula."""
+            if value is None:
+                return ""
+            return ILLEGAL_CHARACTERS_RE.sub("", str(value))
+
+        def to_excel_time(dt):
+            """Excel needs naive datetimes. Works whether USE_TZ is on (aware) or off (naive)."""
+            if dt is None:
+                return None
+            return timezone.localtime(dt).replace(tzinfo=None) if timezone.is_aware(dt) else dt
+
+        role_labels = dict(CustomUser.ROLE_CHOICES)
+        type_labels = dict(HAZARD_TYPE_CHOICES)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Hazard Report Logs"
+
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill("solid", fgColor="1F3A5F")
+        for col, (title, width) in enumerate(self.COLUMNS, start=1):
+            cell = ws.cell(row=1, column=col, value=title)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(vertical="center")
+            ws.column_dimensions[get_column_letter(col)].width = width
+        ws.row_dimensions[1].height = 22
+
+        for row_idx, log in enumerate(qs.iterator(), start=2):
+            acted_at = to_excel_time(log.acted_at)
+            values = [
+                acted_at,
+                log.report_ref_id,
+                log.report_title,
+                type_labels.get(log.report_hazard_type, log.report_hazard_type.replace("_", " ").title()),
+                (log.report_severity or "").title(),
+                log.get_action_display(),
+                self.STATUS_LABELS.get(log.previous_status, log.previous_status),
+                log.acted_by_name,
+                role_labels.get(log.acted_by_role, log.acted_by_role),
+                log.municipality_name,
+                log.reporter_name,
+                log.report_address,
+                log.report_description,
+            ]
+            for col, value in enumerate(values, start=1):
+                if isinstance(value, str) or value is None:
+                    cell = ws.cell(row=row_idx, column=col)
+                    cell.value = clean(value)
+                    cell.data_type = "s"  # text only: never evaluate "=..." as a formula
+                else:
+                    cell = ws.cell(row=row_idx, column=col, value=value)
+                if col == 1 and acted_at:
+                    cell.number_format = "yyyy-mm-dd hh:mm AM/PM"
+                if col in (3, 12, 13):
+                    cell.alignment = Alignment(wrap_text=True, vertical="top")
+                else:
+                    cell.alignment = Alignment(vertical="top")
+
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(self.COLUMNS))}{max(ws.max_row, 1)}"
+
+        buffer = BytesIO()
+        wb.save(buffer)
+
+        filename = f"Hazard_Report_Logs_{to_excel_time(timezone.now()).date().isoformat()}.xlsx"
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Municipality.objects.all().order_by('name')
     serializer_class = MunicipalitySerializer

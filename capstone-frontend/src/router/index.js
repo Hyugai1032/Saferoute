@@ -11,6 +11,7 @@ import EvacuationCenters from '../views/EvacuationCenters.vue'
 import GISMap from '../views/GISMap.vue'
 import UserMgnt from '../views/Users/UserMgnt.vue'
 import HazardReport from '../views/HazardReport.vue'
+import HazardReportLogs from '../views/HazardReportLogs.vue'
 import AffectedPopulationReport from '../views/AffectedPopulationReport.vue'
 import AdminDonationDrive from '../views/AdminDonationDrive.vue'
 import AdminEvacueeReason from '../views/AdminEvacueeReason.vue'
@@ -85,6 +86,7 @@ const routes = [
       { path: "", redirect: "/admin/dashboard" },
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'hazard_report', name: 'Hazard Reports', component: HazardReport},
+      { path: 'hazard_logs', name: 'Hazard Report Logs', component: HazardReportLogs },
       { path: 'analytics', name: 'Analytics', component: Analytics },
       { path: 'centers', name: 'EvacuationCenters', component: EvacuationCenters },
       { path: 'map', name: 'GISMap', component: GISMap },

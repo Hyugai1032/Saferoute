@@ -131,7 +131,7 @@ SEVERITY_CHOICES = [
 ]
 
 STATUS_CHOICES = [
-    ('PENDING', 'Pending'),
+    ('REPORTED', 'Pending'),   # stored value is REPORTED; shown as "Pending"
     ('APPROVED', 'Approved'),
     ('DISMISSED', 'Dismissed'),
 ]
@@ -156,7 +156,7 @@ class HazardReport(models.Model):
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
-        default='PENDING'
+        default='REPORTED'
     )
 
     description = models.TextField()
@@ -219,6 +219,61 @@ class HazardPhoto(models.Model):
 
     def __str__(self):
         return f"Photo for Report #{self.hazard.id}"
+
+
+class HazardReportLog(models.Model):
+    """
+    One row per decision made on a hazard report (approve / dismiss / reopen / delete).
+
+    Report details are copied onto the log row (snapshot) so the history stays
+    readable even after the report or the staff account is deleted.
+    """
+
+    class Action(models.TextChoices):
+        APPROVED = "APPROVED", "Approved"
+        DISMISSED = "DISMISSED", "Dismissed"
+        REOPENED = "REPORTED", "Marked as pending"
+        DELETED = "DELETED", "Deleted"
+
+    # Live links (become NULL if the target is deleted)
+    report = models.ForeignKey(
+        HazardReport, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="logs",
+    )
+    municipality = models.ForeignKey(
+        Municipality, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="hazard_logs",
+    )
+    acted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="hazard_report_actions",
+    )
+
+    # What happened
+    action = models.CharField(max_length=12, choices=Action.choices, db_index=True)
+    previous_status = models.CharField(max_length=20, blank=True, default="")
+    acted_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    # Snapshot of who did it
+    acted_by_name = models.CharField(max_length=255, blank=True, default="")
+    acted_by_role = models.CharField(max_length=50, blank=True, default="")
+
+    # Snapshot of the report
+    report_ref_id = models.PositiveIntegerField(db_index=True)  # report id at the time
+    report_title = models.CharField(max_length=255, blank=True, default="")
+    report_hazard_type = models.CharField(max_length=100, blank=True, default="")
+    report_severity = models.CharField(max_length=20, blank=True, default="")
+    report_address = models.CharField(max_length=500, blank=True, default="")
+    report_description = models.TextField(blank=True, default="")
+    reporter_name = models.CharField(max_length=255, blank=True, default="")
+    municipality_name = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        ordering = ["-acted_at", "-id"]
+        indexes = [models.Index(fields=["municipality", "-acted_at"])]
+
+    def __str__(self):
+        return f"#{self.report_ref_id} {self.action} by {self.acted_by_name or 'unknown'}"
 
 
 class AnalyticsEvent(models.Model):
