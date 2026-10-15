@@ -114,9 +114,12 @@ def _compact(h) -> str:
     return re.sub(r"[^a-z0-9]", "", normalize_header(h))
 
 
+_IGNORE_HEADERS = ("facilityid", "coordinatesource", "locationconfidence", "capacitybasis")
+
+
 def match_header(h):
     c = _compact(h)
-    if not c:
+    if not c or c in _IGNORE_HEADERS:
         return None
     for needle, canon in HEADER_RULES:
         if needle in c:
@@ -268,14 +271,20 @@ def _find_header(grid):
     """Return (header_idx, data_start, column_map) or None."""
     for idx, row in enumerate(grid[:40]):
         keys = {match_header(c) for c in row if not _is_blank(c)}
-        if "name of facility" in keys and "coordinates" in keys:
+        has_coords = "coordinates" in keys or {"latitude", "longitude"} <= keys
+        if "name of facility" in keys and has_coords:
             parent = row
             child = None
             data_start = idx + 1
             # Two-row header? (Province / Municipality / Barangay / Families / Individuals)
             if data_start < len(grid):
                 nxt = grid[data_start]
-                if any(_compact(c) in _CHILD_WORDS for c in nxt if not _is_blank(c)):
+                # A real sub-header row has several distinct child labels
+                # (Province/Municipality/Barangay/Families/Individuals). A data
+                # row that merely contains "BARANGAY" (as a Fund Source) must
+                # not be mistaken for one.
+                child_hits = {_compact(c) for c in nxt if not _is_blank(c)} & _CHILD_WORDS
+                if len(child_hits) >= 2:
                     child = nxt
                     data_start += 1
 
@@ -367,6 +376,9 @@ def _read_grid(grid):
 # Public readers
 # --------------------------------------------------------------------------
 
+# Helper/derived sheets that duplicate the main inventory
+_SKIP_SHEETS = re.compile(r"(?i)^\s*(gis[_ ]?upload|notes?|readme|summary)\s*$")
+
 _HEADER_ERROR = ("Could not find the header row. It needs 'Name of Facility' "
                  "and 'Coordinates' columns within the first 40 rows.")
 
@@ -375,6 +387,8 @@ def read_xlsx_rows(file):
     wb = load_workbook(file, data_only=True)
     rows, found_any = [], False
     for ws in wb.worksheets:                      # every sheet with a valid header
+        if _SKIP_SHEETS.match(ws.title):
+            continue
         result = _read_grid(list(ws.iter_rows(values_only=True)))
         if result is not None:
             found_any = True

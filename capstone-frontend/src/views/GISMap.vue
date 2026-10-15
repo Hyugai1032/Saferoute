@@ -344,10 +344,10 @@ const getBuildingType = (center) => {
   if (name.includes('GYM') || name.includes('GYMNASIUM')) {
     return 'GYM'
   }
-  if (name.includes('MULTIPURPOSE') || name.includes('HALL')) {
+  if (name.includes('MULTIPURPOSE')) {
     return 'MULTIPURPOSE_HALL'
   }
-  if (name.includes('BARANGAY HALL')) {
+  if (name.includes('BARANGAY')) {
     return 'BARANGAY_HALL'
   }
   if (name.includes('PRIVATE') || name.includes('RESIDENCE') || name.includes('HOUSE')) {
