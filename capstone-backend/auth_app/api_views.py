@@ -1,12 +1,15 @@
 import os
+import time
+import logging
 import requests
 from datetime import timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.apps import apps
 from django.conf import settings
+from django.core.cache import cache
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import FieldDoesNotExist, ValidationError as DjangoValidationError
 from django.db import models, transaction
 from django.db.models import F
 from django.http import HttpResponse
@@ -47,10 +50,17 @@ from .permissions import (
     IsOwnerOrAdmin,
     GisLayerRolePermission
 )
-from analytics_app.services.congestion import compute_congestion_risk, CongestionParams
+from analytics_app.services.congestion import (
+    compute_congestion_risk,
+    compute_congestion_risk_bulk,
+    fetch_latest_logs,
+    CongestionParams,
+)
 
 EvacuationCenter = apps.get_model("evac_app", "EvacuationCenter")
 EvacuationLog = apps.get_model("evac_app", "EvacuationLog")
+
+logger = logging.getLogger(__name__)
 
 
 def verify_recaptcha(token, remote_ip=None):
@@ -1121,22 +1131,16 @@ class GisLayerViewSet(viewsets.ModelViewSet):
             return Response({"detail": "No GIS layers found."}, status=404)
         return Response(self.get_serializer(layer).data)
 
-def get_center_prediction(center, window=60, horizon=60):
-    result = compute_congestion_risk(
-        center=center,
-        EvacuationLogModel=EvacuationLog,
-        params=CongestionParams(
-            window_minutes=window,
-            horizon_minutes=horizon
-        ),
-    )
+PREDICTION_UNAVAILABLE = {
+    "predicted_congestion_percent": None,
+    "predicted_status": "UNAVAILABLE",
+}
 
+
+def _prediction_fields(result, horizon):
+    """Turn a congestion-risk result dict into the fields the map pins display."""
     if "error" in result:
-        return {
-            "predicted_congestion_percent": None,
-            "predicted_status": "UNAVAILABLE",
-            "prediction_note": result.get("error"),
-        }
+        return {**PREDICTION_UNAVAILABLE, "prediction_note": result.get("error")}
 
     predicted = (
         result.get("predicted_congestion_percent")
@@ -1149,125 +1153,231 @@ def get_center_prediction(center, window=60, horizon=60):
     predicted = round(float(predicted), 1)
 
     if predicted >= 90:
-        status = "LIKELY_FULL"
+        predicted_status = "LIKELY_FULL"
     elif predicted >= 70:
-        status = "MAY_BECOME_CROWDED"
+        predicted_status = "MAY_BECOME_CROWDED"
     else:
-        status = "LIKELY_AVAILABLE"
+        predicted_status = "LIKELY_AVAILABLE"
 
     return {
         "predicted_congestion_percent": predicted,
-        "predicted_status": status,
+        "predicted_status": predicted_status,
         "prediction_window_minutes": horizon,
     }
 
+
+def get_center_prediction(center, window=60, horizon=60):
+    """Single-center prediction (2 queries). For many centers use the bulk path in MapOverviewView."""
+    result = compute_congestion_risk(
+        center=center,
+        EvacuationLogModel=EvacuationLog,
+        params=CongestionParams(
+            window_minutes=window,
+            horizon_minutes=horizon
+        ),
+    )
+    return _prediction_fields(result, horizon)
+
+
+MAP_OVERVIEW_TTL = 60          # seconds a built response stays cached
+MAP_OVERVIEW_LOCK_TTL = 120    # a build running longer than this is assumed dead
+MAP_OVERVIEW_WAIT = 30         # max seconds a request waits for another request's build
+SCOPED_ROLES = ("MUNICIPAL_ADMIN", "EVAC_CENTER_STAFF", "RESPONSE_TEAM")
+
+# The endpoint is public, and these values are part of the cache key. Letting callers pick
+# any number would let anyone force endless cache misses (a fresh DB build and a new cache
+# entry per URL), so they snap UP to the nearest allowed value. The map itself only ever
+# uses the defaults (48 / 60 / 60), which are in these lists and therefore unchanged.
+RECENT_HOURS_CHOICES = (6, 12, 24, 48, 72, 168, 336)
+PREDICTION_MINUTES_CHOICES = (15, 30, 60, 120, 240, 480, 1440)
+
+
+def _select_related_fields(model, names):
+    """select_related only the relations that really exist, so a wrong guess can't raise FieldError."""
+    found = []
+    for name in names:
+        try:
+            field = model._meta.get_field(name)
+        except FieldDoesNotExist:
+            continue
+        if field.is_relation and (field.many_to_one or field.one_to_one):
+            found.append(name)
+    return found
+
+
 class MapOverviewView(APIView):
     """
-    GET /api/map/overview/?recent_hours=48&municipality_id=3
+    GET /api/map/overview/?recent_hours=48&municipality_id=3&predictions=1
     Returns center pins + recent hazard pins.
+
+    predictions=0 skips the (slow) per-center congestion prediction so the pins can be
+    drawn immediately; the frontend then calls again with predictions=1 to fill them in.
+
+    Responses are cached for MAP_OVERVIEW_TTL seconds. The cache key is built from what
+    actually changes the result (role, effective municipality scope, and parameters),
+    never from the raw URL, so different users share entries whenever it is safe to.
+    Because the endpoint is public, recent_hours / prediction_window / prediction_horizon
+    snap up to a short list of allowed values and an unknown municipality_id is not cached,
+    so the number of possible cache keys stays small.
     """
     permission_classes = [AllowAny]
 
-    def get(self, request):
-        recent_hours = int(request.query_params.get("recent_hours", 48))
-        user = request.user or AnonymousUser()
-        requested_municipality_id = request.query_params.get("municipality_id")
+    @staticmethod
+    def _choice_param(request, name, default, choices):
+        """Parse an int param and snap it up to the nearest allowed value (see CHOICES above)."""
+        try:
+            value = int(request.query_params.get(name, default))
+        except (TypeError, ValueError):
+            value = default
+        return next((c for c in choices if c >= value), choices[-1])
 
+    @staticmethod
+    def _municipality_exists(mun_id):
+        known = cache.get_or_set(
+            "map_overview:municipality_ids",
+            lambda: set(Municipality.objects.values_list("pk", flat=True)),
+            300,
+        )
+        # A miss may just mean a municipality added in the last few minutes: one cheap
+        # primary-key lookup settles it, and nothing is cached for unknown ids.
+        return mun_id in known or Municipality.objects.filter(pk=mun_id).exists()
+
+    @staticmethod
+    def _scope(request):
+        """Same rules as before, expressed as (scope, municipality_id)."""
+        user = request.user
+        if user.is_authenticated and user.role in SCOPED_ROLES:
+            if not user.municipality_id:
+                return "none", None
+            return "municipality", user.municipality_id
+
+        requested = request.query_params.get("municipality_id")
+        if requested:
+            return "municipality", int(requested)  # ValueError handled by caller
+        return "all", None
+
+    def get(self, request):
+        recent_hours = self._choice_param(request, "recent_hours", 48, RECENT_HOURS_CHOICES)
+        window = self._choice_param(request, "prediction_window", 60, PREDICTION_MINUTES_CHOICES)
+        horizon = self._choice_param(request, "prediction_horizon", 60, PREDICTION_MINUTES_CHOICES)
+        with_predictions = (
+            request.query_params.get("predictions", "1").strip().lower() not in ("0", "false", "no")
+        )
+
+        try:
+            scope, mun_id = self._scope(request)
+        except ValueError:
+            return Response({"detail": "municipality_id must be an integer."}, status=400)
+
+        # Unknown municipality: same result as before (empty), but never touches the cache.
+        if scope == "municipality" and not self._municipality_exists(mun_id):
+            return Response({"centers": [], "hazards": []})
+
+        user = request.user
+        audience = getattr(user, "role", "") if user.is_authenticated else "anon"
+        key = (
+            f"map_overview:v1:{audience}:{scope}:{mun_id}:"
+            f"{recent_hours}:{window}:{horizon}:{int(with_predictions)}"
+        )
+
+        payload = cache.get(key)
+        if payload is None:
+            payload = self._build_once(
+                request, key, scope, mun_id, recent_hours, window, horizon, with_predictions
+            )
+        return Response(payload)
+
+    def _build_once(self, request, key, *build_args):
+        """
+        Build the payload, but only once at a time per cache key. If the cache just
+        expired and ten requests arrive together, one builds and the other nine wait
+        for its result instead of each running the expensive build.
+        (cache.add is atomic on Redis/Memcached/DB caches. LocMemCache only locks
+        within a single worker process, which is still safe, just less effective.)
+        """
+        lock_key = f"{key}:lock"
+        have_lock = cache.add(lock_key, 1, MAP_OVERVIEW_LOCK_TTL)
+
+        if not have_lock:
+            deadline = time.monotonic() + MAP_OVERVIEW_WAIT
+            while time.monotonic() < deadline:
+                time.sleep(0.25)
+                payload = cache.get(key)
+                if payload is not None:
+                    return payload
+            # The other build never finished; fall through and build it ourselves.
+
+        try:
+            payload = self._build(request, *build_args)
+            cache.set(key, payload, MAP_OVERVIEW_TTL)
+            return payload
+        finally:
+            if have_lock:
+                cache.delete(lock_key)
+
+    def _build(self, request, scope, mun_id, recent_hours, window, horizon, with_predictions):
         centers_qs = EvacuationCenter.objects.all()
+        related = _select_related_fields(EvacuationCenter, ["municipality", "barangay"])
+        if related:
+            centers_qs = centers_qs.select_related(*related)
+
         since = timezone.now() - timedelta(hours=recent_hours)
         hazards_qs = HazardReport.objects.filter(
             validated_at__gte=since,
             status="APPROVED"
         )
 
-        # Only apply role-based restrictions to authenticated users
-        if user.is_authenticated and user.role == "MUNICIPAL_ADMIN":
-            if not user.municipality_id:
-                centers_qs = centers_qs.none()
-                hazards_qs = hazards_qs.none()
-            else:
-                centers_qs = centers_qs.filter(
-                    municipality_id=user.municipality_id
-                )
-                hazards_qs = hazards_qs.filter(
-                    municipality_id=user.municipality_id
-                )
+        if scope == "none":
+            centers_qs = centers_qs.none()
+            hazards_qs = hazards_qs.none()
+        elif scope == "municipality":
+            centers_qs = centers_qs.filter(municipality_id=mun_id)
+            hazards_qs = hazards_qs.filter(municipality_id=mun_id)
 
-        elif user.is_authenticated and user.role in [
-            "EVAC_CENTER_STAFF",
-            "RESPONSE_TEAM"
-        ]:
-            if not user.municipality_id:
-                centers_qs = centers_qs.none()
-                hazards_qs = hazards_qs.none()
-            else:
-                centers_qs = centers_qs.filter(
-                    municipality_id=user.municipality_id
-                )
-                hazards_qs = hazards_qs.filter(
-                    municipality_id=user.municipality_id
-                )
+        # Newest log for every center in 2 queries total (instead of up to 5 queries per
+        # center). The serializer already looks for these two attributes before falling
+        # back to its own per-center query, so setting them removes that query entirely.
+        center_objects, latest_by_center = fetch_latest_logs(centers_qs, EvacuationLog)
+        for center in center_objects:
+            log = latest_by_center.get(center.id)
+            center.latest_total_current = int(log.total_current or 0) if log else 0
+            center.latest_total_current_families = int(log.total_current_families or 0) if log else 0
 
-        elif requested_municipality_id and (
-            not user.is_authenticated
-            or user.role not in [
-                "MUNICIPAL_ADMIN",
-                "EVAC_CENTER_STAFF",
-                "RESPONSE_TEAM"
-            ]
-        ):
-            # Authenticated broader roles and anonymous users
-            # may use the municipality filter.
-            centers_qs = centers_qs.filter(
-                municipality_id=requested_municipality_id
-            )
-            hazards_qs = hazards_qs.filter(
-                municipality_id=requested_municipality_id
-            )
-
-        centers_data = EvacuationCenterSerializer(
-            centers_qs,
+        centers_data = list(EvacuationCenterSerializer(
+            center_objects,
             many=True,
             context={"request": request},
-        ).data
+        ).data)
 
-        center_objects = {c.id: c for c in centers_qs}
-
-        window = int(
-            request.query_params.get("prediction_window", 60)
-        )
-        horizon = int(
-            request.query_params.get("prediction_horizon", 60)
-        )
-
-        for center_data in centers_data:
-            center_obj = center_objects.get(center_data["id"])
-            if not center_obj:
-                continue
-
+        if with_predictions:
             try:
-                center_data.update(
-                    get_center_prediction(
-                        center_obj,
-                        window=window,
-                        horizon=horizon
-                    )
+                results = compute_congestion_risk_bulk(
+                    centers=center_objects,
+                    latest_by_center=latest_by_center,
+                    EvacuationLogModel=EvacuationLog,
+                    params=CongestionParams(window_minutes=window, horizon_minutes=horizon),
                 )
             except Exception:
-                center_data.update({
-                    "predicted_congestion_percent": None,
-                    "predicted_status": "UNAVAILABLE",
-                    "prediction_note": "Prediction failed for this center.",
-                })
+                # Pins still show; only the predictions are missing.
+                logger.exception("Bulk congestion prediction failed")
+                results = {}
 
-        return Response({
+            for center_data in centers_data:
+                result = results.get(center_data["id"])
+                if result is None:
+                    center_data.update({
+                        **PREDICTION_UNAVAILABLE,
+                        "prediction_note": "Prediction failed for this center.",
+                    })
+                else:
+                    center_data.update(_prediction_fields(result, horizon))
+
+        return {
             "centers": centers_data,
-            "hazards": HazardPinSerializer(
-                hazards_qs,
-                many=True
-            ).data,
-        })
-    
+            "hazards": list(HazardPinSerializer(hazards_qs, many=True).data),
+        }
+
+
 def circle_to_polygon(lng, lat, radius_m=150, points=24):
     """
     Approximate a circle as a polygon around (lng,lat).

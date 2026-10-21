@@ -28,7 +28,6 @@
               type="checkbox"
               :value="type.value"
               v-model="selectedTypes"
-              @change="renderCenters"
             />
             <span>{{ type.label }}</span>
           </label>
@@ -37,9 +36,6 @@
         <div class="control-buttons">
           <button class="control-btn" @click="refreshData" title="Refresh Data">
             🔄
-          </button>
-          <button class="control-btn" @click="toggleSatellite" title="Toggle Satellite View">
-            🛰️
           </button>
           <button class="control-btn" @click="fitToBounds" title="Fit to Centers">
             🎯
@@ -119,7 +115,7 @@
                     — {{ getPredictedStatusText(selectedCenter) }}
                   </template>
                   <template v-else>
-                    Prediction unavailable
+                    {{ predictionsReady ? 'Prediction unavailable' : 'Loading prediction…' }}
                   </template>
                 </div>
               </div>
@@ -191,23 +187,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch, onActivated } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, nextTick, watch, onActivated } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import api from '@/services/api'
 
-const centers = ref([])
-const hazards = ref([])
+// PERFORMANCE: a plain ref() wraps everything inside it in deep reactive proxies.
+// For the Leaflet map/layers/markers and 300+ center objects that is slow and can
+// even break Leaflet internals. shallowRef (or a plain Map) keeps them raw.
+const centers = shallowRef([])
+const hazards = shallowRef([])
 
-const centerLayer = ref(null)
-const centerMarkers = ref(new Map())
-const hazardLayer = ref(null)
-const gisLayer = ref(null)
-const routeLayer = ref(null)
+const centerLayer = shallowRef(null)
+const hazardLayer = shallowRef(null)
+const gisLayer = shallowRef(null)
+const routeLayer = shallowRef(null)
 
-const osmLayer = ref(null)
+const osmLayer = shallowRef(null)
 const routeInfo = ref(null) // { distance_km, duration_min }
-const satelliteLayer = ref(null)
+const satelliteLayer = shallowRef(null)
+
+// Non-reactive lookups (nothing in the template reads them).
+const centerMarkers = new Map()   // center id -> { marker, sig, type }
+let centersById = new Map()       // center id -> latest center data
 
 // Fix for default markers in Leaflet
 delete L.Icon.Default.prototype._getIconUrl
@@ -217,9 +219,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
-const map = ref(null)
+const map = shallowRef(null)
 const selectedCenter = ref(null)
-const isSatelliteView = ref(false)
 
 const selectedTypes = ref([
   'SCHOOL',
@@ -271,7 +272,9 @@ const createCenterIcon = (center) => {
   const percentage = getOccupancyPercentage(center)
   const typeLabel = getBuildingType(center).replaceAll('_', ' ')
   const predicted = getPredictedCongestion(center)
-  const predictedText = predicted == null ? 'Pred: N/A' : `Pred: ${predicted}%`
+  const predictedText = predicted != null
+    ? `Pred: ${predicted}%`
+    : (predictionsReady.value ? 'Pred: N/A' : 'Pred: …')
 
   return L.divIcon({
     className: `custom-marker ${pulseClass}`,
@@ -321,10 +324,118 @@ const getOccupancyPercentage = (c) => {
 }
 
 // ---- API ----
-const fetchMapOverview = async () => {
-  const res = await api.get('/map/overview/', { publicOk: true })
-  centers.value = res.data.centers || []
-  hazards.value = res.data.hazards || []
+// Client-side cache (sessionStorage, so it survives route changes and page reloads).
+//  - younger than 60s: use it and make no network call
+//  - up to 10 min old: show it instantly, then refresh in the background
+const OVERVIEW_CACHE_KEY = 'gismap:overview:v1'
+const OVERVIEW_FRESH_MS = 60 * 1000
+const OVERVIEW_MAX_STALE_MS = 10 * 60 * 1000
+const PREDICTION_KEYS = [
+  'predicted_congestion_percent',
+  'predicted_status',
+  'prediction_note',
+  'prediction_window_minutes',
+]
+
+const predictionsReady = ref(false)
+let loadToken = 0
+let hasFitted = false
+
+const readOverviewCache = () => {
+  try {
+    const raw = sessionStorage.getItem(OVERVIEW_CACHE_KEY)
+    if (!raw) return null
+    const snap = JSON.parse(raw)
+    if (!snap?.t || Date.now() - snap.t > OVERVIEW_MAX_STALE_MS) return null
+    return snap
+  } catch {
+    return null
+  }
+}
+
+const writeOverviewCache = () => {
+  try {
+    sessionStorage.setItem(
+      OVERVIEW_CACHE_KEY,
+      JSON.stringify({ t: Date.now(), centers: centers.value, hazards: hazards.value })
+    )
+  } catch {
+    // Storage full/unavailable: the cache is only an optimisation, ignore.
+  }
+}
+
+const applyOverview = (data) => {
+  centers.value = data.centers || []
+  hazards.value = data.hazards || []
+  centersById = new Map(centers.value.map((c) => [c.id, c]))
+}
+
+// The fast (no-predictions) response has no prediction fields; keep the ones we
+// already know so markers don't flicker back to "N/A" during a refresh.
+const carryOverPredictions = (incoming) =>
+  incoming.map((c) => {
+    const old = centersById.get(c.id)
+    if (!old) return c
+    const out = { ...c }
+    for (const k of PREDICTION_KEYS) {
+      if (!(k in out) && k in old) out[k] = old[k]
+    }
+    return out
+  })
+
+const fitOnce = () => {
+  if (hasFitted || !centers.value.length) return
+  hasFitted = true
+  fitToBounds()
+}
+
+const loadOverview = async ({ force = false } = {}) => {
+  const token = ++loadToken
+  const stillCurrent = () => token === loadToken && !isUnmounted.value && !!map.value
+
+  // 1) Cached snapshot: instant paint.
+  const snap = force ? null : readOverviewCache()
+  if (snap) {
+    applyOverview(snap)
+    predictionsReady.value = true
+    renderCenters()
+    renderHazards()
+    fitOnce()
+    if (Date.now() - snap.t < OVERVIEW_FRESH_MS) return
+  }
+
+  // 2) Pins without predictions: quick, so the map is usable almost immediately.
+  try {
+    const fast = await api.get('/map/overview/', { publicOk: true, params: { predictions: 0 } })
+    if (!stillCurrent()) return
+    applyOverview({
+      centers: carryOverPredictions(fast.data.centers || []),
+      hazards: fast.data.hazards,
+    })
+    renderCenters()
+    renderHazards()
+    fitOnce()
+  } catch (err) {
+    console.error('Failed to load map pins:', err)
+    return
+  }
+
+  // 3) Same data plus predictions. Slow only when the server cache is cold, and it no
+  //    longer blocks the pins from showing.
+  try {
+    const full = await api.get('/map/overview/', { publicOk: true })
+    if (!stillCurrent()) return
+    applyOverview(full.data)
+    renderHazards()
+    writeOverviewCache()
+  } catch (err) {
+    console.error('Failed to load predictions:', err)
+  } finally {
+    if (stillCurrent()) {
+      predictionsReady.value = true
+      renderCenters()
+    }
+  }
 }
 
 const fetchCenterDetail = async (id) => {
@@ -378,43 +489,103 @@ const getBuildingIcon = (center) => {
 
 
 // ---- Rendering ----
+// Markers are created once and then diffed: a marker is only touched when something it
+// displays changed. Filtering by type adds/removes markers instead of rebuilding them.
+const centerSignature = (c) =>
+  [
+    c.name,
+    c.latitude,
+    c.longitude,
+    getOccupancyPercentage(c),
+    getPredictedCongestion(c),
+    predictionsReady.value ? 1 : 0,
+  ].join('|')
+
+const applyTypeFilter = () => {
+  const layer = centerLayer.value
+  if (!layer) return
+  for (const { marker, type } of centerMarkers.values()) {
+    const shouldShow = selectedTypes.value.includes(type)
+    const isShown = layer.hasLayer(marker)
+    if (shouldShow && !isShown) layer.addLayer(marker)
+    else if (!shouldShow && isShown) layer.removeLayer(marker)
+  }
+}
+
+const detailCache = new Map() // center id -> { t, data }
+const DETAIL_TTL_MS = 30 * 1000
+
+const getCenterDetail = async (id) => {
+  const hit = detailCache.get(id)
+  if (hit && Date.now() - hit.t < DETAIL_TTL_MS) return hit.data
+  const data = await fetchCenterDetail(id)
+  detailCache.set(id, { t: Date.now(), data })
+  return data
+}
+
+const onCenterClick = async (id) => {
+  const base = centersById.get(id)
+  if (!base) return
+  selectedCenter.value = base
+
+  try {
+    const full = await getCenterDetail(id)
+    const merged = { ...(centersById.get(id) || base), ...full }
+
+    // keep our data in sync so the next refresh/diff starts from the newest values
+    centersById.set(id, merged)
+    const idx = centers.value.findIndex((c) => c.id === id)
+    if (idx !== -1) centers.value[idx] = merged
+
+    const entry = centerMarkers.get(id)
+    if (entry) {
+      entry.marker.setIcon(createCenterIcon(merged))
+      entry.sig = centerSignature(merged)
+    }
+
+    // ignore the response if the user has already clicked a different center
+    if (selectedCenter.value?.id === id) selectedCenter.value = merged
+  } catch (e) {
+    console.error('Failed to fetch center detail:', e)
+  }
+}
+
 const renderCenters = () => {
-  if (!centerLayer.value) return
-  centerLayer.value.clearLayers()
-  centerMarkers.value.clear()
+  const layer = centerLayer.value
+  if (!layer) return
 
-  centers.value
-  .filter(center => selectedTypes.value.includes(getBuildingType(center)))
-  .forEach((center) => {
-    if (center.latitude == null || center.longitude == null) return
+  const seen = new Set()
 
-    const marker = L.marker([center.latitude, center.longitude], {
-      icon: createCenterIcon(center),
-    }).addTo(centerLayer.value)
+  for (const center of centers.value) {
+    if (center.latitude == null || center.longitude == null) continue
+    seen.add(center.id)
 
-    centerMarkers.value.set(center.id, marker)
+    const sig = centerSignature(center)
+    const existing = centerMarkers.get(center.id)
 
-    marker.on('click', async () => {
-      selectedCenter.value = center
+    if (!existing) {
+      const marker = L.marker([center.latitude, center.longitude], {
+        icon: createCenterIcon(center),
+      })
+      marker.on('click', () => onCenterClick(center.id))
+      centerMarkers.set(center.id, { marker, sig, type: getBuildingType(center) })
+    } else if (existing.sig !== sig) {
+      existing.marker.setLatLng([center.latitude, center.longitude])
+      existing.marker.setIcon(createCenterIcon(center))
+      existing.sig = sig
+      existing.type = getBuildingType(center)
+    }
+  }
 
-      try {
-        const full = await fetchCenterDetail(center.id)
+  // drop markers for centers that no longer exist
+  for (const [id, entry] of centerMarkers) {
+    if (!seen.has(id)) {
+      layer.removeLayer(entry.marker)
+      centerMarkers.delete(id)
+    }
+  }
 
-        // ✅ update sidebar
-        selectedCenter.value = full
-
-        // ✅ update the marker icon using the NEW occupancy/congestion
-        const m = centerMarkers.value.get(center.id)
-        if (m) m.setIcon(createCenterIcon(full))
-
-        // ✅ (optional) also update the centers array so future refresh uses new data
-        const idx = centers.value.findIndex(c => c.id === center.id)
-        if (idx !== -1) centers.value[idx] = { ...centers.value[idx], ...full }
-      } catch (e) {
-        console.error("Failed to fetch center detail:", e)
-      }
-    })
-  })
+  applyTypeFilter()
 }
 
 const renderHazards = () => {
@@ -499,16 +670,7 @@ const clearRoute = () => {
   routeInfo.value = null
 }
 
-const fitMapToCenters = () => {
-  const coords = centers.value
-    .filter(c => c.latitude != null && c.longitude != null)
-    .map(c => [c.latitude, c.longitude])
-
-  if (!coords.length || !map.value) return
-
-  const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
-  safeFitBounds(group.getBounds(), 0.1)
-}
+const fitMapToCenters = () => fitToBounds()
 
 const isUnmounted = ref(false)
 
@@ -568,39 +730,14 @@ const initializeMap = async () => {
   hazardLayer.value = L.layerGroup().addTo(map.value)
   routeLayer.value = L.layerGroup().addTo(map.value)
 
-  try {
-    await fetchMapOverview()
-    renderCenters()
-    renderHazards()
-    fitToBounds()
-    safeInvalidateSize()
-  } catch (err) {
-    console.error('Failed to initialize map data:', err)
-  }
+  safeInvalidateSize()
+  await loadOverview()
 }
 
 // ---- UI Buttons ----
 const refreshData = async () => {
   if (!map.value) return
-  await fetchMapOverview()
-  renderCenters()
-  renderHazards()
-  safeInvalidateSize()
-}
-
-const toggleSatellite = () => {
-  if (!map.value || !osmLayer.value || !satelliteLayer.value) return
-
-  isSatelliteView.value = !isSatelliteView.value
-
-  if (isSatelliteView.value) {
-    if (map.value.hasLayer(osmLayer.value)) map.value.removeLayer(osmLayer.value)
-    if (!map.value.hasLayer(satelliteLayer.value)) map.value.addLayer(satelliteLayer.value)
-  } else {
-    if (map.value.hasLayer(satelliteLayer.value)) map.value.removeLayer(satelliteLayer.value)
-    if (!map.value.hasLayer(osmLayer.value)) map.value.addLayer(osmLayer.value)
-  }
-
+  await loadOverview({ force: true })
   safeInvalidateSize()
 }
 
@@ -611,8 +748,7 @@ const fitToBounds = () => {
 
   if (!coords.length || !map.value) return
 
-  const group = L.featureGroup(coords.map(([lat, lng]) => L.marker([lat, lng])))
-  safeFitBounds(group.getBounds(), 0.1)
+  safeFitBounds(L.latLngBounds(coords), 0.1)
 }
 
 const suggestNearestCenter = () => {
@@ -679,6 +815,7 @@ const handleResize = () => {
 
 watch(selectedTypes, (val) => {
   localStorage.setItem('buildingFilter', JSON.stringify(val))
+  applyTypeFilter()
 }, { deep: true })
 
 onMounted(async () => {
@@ -698,6 +835,8 @@ onActivated(() => {
 
 onUnmounted(() => {
   isUnmounted.value = true
+  loadToken++            // any request still in flight will be ignored when it returns
+  centerMarkers.clear()
 
   if (map.value) {
     map.value.stop()
