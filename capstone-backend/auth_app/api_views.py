@@ -1480,9 +1480,11 @@ class ORSRouteView(APIView):
         recent_hours = int(body.get("recent_hours", 48))
         hazard_radius_m = int(body.get("hazard_radius_m", 150))
 
-        ors_url = "https://api.heigit.org/openrouteservice/v2/directions/driving-car/geojson"
+        ors_url = f"{getattr(settings, 'ORS_BASE_URL', 'https://api.heigit.org/openrouteservice')}/v2/directions/driving-car/geojson"
         headers = {
-            "Authorization": ors_key,  # ORS uses Authorization header :contentReference[oaicite:1]{index=1}
+            # .strip() matters: a trailing space/newline from .env makes requests raise InvalidHeader,
+            # which is a RequestException and would show up as "network/timeout".
+            "Authorization": str(ors_key).strip(),
             "Content-Type": "application/json",
             "Accept": "application/geo+json",
         }
