@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/evac_centers/', include('evac_app.api_urls')),
 
     path('api/analytics/', include('analytics_app.api_urls')),
+    path("api/", include("audit_app.urls"))
 ]
 
 if settings.DEBUG:

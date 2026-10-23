@@ -96,6 +96,7 @@ const navItems = [
   { to: '/admin/donation-drive', name: 'Donation Drive', icon: '📦'},
   { to: '/admin/edit_forms', name: 'Edit Forms', icon: '✏️' },
   { to: '/admin/users', name: 'User Management', icon: '👥' },
+  { to: '/admin/sys_logs', name: 'System Logs', icon: '🧾' },
   { to: '/admin/profile', name: 'Profile', icon: '👤' },
 ];
 </script>

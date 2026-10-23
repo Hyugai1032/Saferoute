@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_filters',
+    'audit_app',
     'auth_app',
     'evac_app',
     'analytics_app',
@@ -68,6 +69,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'audit_app.middleware.AuditMiddleware',   # keep it LAST
 ]
 
 ROOT_URLCONF = 'backend.urls'
