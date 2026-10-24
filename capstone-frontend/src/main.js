@@ -8,6 +8,8 @@ import { logout } from '@/services/authService'
 import './style.css'
 import './assets/theme.css'
 import { initTheme } from './composables/useTheme'
+import { registerSW } from 'virtual:pwa-register'
+import { startOutboxAutoSync } from './offline/evacueeOutbox'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL
 
@@ -52,4 +54,9 @@ axios.interceptors.response.use(
 
 app.use(router)
 app.mount('#app')
+
+// Offline support: keep the app available with no signal, and upload evacuees that
+// were registered offline whenever a connection is available.
+registerSW({ immediate: true })
+startOutboxAutoSync()
 

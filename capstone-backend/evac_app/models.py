@@ -229,6 +229,21 @@ class Evacuee(models.Model):
 
     remarks = models.TextField(blank=True)
 
+        # --- Offline-entry support ---
+    # A UUID generated on the staff member's phone when the record is first typed in.
+    # Re-sending the same record (a retry after a dropped connection) finds this id and
+    # returns the existing row instead of creating a duplicate.
+    client_id = models.UUIDField(null=True, blank=True, unique=True)
+    # When the record was entered on the device (may be hours before it reached the server).
+    recorded_at = models.DateTimeField(null=True, blank=True)
+    registered_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evacuees_registered",
+    )
+
     def __str__(self):
         return f"{self.last_name}, {self.first_name}"
     

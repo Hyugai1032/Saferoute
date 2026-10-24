@@ -1,4 +1,5 @@
 import re
+import uuid
 from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -11,10 +12,10 @@ from rest_framework import filters
 from django.db.models import Sum, Max, ProtectedError, OuterRef, Subquery
 from django.utils import timezone
 from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed, EvacuationReason
-from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer, EvacuationReasonSerializer
+from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, EvacueeSyncSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer, EvacuationReasonSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, parse_row
 from .utils.geo import get_request_ip, ip_likely_in_oriental_mindoro
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from auth_app.models import Municipality, Barangay
 from auth_app.permissions import IsStaffOrHigher, IsMunicipalAdminOrHigher
 
@@ -559,10 +560,8 @@ class EvacueeViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        center = serializer.validated_data.get("center")
-
+    @staticmethod
+    def _check_center_allowed(user, center):
         if user.role == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
                 raise PermissionDenied("Staff has no assigned center.")
@@ -573,12 +572,165 @@ class EvacueeViewSet(viewsets.ModelViewSet):
             if center.municipality_id != user.municipality_id:
                 raise PermissionDenied("You can only register evacuees in your municipality.")
 
-        serializer.save()
+    def perform_create(self, serializer):
+        user = self.request.user
+        center = serializer.validated_data.get("center")
+        self._check_center_allowed(user, center)
+
+        serializer.save(
+            registered_by=user,
+            recorded_at=serializer.validated_data.get("recorded_at") or timezone.now(),
+        )
+
+    def create(self, request, *args, **kwargs):
+        """
+        Same as the default create, except a repeated client_id (a retry of a request whose
+        response was lost on a bad connection) returns the record already saved, with 200,
+        instead of creating a second copy.
+        """
+        client_id = _parse_uuid(request.data.get("client_id"))
+        if client_id:
+            existing = Evacuee.objects.filter(client_id=client_id).first()
+            if existing:
+                if not self.get_queryset().filter(pk=existing.pk).exists():
+                    return Response(
+                        {"client_id": "This record id is already used by another record."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                return Response(self.get_serializer(existing).data, status=status.HTTP_200_OK)
+
+        try:
+            with transaction.atomic():
+                return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            # Two copies of the same retry arrived at the same moment; the other one won.
+            existing = client_id and Evacuee.objects.filter(client_id=client_id).first()
+            if existing:
+                return Response(self.get_serializer(existing).data, status=status.HTTP_200_OK)
+            raise
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="sync",
+        permission_classes=[IsStaffOrHigher],
+    )
+    def sync(self, request):
+        """
+        POST /api/evac_centers/evacuees/sync/
+        Body: {"records": [{...evacuee fields..., "client_id": "<uuid>", "recorded_at": "<iso>"}, ...]}
+
+        Uploads records that were entered offline, in one request. Each record is handled
+        on its own, so one bad record never blocks the rest. Response:
+            {"results": [{"client_id": ..., "status": "created" | "exists" | "invalid" | "rejected", ...}]}
+        - created / exists: saved on the server; the phone can drop its copy.
+        - invalid: the data needs fixing (see "errors").
+        - rejected: not allowed for this account (see "detail").
+        Retrying the same batch is always safe.
+        """
+        records = request.data.get("records") if isinstance(request.data, dict) else None
+        if not isinstance(records, list):
+            return Response({"records": "Send a list of records."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(records) > EVACUEE_SYNC_MAX_RECORDS:
+            return Response(
+                {"records": f"Send at most {EVACUEE_SYNC_MAX_RECORDS} records per request."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"results": [self._sync_one(request, raw) for raw in records]})
+
+    def _sync_one(self, request, raw):
+        if not isinstance(raw, dict):
+            return {"client_id": None, "status": "invalid", "errors": {"detail": "Record must be an object."}}
+
+        client_id = _parse_uuid(raw.get("client_id"))
+        if not client_id:
+            return {"client_id": raw.get("client_id"), "status": "invalid",
+                    "errors": {"client_id": "A valid UUID is required."}}
+        result = {"client_id": str(client_id)}
+
+        existing = Evacuee.objects.filter(client_id=client_id).first()
+        if existing:
+            return self._existing_result(result, existing)
+
+        serializer = EvacueeSyncSerializer(data=raw, context=self.get_serializer_context())
+        if not serializer.is_valid():
+            return {**result, "status": "invalid", "errors": serializer.errors}
+
+        center = serializer.validated_data["center"]
+        try:
+            self._check_center_allowed(request.user, center)
+        except PermissionDenied as exc:
+            return {**result, "status": "rejected", "detail": str(exc.detail)}
+
+        try:
+            with transaction.atomic():
+                evacuee = serializer.save(
+                    client_id=client_id,
+                    registered_by=request.user,
+                    recorded_at=serializer.validated_data.get("recorded_at") or timezone.now(),
+                )
+        except IntegrityError:
+            existing = Evacuee.objects.filter(client_id=client_id).first()
+            if existing:
+                return self._existing_result(result, existing)
+            raise
+
+        # Same name already active at this center: save anyway (it may be a different
+        # person), but tell the phone so staff can double-check.
+        possible_duplicates = list(
+            Evacuee.objects
+            .filter(
+                center=center,
+                is_active=True,
+                first_name__iexact=evacuee.first_name.strip(),
+                last_name__iexact=evacuee.last_name.strip(),
+            )
+            .exclude(pk=evacuee.pk)
+            .values_list("id", flat=True)[:5]
+        )
+
+        return {
+            **result,
+            "status": "created",
+            "evacuee": EvacueeSerializer(evacuee, context=self.get_serializer_context()).data,
+            "possible_duplicates": possible_duplicates,
+        }
+
+    def _existing_result(self, result, existing):
+        if not self.get_queryset().filter(pk=existing.pk).exists():
+            return {**result, "status": "rejected",
+                    "detail": "This record id is already used by another record."}
+        return {
+            **result,
+            "status": "exists",
+            "evacuee": EvacueeSerializer(existing, context=self.get_serializer_context()).data,
+        }
+
+
+EVACUEE_SYNC_MAX_RECORDS = 50
+
+
+def _parse_uuid(value):
+    if not value:
+        return None
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def check_center_access(user, center):
+    if user.role == "EVAC_CENTER_STAFF":
+        if not user.assigned_center_id or center.id != user.assigned_center_id:
+            raise PermissionDenied("You can only manage records for your assigned center.")
+    if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+        if center.municipality_id != user.municipality_id:
+            raise PermissionDenied("You can only manage records in your municipality.")
 
 
 class DonationNeedViewSet(viewsets.ModelViewSet):
     serializer_class = DonationNeedSerializer
-    permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
 
     filterset_fields = [
@@ -619,9 +771,6 @@ class DonationNeedViewSet(viewsets.ModelViewSet):
         # 3. Default fallback (Admins / Superusers)
         return DonationNeed.objects.all()
 
-
-
-
         if user.role == "EVAC_CENTER_STAFF":
             if not user.assigned_center_id:
                 return qs.none()
@@ -650,10 +799,34 @@ class DonationNeedViewSet(viewsets.ModelViewSet):
 
         serializer.save(requested_by=user)
 
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [IsStaffOrHigher()]
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = serializer.instance
+        check_center_access(user, instance.center)
+        check_center_access(user, serializer.validated_data.get("center", instance.center))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        check_center_access(self.request.user, instance.center)
+        instance.delete()
+
+    def destroy(self, request, *args, **kwargs):
+        need = self.get_object()
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": f"\"{need.item_name}\" has donations linked to it and can't be deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
 class DonationViewSet(viewsets.ModelViewSet):
     serializer_class = DonationSerializer
-    permission_classes = [permissions.AllowAny] # 👈 ALLOW PUBLIC PLEDGES
-    authentication_classes = []                 # 👈 IGNORE STALE/MISSING TOKENS FOR PUBLIC POST
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
 
     filterset_fields = [
@@ -679,6 +852,18 @@ class DonationViewSet(viewsets.ModelViewSet):
     ]
 
     ordering = ["-created_at"]
+
+    def get_authenticators(self):
+    # Public pledges (POST) skip auth so stale tokens don't break them.
+    # Everything else is authenticated so staff roles work.
+        if self.request.method == "POST":
+            return []
+        return super().get_authenticators()
+
+    def get_permissions(self):
+        if self.action in ["create", "list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [IsStaffOrHigher()]
 
     def get_queryset(self):
         user = getattr(self.request, 'user', None)
@@ -732,30 +917,41 @@ class DonationViewSet(viewsets.ModelViewSet):
             need.quantity_received = int(need.quantity_received or 0) + int(quantity or 0)
             need.save()
 
+    def _check_center_allowed(self, user, center):
+        if user.role == "EVAC_CENTER_STAFF":
+            if not user.assigned_center_id or center.id != user.assigned_center_id:
+                raise PermissionDenied("You can only manage donations for your assigned center.")
+        if user.role in ["MUNICIPAL_ADMIN", "RESPONSE_TEAM"]:
+            if center.municipality_id != user.municipality_id:
+                raise PermissionDenied("You can only manage donations in your municipality.")
+
     def perform_update(self, serializer):
+        user = self.request.user
         old_instance = self.get_object()
-        old_status = old_instance.status
-        old_quantity = old_instance.quantity
-        old_need = old_instance.need
+        old_status, old_quantity, old_need = old_instance.status, old_instance.quantity, old_instance.need
 
-        donation = serializer.save()
+        new_center = serializer.validated_data.get("center", old_instance.center)
+        self._check_center_allowed(user, new_center)
 
-        new_status = donation.status
-        new_quantity = donation.quantity
-        new_need = donation.need
+        with transaction.atomic():
+            donation = serializer.save()
 
-        # If old received donation is edited, remove previous quantity first
-        if old_need and old_status == "RECEIVED":
-            old_need.quantity_received = max(
-                0,
-                int(old_need.quantity_received or 0) - int(old_quantity or 0)
-            )
-            old_need.save()
+            if old_need and old_status == "RECEIVED":
+                old_need.quantity_received = max(0, int(old_need.quantity_received or 0) - int(old_quantity or 0))
+                old_need.save()
 
-        # Then add the new quantity if it is now received
-        if new_need and new_status == "RECEIVED":
-            new_need.quantity_received = int(new_need.quantity_received or 0) + int(new_quantity or 0)
-            new_need.save()
+            if donation.need and donation.status == "RECEIVED":
+                donation.need.quantity_received = int(donation.need.quantity_received or 0) + int(donation.quantity or 0)
+                donation.need.save()
+
+    def perform_destroy(self, instance):
+        self._check_center_allowed(self.request.user, instance.center)
+        with transaction.atomic():
+            need = instance.need
+            if need and instance.status == "RECEIVED":
+                need.quantity_received = max(0, int(need.quantity_received or 0) - int(instance.quantity or 0))
+                need.save()
+            instance.delete()
 
             
 class DonationDistributionViewSet(viewsets.ModelViewSet):
@@ -823,6 +1019,25 @@ class DonationDistributionViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("You can only distribute donations in your municipality.")
 
         serializer.save(distributed_by=user)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = serializer.instance
+        center = serializer.validated_data.get("center", instance.center)
+        donation = serializer.validated_data.get("donation", instance.donation)
+
+        if donation.center_id != center.id:
+            raise serializers.ValidationError({
+                "donation": "This donation does not belong to the selected center."
+            })
+
+        check_center_access(user, instance.center)
+        check_center_access(user, center)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        check_center_access(self.request.user, instance.center)
+        instance.delete()
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

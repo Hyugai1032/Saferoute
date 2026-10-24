@@ -34,7 +34,7 @@ DEBUG = False
 ALLOWED_HOSTS = ["saferoute-production-319f.up.railway.app",
                  "127.0.0.1",
                  "localhost",
-                 "10.175.96.197",
+                 "192.168.1.11",
                  "saferoute.up.railway.app",
                 ]
 
@@ -208,7 +208,7 @@ CACHES = {
 APPEND_SLASH = False
 
 # CORS settings (allow your Vue dev server; update for production)
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 
 
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
@@ -216,7 +216,8 @@ CORS_ALLOW_HEADERS = ['*']  # Or specify: ['Content-Type', 'Authorization']
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     os.environ.get("FRONTEND_LINK"),
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "http://192.168.1.11:5173"
 ]
 
 CSRF_TRUSTED_ORIGINS = [

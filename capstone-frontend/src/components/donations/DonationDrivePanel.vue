@@ -70,7 +70,7 @@
     <!-- NEEDS TAB -->
     <section v-if="activeTab === 'needs'" class="content-grid">
       <form class="form-card" @submit.prevent="saveNeed">
-        <h2>Add Donation Need</h2>
+        <h2>{{ editingNeedId ? "Edit Donation Need" : "Add Donation Need" }}</h2>
 
         <label>
           Item Name
@@ -119,7 +119,11 @@
         </label>
 
         <button class="primary-btn" :disabled="saving">
-          {{ saving ? "Saving..." : "Add Need" }}
+          {{ saving ? "Saving..." : editingNeedId ? "Update Need" : "Add Need" }}
+        </button>
+
+        <button v-if="editingNeedId" type="button" class="ghost-btn" @click="cancelEditNeed">
+          Cancel Edit
         </button>
       </form>
 
@@ -140,6 +144,7 @@
                 <th>Remaining</th>
                 <th>Priority</th>
                 <th>Status</th>
+                <th v-if="isStaff">Actions</th>
               </tr>
             </thead>
 
@@ -163,10 +168,16 @@
                     {{ formatText(need.status) }}
                   </span>
                 </td>
+                <td v-if="isStaff">
+                  <div class="row-actions">
+                    <button type="button" class="action-btn" @click="startEditNeed(need)">Edit</button>
+                    <button type="button" class="action-btn danger" @click="deleteNeed(need)">Delete</button>
+                  </div>
+                </td>
               </tr>
 
               <tr v-if="needs.length === 0">
-                <td colspan="7" class="empty-text">No donation needs found.</td>
+                <td colspan="8" class="empty-text">No donation needs found.</td>
               </tr>
             </tbody>
           </table>
@@ -177,7 +188,7 @@
     <!-- DONATIONS TAB -->
     <section v-if="activeTab === 'donations'" class="content-grid">
       <form class="form-card" @submit.prevent="saveDonation">
-        <h2>Record Donation</h2>
+        <h2>{{ editingDonationId ? "Edit Donation" : "Record Donation" }}</h2>
 
         <label>
           Related Need
@@ -249,7 +260,16 @@
         </label>
 
         <button class="primary-btn" :disabled="saving">
-          {{ saving ? "Saving..." : "Record Donation" }}
+          {{ saving ? "Saving..." : editingDonationId ? "Update Donation" : "Record Donation" }}
+        </button>
+
+        <button
+          v-if="editingDonationId"
+          type="button"
+          class="ghost-btn"
+          @click="cancelEditDonation"
+        >
+          Cancel Edit
         </button>
       </form>
 
@@ -269,6 +289,7 @@
                 <th>Quantity</th>
                 <th>Status</th>
                 <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -285,10 +306,16 @@
                   <span class="pill neutral">{{ formatText(donation.status) }}</span>
                 </td>
                 <td>{{ formatDate(donation.created_at) }}</td>
+                <td v-if="isStaff">
+                  <div class="row-actions">
+                    <button type="button" class="action-btn" @click="startEditDonation(donation)">Edit</button>
+                    <button type="button" class="action-btn danger" @click="deleteDonation(donation)">Delete</button>
+                  </div>
+                </td>
               </tr>
 
               <tr v-if="donations.length === 0">
-                <td colspan="6" class="empty-text">No donations found.</td>
+                <td colspan="7" class="empty-text">No donations found.</td>
               </tr>
             </tbody>
           </table>
@@ -299,7 +326,7 @@
     <!-- DISTRIBUTIONS TAB -->
     <section v-if="activeTab === 'distributions'" class="content-grid">
       <form class="form-card" @submit.prevent="saveDistribution">
-        <h2>Log Distribution</h2>
+        <h2>{{ editingDistributionId ? "Edit Distribution" : "Log Distribution" }}</h2>
 
         <label>
           Donation Source
@@ -347,7 +374,11 @@
         </label>
 
         <button class="primary-btn" :disabled="saving">
-          {{ saving ? "Saving..." : "Log Distribution" }}
+          {{ saving ? "Saving..." : editingDistributionId ? "Update Distribution" : "Log Distribution" }}
+        </button>
+
+        <button v-if="editingDistributionId" type="button" class="ghost-btn" @click="cancelEditDistribution">
+          Cancel Edit
         </button>
       </form>
 
@@ -367,6 +398,7 @@
                 <th>Distributed To</th>
                 <th>Distributed By</th>
                 <th>Date</th>
+                <th v-if="isStaff">Actions</th>
               </tr>
             </thead>
 
@@ -378,10 +410,16 @@
                 <td>{{ dist.distributed_to || "General distribution" }}</td>
                 <td>{{ dist.distributed_by_name || "-" }}</td>
                 <td>{{ formatDate(dist.distributed_at) }}</td>
+                <td v-if="isStaff">
+                  <div class="row-actions">
+                    <button type="button" class="action-btn" @click="startEditDistribution(dist)">Edit</button>
+                    <button type="button" class="action-btn danger" @click="deleteDistribution(dist)">Delete</button>
+                  </div>
+                </td>
               </tr>
 
               <tr v-if="distributions.length === 0">
-                <td colspan="6" class="empty-text">No distribution logs found.</td>
+                <td colspan="7" class="empty-text">No distribution logs found.</td>
               </tr>
             </tbody>
           </table>
@@ -416,6 +454,9 @@ export default {
       distributions: [],
 
       saving: false,
+      editingDonationId: null,
+      editingNeedId: null,
+      editingDistributionId: null,
       error: "",
 
       needForm: this.emptyNeedForm(),
@@ -595,15 +636,55 @@ export default {
           quantity_needed: Number(this.needForm.quantity_needed || 0),
         };
 
-        await api.post("evac_centers/donation-needs/", payload);
+        if (this.editingNeedId) {
+          await api.patch(`evac_centers/donation-needs/${this.editingNeedId}/`, payload);
+        } else {
+          await api.post("evac_centers/donation-needs/", payload);
+        }
 
         this.needForm = this.emptyNeedForm();
+        this.editingNeedId = null;
         await this.fetchNeeds();
       } catch (err) {
         console.error(err);
         this.error = this.extractError(err, "Failed to save donation need.");
       } finally {
         this.saving = false;
+      }
+    },
+
+    startEditNeed(need) {
+      this.editingNeedId = need.id;
+      this.needForm = {
+        item_name: need.item_name || "",
+        category: need.category || "FOOD",
+        quantity_needed: need.quantity_needed || 1,
+        unit: need.unit || "pcs",
+        priority: need.priority || "MEDIUM",
+        remarks: need.remarks || "",
+      };
+      this.error = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+
+    cancelEditNeed() {
+      this.editingNeedId = null;
+      this.needForm = this.emptyNeedForm();
+    },
+
+    async deleteNeed(need) {
+      const ok = window.confirm(`Delete the need "${need.item_name}"? This cannot be undone.`);
+      if (!ok) return;
+
+      this.error = "";
+
+      try {
+        await api.delete(`evac_centers/donation-needs/${need.id}/`);
+        if (this.editingNeedId === need.id) this.cancelEditNeed();
+        await Promise.all([this.fetchNeeds(), this.fetchDonations()]);
+      } catch (err) {
+        console.error(err);
+        this.error = this.extractError(err, "Failed to delete donation need.");
       }
     },
 
@@ -631,15 +712,65 @@ export default {
           quantity: Number(this.donationForm.quantity || 0),
         };
 
-        await api.post("evac_centers/donations/", payload);
+        if (this.editingDonationId) {
+          await api.patch(`evac_centers/donations/${this.editingDonationId}/`, payload);
+        } else {
+          await api.post("evac_centers/donations/", payload);
+        }
 
         this.donationForm = this.emptyDonationForm();
+        this.editingDonationId = null;
         await Promise.all([this.fetchDonations(), this.fetchNeeds()]);
       } catch (err) {
         console.error(err);
         this.error = this.extractError(err, "Failed to save donation.");
       } finally {
         this.saving = false;
+      }
+    },
+
+    startEditDonation(donation) {
+      this.editingDonationId = donation.id;
+      this.donationForm = {
+        need: donation.need || "",
+        donor_name: donation.donor_name || "",
+        donor_contact: donation.donor_contact || "",
+        donor_address: donation.donor_address || "",
+        item_name: donation.item_name || "",
+        category: donation.category || "FOOD",
+        quantity: donation.quantity || 1,
+        unit: donation.unit || "pcs",
+        status: donation.status || "RECEIVED",
+        remarks: donation.remarks || "",
+      };
+      this.error = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+
+    cancelEditDonation() {
+      this.editingDonationId = null;
+      this.donationForm = this.emptyDonationForm();
+    },
+
+    async deleteDonation(donation) {
+      const ok = window.confirm(
+        `Delete the donation of "${donation.item_name}" from ${donation.donor_name}? This cannot be undone.`
+      );
+      if (!ok) return;
+
+      this.error = "";
+
+      try {
+        await api.delete(`evac_centers/donations/${donation.id}/`);
+
+        if (this.editingDonationId === donation.id) {
+          this.cancelEditDonation();
+        }
+
+        await Promise.all([this.fetchDonations(), this.fetchNeeds()]);
+      } catch (err) {
+        console.error(err);
+        this.error = this.extractError(err, "Failed to delete donation.");
       }
     },
 
@@ -667,15 +798,60 @@ export default {
           quantity_distributed: Number(this.distributionForm.quantity_distributed || 0),
         };
 
-        await api.post("evac_centers/donation-distributions/", payload);
+        if (this.editingDistributionId) {
+          await api.patch(
+            `evac_centers/donation-distributions/${this.editingDistributionId}/`,
+            payload
+          );
+        } else {
+          await api.post("evac_centers/donation-distributions/", payload);
+        }
 
         this.distributionForm = this.emptyDistributionForm();
+        this.editingDistributionId = null;
         await this.fetchDistributions();
       } catch (err) {
         console.error(err);
         this.error = this.extractError(err, "Failed to save distribution log.");
       } finally {
         this.saving = false;
+      }
+    },
+
+    startEditDistribution(dist) {
+      this.editingDistributionId = dist.id;
+      this.distributionForm = {
+        donation: dist.donation || "",
+        item_name: dist.item_name || "",
+        quantity_distributed: dist.quantity_distributed || 1,
+        unit: dist.unit || "pcs",
+        distributed_to: dist.distributed_to || "",
+        remarks: dist.remarks || "",
+      };
+      this.error = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+
+    cancelEditDistribution() {
+      this.editingDistributionId = null;
+      this.distributionForm = this.emptyDistributionForm();
+    },
+
+    async deleteDistribution(dist) {
+      const ok = window.confirm(
+        `Delete the distribution log for "${dist.item_name}"? This cannot be undone.`
+      );
+      if (!ok) return;
+
+      this.error = "";
+
+      try {
+        await api.delete(`evac_centers/donation-distributions/${dist.id}/`);
+        if (this.editingDistributionId === dist.id) this.cancelEditDistribution();
+        await this.fetchDistributions();
+      } catch (err) {
+        console.error(err);
+        this.error = this.extractError(err, "Failed to delete distribution log.");
       }
     },
 
@@ -1048,6 +1224,22 @@ tbody tr:hover { background: rgba(99,102,241,.08); }
 [data-theme="light"] .error-text { background: #fee2e2; color: #991b1b; border-color: rgba(153,27,27,.2); }
 
 .empty-text { text-align: center; color: var(--muted); padding: 26px; }
+
+.row-actions { display: flex; gap: 8px; }
+
+.action-btn {
+  border: 1px solid var(--border);
+  background: var(--field-bg);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 800;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.action-btn:hover { border-color: rgba(56,189,248,.6); color: var(--blue); }
+.action-btn.danger:hover { border-color: rgba(251,113,133,.6); color: #fb7185; }
 
 @media (max-width: 1100px) {
   .content-grid { grid-template-columns: 1fr; }

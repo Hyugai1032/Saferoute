@@ -9,9 +9,21 @@
         </p>
       </div>
 
-      <button class="primary-btn" @click="openCreateModal">
-        + Add Evacuee
-      </button>
+        <div class="header-actions">
+        <button
+          v-if="outbox.records.length"
+          type="button"
+          class="ghost-btn"
+          title="Download records not yet uploaded, as a backup"
+          @click="exportPending"
+        >
+          ⬇ Export unsent ({{ outbox.records.length }})
+        </button>
+
+        <button class="primary-btn" @click="openCreateModal">
+          + Add Evacuee
+        </button>
+      </div>
     </header>
 
     <section class="filters-card">
@@ -58,20 +70,26 @@
     <section class="table-card">
       <div class="table-header">
         <div>
-          <h2>Registered Evacuees</h2>
-          <p>{{ evacuees.length }} record(s) shown</p>
+                    <h2>Registered Evacuees</h2>
+          <p>
+            {{ displayRows.length }} record(s) shown
+            <template v-if="pendingRows.length"> · {{ pendingRows.length }} not yet uploaded</template>
+          </p>
+          <p v-if="listFromCache" class="cache-note">
+            No connection — showing the copy saved on this phone{{ listCachedAt ? ` (${listCachedAt})` : "" }}.
+          </p>
         </div>
       </div>
 
-      <div v-if="loading" class="state-text">
+      <div v-if="loading && !displayRows.length" class="state-text">
         Loading evacuees...
       </div>
 
-      <div v-else-if="error" class="error-text">
+      <div v-else-if="error && !displayRows.length" class="error-text">
         {{ error }}
       </div>
 
-      <div v-else-if="evacuees.length === 0" class="state-text">
+      <div v-else-if="displayRows.length === 0" class="state-text">
         No evacuee records found.
       </div>
 
@@ -93,9 +111,17 @@
           </thead>
 
           <tbody>
-            <tr v-for="evacuee in evacuees" :key="evacuee.id">
+            <tr
+              v-for="evacuee in displayRows"
+              :key="evacuee._key"
+              :class="{ 'pending-row': evacuee._pending, 'failed-row': evacuee._status === 'failed' }"
+            >
               <td>
                 <strong>{{ fullName(evacuee) }}</strong>
+                <span v-if="evacuee._pending" class="sync-badge" :class="evacuee._status">
+                  {{ evacuee._status === "failed" ? "Needs attention" : "Saved on phone · not uploaded" }}
+                </span>
+                <span v-if="evacuee._error" class="row-error">{{ evacuee._error }}</span>
                 <span class="small-muted">{{ evacuee.address || "No address" }}</span>
               </td>
 
@@ -158,15 +184,29 @@
               </td>
 
               <td>
-                {{ formatDate(evacuee.date_registered) }}
+                {{ evacuee._pending ? formatDate(evacuee.recorded_at) : formatDate(evacuee.date_registered) }}
               </td>
 
               <td class="actions">
                 <button class="table-btn" @click="openEditModal(evacuee)">
-                  Edit
+                  {{ evacuee._status === "failed" ? "Fix" : "Edit" }}
                 </button>
 
+                <template v-if="evacuee._pending">
+                  <button
+                    v-if="evacuee._status === 'failed'"
+                    class="table-btn"
+                    @click="retryPending(evacuee)"
+                  >
+                    Retry
+                  </button>
+                  <button class="table-btn danger" @click="discardPending(evacuee)">
+                    Discard
+                  </button>
+                </template>
+
                 <button
+                  v-else
                   class="table-btn danger"
                   @click="toggleActive(evacuee)"
                 >
@@ -368,6 +408,15 @@
             ></textarea>
           </label>
 
+          <div v-if="modal.mode === 'create' && !outbox.online" class="offline-note">
+            No signal right now. This record will be saved on this phone and uploaded
+            automatically when the connection returns.
+          </div>
+
+          <div v-if="modal.pendingId && modal.pendingError" class="error-text modal-error">
+            The server could not accept this record: {{ modal.pendingError }}
+          </div>
+
           <div v-if="modalError" class="error-text modal-error">
             {{ modalError }}
           </div>
@@ -378,7 +427,7 @@
             </button>
 
             <button type="submit" class="primary-btn" :disabled="saving">
-              {{ saving ? "Saving..." : "Save Record" }}
+              {{ saving ? "Saving..." : (modal.pendingId ? "Save & Upload" : "Save Record") }}
             </button>
           </div>
         </form>
@@ -389,6 +438,20 @@
 
 <script>
 import api from "@/services/api";
+import { cacheGet, cacheSet } from "@/offline/db";
+import {
+  outboxState,
+  queueEvacuee,
+  updateQueued,
+  discardQueued,
+  retryQueued,
+  refreshOutbox,
+  syncNow,
+  exportOutboxCsv,
+} from "@/offline/evacueeOutbox";
+
+// No response at all (no signal, DNS failure, timeout) as opposed to a server error.
+const isNetworkError = (err) => !err?.response;
 
 export default {
   name: "StaffEvacuees",
@@ -397,6 +460,9 @@ export default {
     return {
       evacuees: [],
       assignedCenter: null,
+      outbox: outboxState,
+      listFromCache: false,
+      listCachedAt: "",
       loading: false,
       saving: false,
       error: "",
@@ -416,6 +482,8 @@ export default {
         open: false,
         mode: "create",
         id: null,
+        pendingId: null,      // set when editing a record that is still on the phone
+        pendingError: "",
         form: this.emptyForm(),
       },
     };
@@ -425,6 +493,16 @@ export default {
     this.fetchCenters();
     this.fetchEvacuees();
     this.fetchReasonOptions();
+    refreshOutbox();
+
+    // When records finish uploading (here or in the background), show the server copy.
+    this._onUploaded = () => this.fetchEvacuees();
+    window.addEventListener("outbox:uploaded", this._onUploaded);
+  },
+
+  beforeUnmount() {
+    window.removeEventListener("outbox:uploaded", this._onUploaded);
+    clearTimeout(this.searchTimer);
   },
 
   computed: {
@@ -432,10 +510,41 @@ export default {
         return this.assignedCenter?.name || "No assigned center found";
     },
 
+    // Records saved on this phone that the server doesn't have yet, shaped like server rows.
+    pendingRows() {
+      const reasonName = (id) => this.reasonOptions.find((r) => r.id === id)?.name || null;
+      const q = this.filters.search.trim().toLowerCase();
+
+      return this.outbox.records
+        .map((record) => ({
+          ...record.payload,
+          _key: `local:${record.client_id}`,
+          _pending: true,
+          _clientId: record.client_id,
+          _status: record.status,
+          _error: record.error,
+          reason_for_evacuation_display: reasonName(record.payload.reason_for_evacuation),
+        }))
+        .filter((row) => {
+          if (this.filters.is_active !== "" && String(Boolean(row.is_active)) !== this.filters.is_active) return false;
+          if (this.filters.category && !row[this.filters.category]) return false;
+          if (!q) return true;
+          return [row.first_name, row.middle_name, row.last_name, row.family_head_name, row.contact_number, row.address]
+            .some((v) => (v || "").toLowerCase().includes(q));
+        });
+    },
+
+    displayRows() {
+      return [
+        ...this.pendingRows,
+        ...this.evacuees.map((e) => ({ ...e, _key: `srv:${e.id}`, _pending: false })),
+      ];
+    },
+
     familyHeadOptions() {
       const names = new Set();
 
-      this.evacuees.forEach((evacuee) => {
+      this.displayRows.forEach((evacuee) => {
         const name = evacuee.is_family_head
           ? this.fullName(evacuee)
           : evacuee.family_head_name;
@@ -493,33 +602,49 @@ export default {
     async fetchReasonOptions() {
       this.reasonsLoading = true;
       this.reasonsError = "";
- 
+
       try {
         const res = await api.get("evac_centers/evacuation-reasons/", {
           params: { active_only: "true" },
         });
         this.reasonOptions = Array.isArray(res.data) ? res.data : res.data.results || [];
+        cacheSet("evacuationReasons", this.reasonOptions);
       } catch (err) {
         console.error(err);
-        this.reasonsError = "Failed to load evacuation reasons.";
+        const cached = await cacheGet("evacuationReasons");
+        if (cached?.value?.length) {
+          this.reasonOptions = cached.value; // saved copy, so the form still works offline
+        } else {
+          this.reasonsError = isNetworkError(err)
+            ? "No connection, and no saved list of reasons yet. Open this page once with signal."
+            : "Failed to load evacuation reasons.";
+        }
       } finally {
         this.reasonsLoading = false;
       }
     },
- 
+
     async fetchCenters() {
         try {
             const res = await api.get("evac_centers/evacuation-centers/");
             this.centers = Array.isArray(res.data) ? res.data : res.data.results || [];
 
             this.assignedCenter = this.centers.length > 0 ? this.centers[0] : null;
-
-            if (this.assignedCenter) {
-            this.modal.form.center = this.assignedCenter.id;
-            }
+            cacheSet("assignedCenter", this.assignedCenter);
         } catch (err) {
             console.error(err);
-            this.error = "Failed to load assigned evacuation center.";
+            const cached = await cacheGet("assignedCenter");
+            if (cached?.value) {
+              this.assignedCenter = cached.value; // saved copy, so registration works offline
+            } else {
+              this.error = isNetworkError(err)
+                ? "No connection, and this phone has no saved center yet. Open this page once with signal."
+                : "Failed to load assigned evacuation center.";
+            }
+        }
+
+        if (this.assignedCenter) {
+          this.modal.form.center = this.assignedCenter.id;
         }
     },
 
@@ -544,12 +669,43 @@ export default {
 
         const res = await api.get("evac_centers/evacuees/", { params });
         this.evacuees = Array.isArray(res.data) ? res.data : res.data.results || [];
+        this.listFromCache = false;
+
+        // Keep the default view on the phone so the list is still readable offline.
+        if (this.isDefaultFilter()) cacheSet("evacueeList", this.evacuees);
       } catch (err) {
         console.error(err);
-        this.error = "Failed to load evacuee records.";
+        const cached = isNetworkError(err) ? await cacheGet("evacueeList") : null;
+        if (cached?.value) {
+          this.evacuees = this.filterCachedList(cached.value);
+          this.listFromCache = true;
+          this.listCachedAt = new Date(cached.savedAt).toLocaleString("en-PH", {
+            month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+          });
+        } else {
+          this.error = isNetworkError(err)
+            ? "No connection. New registrations still work and will upload later."
+            : "Failed to load evacuee records.";
+        }
       } finally {
         this.loading = false;
       }
+    },
+
+    isDefaultFilter() {
+      return !this.filters.search && !this.filters.category && this.filters.is_active === "true";
+    },
+
+    // Apply the search/filters to the saved copy, since the server can't do it offline.
+    filterCachedList(list) {
+      const q = this.filters.search.trim().toLowerCase();
+      return list.filter((row) => {
+        if (this.filters.is_active !== "" && String(Boolean(row.is_active)) !== this.filters.is_active) return false;
+        if (this.filters.category && !row[this.filters.category]) return false;
+        if (!q) return true;
+        return [row.first_name, row.middle_name, row.last_name, row.family_head_name, row.contact_number, row.address]
+          .some((v) => (v || "").toLowerCase().includes(q));
+      });
     },
 
     resetFilters() {
@@ -574,12 +730,19 @@ export default {
         this.modalError = "";
 
         if (!this.assignedCenter) {
-            this.modalError = "No assigned evacuation center found for this staff account.";
+            // The modal is closed here, so a modalError would never be seen.
+            alert(
+              outboxState.online
+                ? "No assigned evacuation center found for this staff account."
+                : "No connection, and this phone has no saved center yet. Open this page once with signal."
+            );
             return;
         }
 
         this.modal.mode = "create";
         this.modal.id = null;
+        this.modal.pendingId = null;
+        this.modal.pendingError = "";
         this.modal.form = this.emptyForm();
         this.modal.form.center = this.assignedCenter.id;
 
@@ -589,7 +752,9 @@ export default {
     openEditModal(evacuee) {
       this.modalError = "";
       this.modal.mode = "edit";
-      this.modal.id = evacuee.id;
+      this.modal.id = evacuee._pending ? null : evacuee.id;
+      this.modal.pendingId = evacuee._pending ? evacuee._clientId : null;
+      this.modal.pendingError = evacuee._pending ? evacuee._error : "";
 
       const existingFamilyHeadName = evacuee.family_head_name || "";
       const isKnownFamilyHead =
@@ -664,21 +829,36 @@ export default {
                     .join(", ");
             }
 
-            if (this.modal.mode === "create") {
-            await api.post("evac_centers/evacuees/", payload);
-            } else {
-            await api.patch(`evac_centers/evacuees/${this.modal.id}/`, payload);
+            if (this.modal.mode === "create" || this.modal.pendingId) {
+              // Offline-first: save on the phone, then upload in the background.
+              // The record is safe even if the signal drops mid-upload.
+              if (this.modal.pendingId) {
+                await updateQueued(this.modal.pendingId, payload);
+              } else {
+                await queueEvacuee(payload);
+              }
+              this.closeModal();
+              syncNow(); // not awaited: on a weak connection this can take a while
+              return;
             }
+
+            await api.patch(`evac_centers/evacuees/${this.modal.id}/`, payload);
 
             this.closeModal();
             await this.fetchEvacuees();
         } catch (err) {
             console.error(err);
 
-            if (err.response?.data) {
-            this.modalError = JSON.stringify(err.response.data);
+            if (this.modal.mode === "edit" && isNetworkError(err)) {
+              this.modalError =
+                "No connection. Changes to records already uploaded need signal; " +
+                "new registrations still work offline.";
+            } else if (err.response?.data) {
+              this.modalError = JSON.stringify(err.response.data);
+            } else if (err.name === "QuotaExceededError") {
+              this.modalError = "This phone is out of storage space. Free up space, then try again.";
             } else {
-            this.modalError = "Failed to save evacuee record.";
+              this.modalError = err.message || "Failed to save evacuee record.";
             }
         } finally {
             this.saving = false;
@@ -700,8 +880,26 @@ export default {
         await this.fetchEvacuees();
       } catch (err) {
         console.error(err);
-        alert("Failed to update evacuee status.");
+        alert(isNetworkError(err)
+          ? "No connection. Marking evacuees as left needs signal; try again when you're back online."
+          : "Failed to update evacuee status.");
       }
+    },
+
+    async retryPending(evacuee) {
+      await retryQueued(evacuee._clientId);
+    },
+
+    async discardPending(evacuee) {
+      const ok = confirm(
+        `Discard the record for ${this.fullName(evacuee)}?\n\n` +
+        "It has not been uploaded, so it will be lost. Export it first if you're unsure."
+      );
+      if (ok) await discardQueued(evacuee._clientId);
+    },
+
+    exportPending() {
+      exportOutboxCsv();
     },
 
     fullName(evacuee) {
@@ -720,7 +918,7 @@ export default {
 
     formatSex(sex) {
       if (!sex) return "-";
- 
+
       const map = {
         MALE: "Male",
         FEMALE: "Female",

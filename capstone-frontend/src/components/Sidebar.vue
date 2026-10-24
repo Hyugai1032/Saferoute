@@ -286,6 +286,26 @@ const navItems = [
   flex-direction: column;
   gap: calc(0.5 * var(--u));
   flex: 1;
+  min-height: 0;        /* lets the flex child shrink so it can scroll */
+  overflow-y: auto;
+  overflow-x: hidden;   /* keeps the hover translateX from adding a horizontal bar */
+  padding-right: calc(0.25 * var(--u));
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: calc(0.375 * var(--u));
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: calc(0.25 * var(--u));
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 165, 255, 0.5);
 }
 
 .nav-item {

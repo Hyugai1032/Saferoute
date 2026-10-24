@@ -44,6 +44,7 @@ import axios from "axios";
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import ThemeToggle from "@/components/ThemeToggle.vue";
+import { refreshOutbox } from "@/offline/evacueeOutbox";
 
 const router = useRouter();
 
@@ -101,7 +102,24 @@ const toggleSidebar = () => {
   emit("toggleSidebar");
 };
 
-const logout = () => {
+const logout = async () => {
+  // Evacuees registered offline stay on this phone after logout and upload when the
+  // same account signs in again, but staff should know before they leave.
+  try {
+    const waiting = (await refreshOutbox()).length;
+    if (
+      waiting > 0 &&
+      !confirm(
+        `${waiting} evacuee record(s) on this phone have not been uploaded yet.\n\n` +
+        "They will stay saved here and upload the next time you sign in with this account. Log out anyway?"
+      )
+    ) {
+      return;
+    }
+  } catch {
+    /* offline storage unavailable: nothing to warn about */
+  }
+
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
   localStorage.removeItem("isAuthenticated");

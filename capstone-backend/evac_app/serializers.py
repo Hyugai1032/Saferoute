@@ -213,8 +213,45 @@ class EvacueeSerializer(serializers.ModelSerializer):
             "date_registered",
             "is_active",
             "remarks",
+            "client_id",
+            "recorded_at",
+            "registered_by",
+            "registered_by_name",
+
         ]
-        read_only_fields = ["date_registered"]
+        read_only_fields = ["date_registered", "registered_by"]
+        extra_kwargs = {
+            # Duplicates are resolved in the view (a repeat client_id returns the existing
+            # row), so the default "must be unique" 400 error is not wanted here.
+            "client_id": {"validators": [], "required": False, "allow_null": True},
+            "recorded_at": {"required": False, "allow_null": True},
+        }
+
+    registered_by_name = serializers.SerializerMethodField()
+
+    def get_registered_by_name(self, obj):
+        user = obj.registered_by
+        if not user:
+            return None
+        full = f"{user.first_name} {user.last_name}".strip()
+        return full or user.email
+
+    def update(self, instance, validated_data):
+        # The device id is fixed once the record exists.
+        validated_data.pop("client_id", None)
+        return super().update(instance, validated_data)
+
+
+class EvacueeSyncSerializer(EvacueeSerializer):
+    """
+    Used for records that were typed in offline. A reason that an admin deactivated while
+    the phone was offline is still accepted, so a valid record is never stuck on the phone.
+    """
+    reason_for_evacuation = serializers.PrimaryKeyRelatedField(
+        queryset=EvacuationReason.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
 
 class DonationNeedSerializer(serializers.ModelSerializer):
