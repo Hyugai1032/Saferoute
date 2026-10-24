@@ -38,6 +38,7 @@ import StaffDonationDrive from '../views/Staff/StaffDonationDrive.vue'
 // import UserProfile from "@/views/Profile/UserProfile.vue";
 
 import PublicGISMap from '../views/PublicGISMap.vue'
+import NotFound from '../views/NotFound.vue'
 
 const routes = [
   {
@@ -121,6 +122,13 @@ const routes = [
       { path: "profile", name: "StaffProfile", component: UserProfile },
       { path: "donation-drive", name: "StaffDonationDrive", component: StaffDonationDrive },
     ],
+  },
+
+  // 404 - top level, must stay LAST
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound
   },
 
 ]

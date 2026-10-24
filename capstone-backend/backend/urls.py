@@ -32,5 +32,15 @@ urlpatterns = [
     path("api/", include("audit_app.urls"))
 ]
 
+from django.http import JsonResponse
+
+def custom_404(request, exception=None):
+    return JsonResponse(
+        {"detail": "Not found.", "path": request.path},
+        status=404,
+    )
+
+handler404 = custom_404
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
