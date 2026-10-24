@@ -208,7 +208,7 @@ CACHES = {
 APPEND_SLASH = False
 
 # CORS settings (allow your Vue dev server; update for production)
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']

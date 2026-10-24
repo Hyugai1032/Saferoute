@@ -57,7 +57,7 @@
         </div>
       </div>
 
-      <div class="hero-visual">
+      <!-- <div class="hero-visual">
         <div class="glass-card dashboard-preview">
           <div class="preview-top">
             <div>
@@ -117,7 +117,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
     </section>
 
     <!-- ABOUT PDRRMO -->
@@ -130,11 +130,6 @@
           which leads disaster preparedness and emergency response for the province.
         </p>
       </div>
-
-      <p class="placeholder-note">
-        ⚠️ Sample content — the items below are the PDRRMO's general, publicly known mandate.
-        Replace with the client's actual programs once confirmed (client is available starting Sept 7).
-      </p>
 
       <div class="feature-grid">
         <article class="feature-card">

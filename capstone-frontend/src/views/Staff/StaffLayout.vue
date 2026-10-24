@@ -17,6 +17,7 @@
       />
 
       <div class="main-content" :style="mainContentStyle">
+        <OfflineSyncBanner />
         <router-view />
       </div>
 
@@ -34,6 +35,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRoute } from "vue-router";
 import HeaderBar from "@/components/HeaderBar.vue";
 import StaffSidebar from "@/components/Staff/StaffSidebar.vue";
+import OfflineSyncBanner from "@/components/OfflineSyncBanner.vue";
 
 const sidebarCollapsed = ref(true);
 const route = useRoute();
