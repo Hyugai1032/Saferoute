@@ -272,6 +272,9 @@
 
         <div class="donate-needs-card">
           <h3>Most needed right now</h3>
+          <p v-if="!topNeeds.length" class="donate-note">
+            No open needs at the moment. Please check back soon.
+          </p>
           <ul class="donate-needs-list">
             <li v-for="need in topNeeds" :key="need.id">
               <span class="need-name">{{ need.item_name }}</span>
@@ -280,7 +283,7 @@
             </li>
           </ul>
 
-          <button class="btn primary large donate-cta" @click="openPledgeModal">
+          <button class="btn primary large donate-cta" :disabled="!topNeeds.length" @click="openPledgeModal">
             Pledge a Donation
           </button>
           <p class="donate-note">
@@ -670,17 +673,8 @@ const animateStatsTo = (target) => {
 watch(stats, (newVal) => animateStatsTo(newVal), { immediate: true, deep: true })
 
 // ---- Public donation drive data ----
-const donationSummary = ref({
-  openNeeds: 12,
-  urgentNeeds: 3,
-})
-const topNeeds = ref([
-  { id: 1, item_name: 'Bottled Water', unit: 'packs', remaining_quantity: 80, priority: 'URGENT' },
-  { id: 2, item_name: 'Canned Goods', unit: 'boxes', remaining_quantity: 45, priority: 'HIGH' },
-  { id: 3, item_name: 'Hygiene Kits', unit: 'pcs', remaining_quantity: 30, priority: 'MEDIUM' },
-])
-const donationDataFailed = ref(false)
-const usingLiveDonationData = ref(false)
+const donationSummary = ref({ openNeeds: 0, urgentNeeds: 0 })
+const topNeeds = ref([])
 
 const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 
@@ -700,10 +694,8 @@ const fetchPublicDonationSummary = async () => {
         .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9))
         .slice(0, 3)
 
-      usingLiveDonationData.value = true
     }
   } catch (error) {
-    donationDataFailed.value = true
     console.warn('Public donation summary: live endpoint unavailable, showing sample numbers.', error)
   }
 }
@@ -755,7 +747,11 @@ const submitPledge = async () => {
     const selectedNeed = needsArray.find(n => n.id == targetId)
 
     // Ensure center is valid integer (fallback to 1 if missing on mock items)
-    const centerId = selectedNeed?.center || selectedNeed?.evacuation_center || pledgeForm.value.center || 1
+    const centerId = selectedNeed?.center || selectedNeed?.evacuation_center
+    if (!targetId || !centerId) {
+      alert('Please select a valid item to donate.')
+      return
+    }
 
     const payload = {
       need: targetId ? parseInt(targetId) : null,

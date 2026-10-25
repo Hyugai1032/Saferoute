@@ -12,7 +12,9 @@ from .services.affected_population_report import build_affected_population_repor
 from .permissions import IsProvincialAdmin
 
 from evac_app.models import EvacuationCenter, EvacuationLog
-from .services.congestion import compute_congestion_risk, CongestionParams
+from .services.congestion import (
+    compute_congestion_risk, compute_congestion_risk_bulk, fetch_latest_logs, CongestionParams,
+)
 
     
 class CenterCongestionRiskView(APIView):
@@ -60,15 +62,15 @@ class BulkCongestionRiskView(APIView):
         window = max(5, min(int(request.query_params.get("window", 60)), 24 * 60))
         horizon = max(5, min(int(request.query_params.get("horizon", 60)), 6 * 60))
 
-        centers = EvacuationCenter.objects.filter(id__in=center_ids)
-        results = [
-            compute_congestion_risk(
-                center=center,
-                EvacuationLogModel=EvacuationLog,
-                params=CongestionParams(window_minutes=window, horizon_minutes=horizon),
-            )
-            for center in centers
-        ]
+        centers_qs = EvacuationCenter.objects.filter(id__in=center_ids).select_related("barangay")
+        centers, latest_by_center = fetch_latest_logs(centers_qs, EvacuationLog)
+        by_id = compute_congestion_risk_bulk(
+            centers=centers,
+            latest_by_center=latest_by_center,
+            EvacuationLogModel=EvacuationLog,
+            params=CongestionParams(window_minutes=window, horizon_minutes=horizon),
+        )
+        results = [by_id[c.id] for c in centers if "error" not in by_id[c.id]]
         return Response(results)
     
 class AnalyticsStatsView(APIView):
