@@ -438,6 +438,7 @@
 
 <script>
 import api from "@/services/api";
+import { formatDate as fmtD } from "@/utils/datetime";
 import { cacheGet, cacheSet } from "@/offline/db";
 import {
   outboxState,
@@ -930,12 +931,7 @@ export default {
 
     formatDate(value) {
       if (!value) return "-";
-
-      return new Date(value).toLocaleDateString("en-PH", {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-      });
+      return fmtD(value);
     },
 
     hasCategory(evacuee) {

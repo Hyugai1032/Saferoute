@@ -29,8 +29,8 @@
           <div class="feature-chip">
             <span class="chip-dot blue"></span>
             <div>
-              <strong>Real-time Monitoring</strong>
-              <p>Instant visibility across hazards, centers, and response activity.</p>
+              <strong>Status Monitoring</strong>
+              <p>See hazards, centers, and response activity as staff report them.</p>
             </div>
           </div>
           <div class="feature-chip">
@@ -57,72 +57,107 @@
         </div>
       </div>
 
-      <!-- <div class="hero-visual">
-        <div class="glass-card dashboard-preview">
-          <div class="preview-top">
+      <div class="hero-visual" aria-hidden="true">
+        <div class="float-chip chip-a"><span>📈</span> Congestion forecast</div>
+        <div class="float-chip chip-b"><span>🗺️</span> GIS-mapped centers</div>
+
+        <div class="glass-card route-card">
+          <div class="route-card-top">
             <div>
-              <p class="mini-label">System Overview</p>
-              <h3>Emergency Response Snapshot</h3>
+              <p class="mini-label">How SafeRoute guides evacuees</p>
+              <h3>Hazard-aware routing</h3>
             </div>
-            <span class="status-pill">Live</span>
+            <span class="illus-pill">Illustration</span>
           </div>
 
-          <div class="stats-grid">
-            <div class="stat-card accent-blue">
-              <h4>{{ displayStats.totalCenters }}</h4>
-              <p>Evacuation Centers</p>
-            </div>
-            <div class="stat-card accent-orange">
-              <h4>{{ displayStats.totalHazards }}</h4>
-              <p>Active Hazard Reports</p>
-            </div>
-            <div class="stat-card accent-green">
-              <h4>{{ displayStats.totalEvacuees }}</h4>
-              <p>Tracked Evacuees</p>
-            </div>
-            <div class="stat-card accent-purple">
-              <h4>{{ displayStats.occupancyRate }}%</h4>
-              <p>Center Occupancy</p>
-            </div>
-          </div>
+          <svg class="route-svg" viewBox="0 0 520 330" role="img">
+            <defs>
+              <linearGradient id="srRoute" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0" stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#22c55e" />
+              </linearGradient>
+              <radialGradient id="srHazard">
+                <stop offset="0" stop-color="#ef4444" stop-opacity=".55" />
+                <stop offset="1" stop-color="#ef4444" stop-opacity="0" />
+              </radialGradient>
+              <pattern id="srGrid" width="26" height="26" patternUnits="userSpaceOnUse">
+                <path d="M26 0H0V26" fill="none" class="svg-grid" />
+              </pattern>
+            </defs>
 
-          <div class="activity-panel">
-            <div class="activity-header">
-              <h4>Response Coordination</h4>
-              <span>Updated {{ lastUpdated }}</span>
-            </div>
+            <rect width="520" height="330" rx="18" class="svg-water" />
+            <rect width="520" height="330" rx="18" fill="url(#srGrid)" />
 
-            <div class="activity-list">
-              <div class="activity-item">
-                <span class="dot green"></span>
-                <div>
-                  <strong>Evacuation logs centralized</strong>
-                  <p>Monitor incoming and outgoing evacuees efficiently.</p>
-                </div>
-              </div>
-              <div class="activity-item">
-                <span class="dot orange"></span>
-                <div>
-                  <strong>Hazard reports submitted</strong>
-                  <p>Field reports can be reviewed and mapped for faster response.</p>
-                </div>
-              </div>
-              <div class="activity-item">
-                <span class="dot blue"></span>
-                <div>
-                  <strong>GIS map visibility improved</strong>
-                  <p>Track hazard and center locations from one dashboard.</p>
-                </div>
-              </div>
-            </div>
-          </div>
+            <path class="svg-land"
+              d="M62 210 C 40 150, 92 86, 160 70 C 230 52, 270 40, 340 52 C 420 66, 486 110, 478 178
+                 C 470 246, 404 292, 318 296 C 240 300, 170 300, 118 276 C 84 260, 70 238, 62 210 Z" />
+            <path class="svg-road" d="M90 232 C 170 210, 250 196, 330 168 S 440 120, 462 118" />
+            <path class="svg-road" d="M150 90 C 200 150, 240 220, 300 286" />
+
+            <!-- blocked direct path -->
+            <path class="svg-blocked" d="M118 246 L 408 112" />
+            <g class="svg-x" transform="translate(262 180)">
+              <path d="M-9 -9 L 9 9 M9 -9 L -9 9" />
+            </g>
+
+            <!-- hazard zone -->
+            <circle cx="262" cy="176" r="62" fill="url(#srHazard)" />
+            <circle class="hazard-ring" cx="262" cy="176" r="30" />
+            <circle class="hazard-ring ring-2" cx="262" cy="176" r="30" />
+            <text x="262" y="184" text-anchor="middle" class="svg-emoji">⚠️</text>
+
+            <!-- safe route -->
+            <path id="srSafePath" class="svg-route"
+              d="M118 246 C 170 300, 290 312, 342 250 S 392 140, 410 112" />
+            <circle r="7" class="route-dot">
+              <animateMotion dur="3.6s" repeatCount="indefinite" rotate="auto">
+                <mpath href="#srSafePath" />
+              </animateMotion>
+            </circle>
+
+            <!-- you -->
+            <circle class="you-pulse" cx="118" cy="246" r="10" />
+            <circle cx="118" cy="246" r="8" class="you-dot" />
+            <text x="118" y="276" text-anchor="middle" class="svg-label">You</text>
+
+            <!-- shelters -->
+            <g transform="translate(410 112)">
+              <g class="pin pin-green">
+                <path d="M0 0 C -14 -16, -14 -34, 0 -34 C 14 -34, 14 -16, 0 0 Z" />
+                <circle cy="-22" r="5" class="pin-hole" />
+              </g>
+            </g>
+            <text x="410" y="66" text-anchor="middle" class="svg-label strong">Space available</text>
+
+            <g transform="translate(396 268)">
+              <g class="pin pin-amber">
+                <path d="M0 0 C -12 -14, -12 -29, 0 -29 C 12 -29, 12 -14, 0 0 Z" />
+                <circle cy="-19" r="4" class="pin-hole" />
+              </g>
+            </g>
+            <text x="396" y="286" text-anchor="middle" class="svg-label">Nearly full</text>
+
+            <g transform="translate(176 104)">
+              <g class="pin pin-grey">
+                <path d="M0 0 C -12 -14, -12 -29, 0 -29 C 12 -29, 12 -14, 0 0 Z" />
+                <circle cy="-19" r="4" class="pin-hole" />
+              </g>
+            </g>
+            <text x="176" y="122" text-anchor="middle" class="svg-label">No report</text>
+          </svg>
+
+          <ol class="route-steps">
+            <li><span class="step-dot red"></span>Hazard reported</li>
+            <li><span class="step-dot blue"></span>Route avoids it</li>
+            <li><span class="step-dot green"></span>Shelter with space</li>
+          </ol>
         </div>
-      </div> -->
+      </div>
     </section>
 
     <!-- ABOUT PDRRMO -->
     <section id="about-pdrrmo" class="content-section">
-      <div class="section-heading center">
+      <div class="section-heading center" v-reveal>
         <span class="section-tag">About Our Partner</span>
         <h2>Powered by the PDRRMO</h2>
         <p>
@@ -131,7 +166,7 @@
         </p>
       </div>
 
-      <div class="feature-grid">
+      <div class="feature-grid" v-reveal:group>
         <article class="feature-card">
           <div class="feature-icon">🛡️</div>
           <h3>Disaster Preparedness</h3>
@@ -149,16 +184,16 @@
         </article>
       </div>
 
-      <div class="gallery-heading">
+      <div class="gallery-heading" v-reveal>
         <h3>PDRRMO Through the Years</h3>
         <p>Trainings, relief operations, and community drives from the field.</p>
       </div>
-      <PdrrmoGallery :slides="pdrrmoGallerySlides" />
+      <PdrrmoGallery v-reveal :slides="pdrrmoGallerySlides" />
     </section>
 
     <!-- FEATURES -->
     <section id="features" class="content-section">
-      <div class="section-heading center">
+      <div class="section-heading center" v-reveal>
         <span class="section-tag">Core Features</span>
         <h2>Everything needed to support coordinated evacuation operations</h2>
         <p>
@@ -166,7 +201,7 @@
         </p>
       </div>
 
-      <div class="feature-grid">
+      <div class="feature-grid" v-reveal:group>
         <article class="feature-card">
           <div class="feature-icon">📍</div>
           <h3>Hazard Reporting</h3>
@@ -219,12 +254,12 @@
 
     <!-- HOW IT WORKS -->
     <section id="how-it-works" class="content-section alt-bg">
-      <div class="section-heading center">
+      <div class="section-heading center" v-reveal>
         <span class="section-tag">Workflow</span>
         <h2>How SafeRoute supports emergency coordination</h2>
       </div>
 
-      <div class="steps-grid">
+      <div class="steps-grid" v-reveal:group>
         <div class="step-card">
           <span class="step-number">01</span>
           <h3>Report Hazards</h3>
@@ -250,7 +285,7 @@
 
     <!-- DONATION DRIVE PREVIEW -->
     <section id="donate" class="content-section alt-bg">
-      <div class="section-heading center">
+      <div class="section-heading center" v-reveal>
         <span class="section-tag">Donation Drive</span>
         <h2>Help evacuation centers stay stocked and ready</h2>
         <p>
@@ -258,7 +293,7 @@
         </p>
       </div>
 
-      <div class="donate-layout">
+      <div class="donate-layout" v-reveal>
         <div class="donate-summary">
           <div class="donate-stat">
             <h4>{{ donationSummary.openNeeds }}</h4>
@@ -295,12 +330,12 @@
 
     <!-- ROLES -->
     <section id="roles" class="content-section">
-      <div class="section-heading center">
+      <div class="section-heading center" v-reveal>
         <span class="section-tag">User Roles</span>
         <h2>Built for the people who manage and respond on the ground</h2>
       </div>
 
-      <div class="roles-grid">
+      <div class="roles-grid" v-reveal:group>
         <div class="role-card">
           <h3>Provincial Admin</h3>
           <p>Oversees system-wide data, center monitoring, user coordination, and visibility across municipalities.</p>
@@ -322,7 +357,7 @@
 
     <!-- CTA
     <section class="cta-section">
-      <div class="cta-card">
+      <div class="cta-card" v-reveal>
         <div>
           <span class="section-tag light">Start Using SafeRoute</span>
           <h2>Bring clarity, speed, and coordination to evacuation response</h2>
@@ -341,12 +376,12 @@
     <!-- CONTACT / FOOTER -->
     <section id="contact" class="contact-section">
       <div class="contact-shell">
-        <div class="contact-intro">
+        <div class="contact-intro" v-reveal>
           <span class="section-tag">Contact & Support</span>
           <h2>Need assistance with SafeRoute?</h2>
         </div>
 
-        <div class="contact-grid three-division-grid">
+        <div class="contact-grid three-division-grid" v-reveal:group>
           <article class="contact-card primary-contact-card">
             <div class="contact-card-top">
               <div>
@@ -577,6 +612,30 @@ import floodRescue2 from '@/assets/pdrrmo-gallery/flood-rescue-2.jpg'
 import floodRescue3 from '@/assets/pdrrmo-gallery/flood-rescue-3.jpg'
 import floodRescue4 from '@/assets/pdrrmo-gallery/flood-rescue-4.jpg'
 import IndexNavBar from '@/components/IndexNavBar.vue' ;
+
+// Fade/slide sections in as they scroll into view. v-reveal animates the element,
+// v-reveal:group animates its children one after another.
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+const vReveal = {
+  mounted(el, binding) {
+    if (prefersReducedMotion() || !('IntersectionObserver' in window)) return
+    el.classList.add(binding.arg === 'group' ? 'reveal-group' : 'reveal')
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        el.classList.add('is-visible')
+        io.disconnect()
+      }
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+    io.observe(el)
+    el._revealIO = io
+  },
+  unmounted(el) {
+    el._revealIO?.disconnect()
+  },
+}
 
 const router = useRouter()
 
@@ -1488,4 +1547,206 @@ onMounted(() => {
   }
 }
 
+/* =========================================================
+   HERO ILLUSTRATION + MOTION
+   ========================================================= */
+.landing-page {
+  --sr-map-water: #0b1b33;
+  --sr-map-grid: rgba(148, 163, 184, 0.07);
+  --sr-map-land: #12305a;
+  --sr-map-land-edge: rgba(125, 211, 252, 0.25);
+  --sr-map-road: rgba(148, 163, 184, 0.22);
+  --sr-map-label: #cfe0f5;
+}
+[data-theme="light"] .landing-page {
+  --sr-map-water: #dbeafe;
+  --sr-map-grid: rgba(37, 99, 235, 0.08);
+  --sr-map-land: #f8fafc;
+  --sr-map-land-edge: rgba(37, 99, 235, 0.3);
+  --sr-map-road: rgba(100, 116, 139, 0.35);
+  --sr-map-label: #1e293b;
+}
+
+/* stop the decorative orbs from creating a sideways scrollbar */
+.landing-page { overflow-x: clip; }
+
+.hero-visual {
+  position: relative;
+  animation: sr-rise .9s .35s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.route-card {
+  position: relative;
+  padding: 1.25rem;
+  border-radius: 26px;
+  background: linear-gradient(160deg, var(--sr-glass-bg-1), var(--sr-glass-bg-2));
+  border: 1px solid var(--sr-border-accent);
+  box-shadow: 0 30px 70px var(--sr-shadow-strong), inset 0 1px 0 rgba(255, 255, 255, .04);
+  backdrop-filter: blur(16px);
+  animation: sr-float 7s ease-in-out infinite;
+}
+.route-card::before {
+  content: '';
+  position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, .55), transparent 40%, transparent 60%, rgba(139, 92, 246, .45));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none;
+}
+
+.route-card-top {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+  margin-bottom: .9rem;
+}
+.route-card-top .mini-label {
+  margin: 0; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--sr-text-faint);
+}
+.route-card-top h3 { margin: .2rem 0 0; font-size: 1.2rem; color: var(--sr-heading); }
+.illus-pill {
+  font-size: .72rem; font-weight: 700; padding: .3rem .65rem; border-radius: 999px;
+  color: var(--sr-text-muted); border: 1px dashed var(--sr-border-accent-hover);
+  white-space: nowrap;
+}
+
+.route-svg { display: block; width: 100%; height: auto; border-radius: 18px; }
+.svg-water { fill: var(--sr-map-water); }
+.svg-grid { stroke: var(--sr-map-grid); stroke-width: 1; }
+.svg-land { fill: var(--sr-map-land); stroke: var(--sr-map-land-edge); stroke-width: 1.5; }
+.svg-road { fill: none; stroke: var(--sr-map-road); stroke-width: 3; stroke-linecap: round; }
+.svg-blocked { fill: none; stroke: #f87171; stroke-width: 2; stroke-dasharray: 4 7; opacity: .55; }
+.svg-x path { stroke: #f87171; stroke-width: 3; stroke-linecap: round; }
+.svg-emoji { font-size: 20px; }
+.svg-label { font-size: 11px; font-weight: 600; fill: var(--sr-map-label); opacity: .85; }
+.svg-label.strong { font-weight: 800; opacity: 1; fill: #22c55e; }
+
+.hazard-ring {
+  fill: none; stroke: #ef4444; stroke-width: 2;
+  transform-box: fill-box; transform-origin: center;
+  animation: sr-ring 2.4s ease-out infinite;
+}
+.hazard-ring.ring-2 { animation-delay: 1.2s; }
+
+.svg-route {
+  fill: none; stroke: url(#srRoute); stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 520; stroke-dashoffset: 520;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, .55));
+  animation: sr-draw 2.2s .9s cubic-bezier(.6, .1, .2, 1) forwards;
+}
+.route-dot { fill: #fff; filter: drop-shadow(0 0 6px #38bdf8); }
+
+.you-dot { fill: #38bdf8; stroke: #fff; stroke-width: 2.5; }
+.you-pulse {
+  fill: #38bdf8; opacity: .5;
+  transform-box: fill-box; transform-origin: center;
+  animation: sr-ring 1.8s ease-out infinite;
+}
+
+.pin path { stroke: #fff; stroke-width: 2; }
+.pin-hole { fill: #fff; }
+.pin-green path { fill: #22c55e; }
+.pin-amber path { fill: #f59e0b; }
+.pin-grey path { fill: #94a3b8; }
+.pin {
+  transform-box: fill-box;
+  animation: sr-drop .7s cubic-bezier(.3, 1.4, .5, 1) both;
+}
+.pin-grey { animation-delay: 1.1s; }
+.pin-amber { animation-delay: 1.3s; }
+.pin-green { animation-delay: 1.5s; }
+
+.route-steps {
+  list-style: none; margin: 1rem 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem;
+}
+.route-steps li {
+  display: flex; align-items: center; justify-content: center; gap: .45rem;
+  padding: .6rem .5rem; border-radius: 12px; font-size: .8rem; font-weight: 600;
+  color: var(--sr-text); background: var(--sr-chip-bg); border: 1px solid var(--sr-chip-border);
+  text-align: center;
+}
+.step-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.step-dot.red { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+.step-dot.blue { background: #38bdf8; box-shadow: 0 0 10px #38bdf8; }
+.step-dot.green { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+/* theme.css has a global `.green { background: ... !important }` that was dimming these dots */
+.step-dot.green, .chip-dot.green { background: #22c55e !important; color: #22c55e !important; }
+
+.float-chip {
+  position: absolute; z-index: 2;
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .55rem .85rem; border-radius: 999px;
+  font-size: .82rem; font-weight: 700; color: var(--sr-heading);
+  background: var(--sr-panel-bg-1); border: 1px solid var(--sr-border-accent-hover);
+  box-shadow: 0 16px 34px var(--sr-shadow-med);
+  animation: sr-bob 5s ease-in-out infinite;
+}
+.chip-a { top: -46px; left: 28px; }
+.chip-b { bottom: 74px; right: -20px; animation-delay: -2.5s; }
+
+/* Hero text entrance */
+.hero-content > * { animation: sr-rise .8s cubic-bezier(.2, .7, .2, 1) both; }
+.hero-content > *:nth-child(2) { animation-delay: .08s; }
+.hero-content > *:nth-child(3) { animation-delay: .16s; }
+.hero-content > *:nth-child(4) { animation-delay: .24s; }
+.hero-content > *:nth-child(5) { animation-delay: .32s; }
+
+.hero-content h2 span {
+  background-size: 200% auto;
+  animation: sr-shine 6s linear infinite;
+}
+
+.feature-chip { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+.feature-chip:hover {
+  transform: translateY(-3px);
+  border-color: var(--sr-border-accent-hover);
+  box-shadow: 0 18px 36px var(--sr-shadow-med);
+}
+
+.orb-1 { animation: sr-drift 16s ease-in-out infinite; }
+.orb-2 { animation: sr-drift 20s ease-in-out infinite reverse; }
+.orb-3 { animation: sr-drift 24s ease-in-out infinite; }
+
+/* Scroll reveal (classes are added by the v-reveal directive) */
+.reveal {
+  opacity: 0; transform: translateY(28px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1);
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+.reveal-group > * {
+  opacity: 0; transform: translateY(26px);
+  transition: opacity .6s ease, transform .6s cubic-bezier(.2, .7, .2, 1);
+}
+.reveal-group.is-visible > * { opacity: 1; transform: none; }
+.reveal-group.is-visible > *:nth-child(2) { transition-delay: .08s; }
+.reveal-group.is-visible > *:nth-child(3) { transition-delay: .16s; }
+.reveal-group.is-visible > *:nth-child(4) { transition-delay: .24s; }
+.reveal-group.is-visible > *:nth-child(5) { transition-delay: .32s; }
+.reveal-group.is-visible > *:nth-child(n+6) { transition-delay: .4s; }
+
+@keyframes sr-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes sr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes sr-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes sr-ring { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.1); opacity: 0; } }
+@keyframes sr-draw { to { stroke-dashoffset: 0; } }
+@keyframes sr-drop { 0% { opacity: 0; transform: translateY(-26px); } 100% { opacity: 1; transform: none; } }
+@keyframes sr-shine { to { background-position: 200% center; } }
+@keyframes sr-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(40px, 30px); } }
+
+@media (max-width: 860px) {
+  .hero-visual { margin-top: 1rem; }
+  .chip-a { left: 8px; top: -16px; }
+  .chip-b { right: 8px; bottom: 70px; }
+}
+@media (max-width: 520px) {
+  .route-steps { grid-template-columns: 1fr; }
+  .float-chip { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-visual, .route-card, .float-chip, .hero-content > *, .hero-content h2 span,
+  .orb-1, .orb-2, .orb-3, .hazard-ring, .you-pulse, .pin { animation: none !important; }
+  .svg-route { animation: none; stroke-dashoffset: 0; }
+  .route-dot { display: none; }
+}
 </style>

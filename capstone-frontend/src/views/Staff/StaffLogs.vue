@@ -310,6 +310,7 @@
 
 <script>
 import api from "../../services/api";
+import { formatDateTime as fmtDT } from "@/utils/datetime";
 
 export default {
   name: "StaffLogs",
@@ -406,8 +407,7 @@ export default {
     },
     lastUpdatedText() {
       if (!this.latestLog?.date_recorded) return "-";
-      const d = new Date(this.latestLog.date_recorded);
-      return isNaN(d.getTime()) ? this.latestLog.date_recorded : d.toLocaleString();
+      return fmtDT(this.latestLog.date_recorded);
     },
     vulnerableInTotal() {
       const f = this.modal.form || {};
@@ -451,10 +451,8 @@ export default {
 methods: {
     formatDate(dt) {
       if (!dt) return "-";
-      const d = new Date(dt);
-      return isNaN(d.getTime()) ? dt : d.toLocaleString();
+      return fmtDT(dt);
     },
-
     logVulnerableOut(log) {
       return (
         (log.children_out || 0) +

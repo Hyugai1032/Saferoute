@@ -3,14 +3,14 @@
     <div class="map-header">
       <div class="header-content">
         <h2 class="page-title">🌍 GIS Monitoring Map</h2>
-        <p class="page-subtitle">Real-time evacuation center status across Oriental Mindoro</p>
+        <p class="page-subtitle">Evacuation center status across Oriental Mindoro, based on reports from center staff</p>
       </div>
-      
+
       <div class="map-controls">
         <div class="legend">
           <div class="legend-item">
             <div class="legend-color normal"></div>
-            <span>Available (< 70%)</span>
+            <span>Available (&lt; 70%)</span>
           </div>
           <div class="legend-item">
             <div class="legend-color warning"></div>
@@ -19,6 +19,10 @@
           <div class="legend-item">
             <div class="legend-color critical"></div>
             <span>Most Likely Full (≥ 90%)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color unknown"></div>
+            <span>No report / Unknown</span>
           </div>
         </div>
 
@@ -32,7 +36,7 @@
             <span>{{ type.label }}</span>
           </label>
         </div>
-        
+
         <div class="control-buttons">
           <button class="control-btn" @click="refreshData" title="Refresh Data">
             🔄
@@ -47,8 +51,30 @@
       </div>
     </div>
 
+    <div class="data-disclaimer" role="note">
+      ⚠️ Data may be incomplete or outdated. Always follow official LGU/MDRRMO/PDRRMO advisories.
+      <span v-if="dataAsOf" class="as-of">Data as of {{ formatDateTime(dataAsOf) }}</span>
+
+      <span v-if="coverage" class="coverage-note">
+        Coverage: {{ coverage.total_centers - coverage.unmapped_centers }} of {{ coverage.total_centers }} centers are on the map<template v-if="coverage.unmapped_centers"> ({{ coverage.unmapped_centers }} have no coordinates yet and are not shown)</template>.
+        <template v-if="coverage.municipalities_without_centers.length">
+          No centers registered yet for {{ coverage.municipalities_without_centers.length }} LGU(s):
+          {{ coverage.municipalities_without_centers.join(', ') }}.
+        </template>
+      </span>
+    </div>
+
     <div class="map-content">
       <div id="map" class="main-map"></div>
+
+      <div v-if="pinsLoading" class="map-loading" role="status" aria-live="polite">
+        <div class="radar"><span class="radar-dot"></span></div>
+        <p>Loading evacuation centers…</p>
+      </div>
+      <div v-else-if="loadError" class="map-loading error" role="alert">
+        <p>⚠️ {{ loadError }}</p>
+        <button class="action-btn primary" @click="retryLoad">Try again</button>
+      </div>
       
       <div class="map-sidebar" :class="{ 'sidebar-collapsed': !selectedCenter }">
         <div class="sidebar-content" v-if="selectedCenter">
@@ -72,15 +98,44 @@
                 <span class="info-value">{{ selectedCenter.contact }}</span>
               </div> -->
               <div class="info-item">
-                <span class="info-label">🕒 Last Update:</span>
-                <span class="info-value">{{ selectedCenter.updated_at }}</span>
+                <span class="info-label">🕒 Last Report:</span>
+                <span class="info-value">
+                  <template v-if="hasReport(selectedCenter)">
+                    {{ formatDateTime(selectedCenter.last_report_at) }}
+                    ({{ timeAgo(selectedCenter.last_report_at) }})
+                  </template>
+                  <template v-else>No report received</template>
+                </span>
               </div>
+              <div class="info-item">
+                <span class="info-label">📡 Operational Status:</span>
+                <span class="info-value op-status" :class="getOperationalStatus(selectedCenter).level">
+                  {{ getOperationalStatus(selectedCenter).text }}
+                </span>
+              </div>
+
+                            <div class="info-item">
+                <span class="info-label">🌊 Flood susceptibility:</span>
+                <span class="info-value" :class="suscClass(selectedCenter.flood_susceptibility)">
+                  {{ suscText(selectedCenter.flood_susceptibility) }}
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">⛰️ Landslide susceptibility:</span>
+                <span class="info-value" :class="suscClass(selectedCenter.landslide_susceptibility)">
+                  {{ suscText(selectedCenter.landslide_susceptibility) }}
+                </span>
+              </div>
+              <p class="susc-note">
+                As recorded by the LGU; not yet validated against official hazard maps (MGB/GeoRiskPH).
+                "Low" may also mean no assessment was entered.
+              </p>
             </div>
 
             <!-- Occupancy Section -->
             <div class="metrics-section">
               <h4>Occupancy</h4>
-              <div class="occupancy-display">
+              <div v-if="hasReport(selectedCenter)" class="occupancy-display">
                 <div class="progress-container">
                   <div class="progress-bar large">
                     <div 
@@ -95,6 +150,9 @@
                   </div>
                 </div>
               </div>
+               <p v-else class="no-report-note">
+                No occupancy report has been submitted for this center. Actual availability is unknown.
+              </p>
             </div>
 
             <div class="metrics-section">
@@ -191,6 +249,7 @@ import { ref, shallowRef, onMounted, onUnmounted, nextTick, watch, onActivated }
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import api from '@/services/api'
+import { formatDateTime, timeAgo, hoursSince } from '@/utils/datetime'
 
 // PERFORMANCE: a plain ref() wraps everything inside it in deep reactive proxies.
 // For the Leaflet map/layers/markers and 300+ center objects that is slow and can
@@ -243,8 +302,24 @@ const buildingTypes = [
 ]
 
 // Methods
+const STALE_AFTER_HOURS = 24
+const hasReport = (c) => !!c?.last_report_at
+const isStale = (c) => {
+  const h = hoursSince(c?.last_report_at)
+  return h != null && h > STALE_AFTER_HOURS
+}
+const getOperationalStatus = (c) => {
+  if (!hasReport(c)) return { level: 'unknown', text: 'No report received' }
+  if (isStale(c)) return { level: 'stale', text: `Report outdated (${timeAgo(c.last_report_at)})` }
+  return { level: 'active', text: `Reporting (${timeAgo(c.last_report_at)})` }
+}
+const SUSC_TEXT = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' }
+const suscText = (v) => SUSC_TEXT[v] || 'Not assessed'
+const suscClass = (v) => `susc-${(v || 'unknown').toLowerCase()}`
+
 
 const getStatusColor = (center) => {
+  if (!hasReport(center)) return '#9ca3af'
   const pct = getOccupancyPercentage(center)
   if (pct >= 90) return '#ef4444'
   if (pct >= 70) return '#f59e0b'
@@ -252,6 +327,7 @@ const getStatusColor = (center) => {
 }
 
 const getStatusLevel = (center) => {
+  if (!hasReport(center)) return 'unknown'
   const pct = getOccupancyPercentage(center)
   if (pct >= 90) return 'critical'
   if (pct >= 70) return 'warning'
@@ -259,10 +335,10 @@ const getStatusLevel = (center) => {
 }
 
 const getStatusText = (center) => {
+  if (!hasReport(center)) return 'No report / Unknown'
   const pct = getOccupancyPercentage(center)
-  if (pct >= 90) return 'Most Likely Full'
-  if (pct >= 70) return 'Nearly Full'
-  return 'Available'
+ if (pct >= 90) return isStale(center) ? 'Most Likely Full (outdated)' : 'Most Likely Full'
+  if (pct >= 70) return isStale(center) ? 'Nearly Full (outdated)' : 'Nearly Full'
 }
 
 const createCenterIcon = (center) => {
@@ -287,7 +363,7 @@ const createCenterIcon = (center) => {
         <div class="marker-hover-badge">
           <span class="hover-badge-text">
             ${typeLabel}<br/>
-            Now: ${percentage}%<br/>
+            ${hasReport(center) ? `Now: ${percentage}%` : 'No report yet'}<br/>
             ${predictedText}
           </span>
         </div>
@@ -327,7 +403,7 @@ const getOccupancyPercentage = (c) => {
 // Client-side cache (sessionStorage, so it survives route changes and page reloads).
 //  - younger than 60s: use it and make no network call
 //  - up to 10 min old: show it instantly, then refresh in the background
-const OVERVIEW_CACHE_KEY = 'gismap:overview:v1'
+const OVERVIEW_CACHE_KEY = 'gismap:overview:v3'
 const OVERVIEW_FRESH_MS = 60 * 1000
 const OVERVIEW_MAX_STALE_MS = 10 * 60 * 1000
 const PREDICTION_KEYS = [
@@ -340,6 +416,17 @@ const PREDICTION_KEYS = [
 const predictionsReady = ref(false)
 let loadToken = 0
 let hasFitted = false
+
+const dataAsOf = ref(null)
+const coverage = ref(null)
+const pinsLoading = ref(true)
+const loadError = ref('')
+
+const retryLoad = () => {
+  loadError.value = ''
+  pinsLoading.value = true
+  loadOverview({ force: true })
+}
 
 const readOverviewCache = () => {
   try {
@@ -357,8 +444,7 @@ const writeOverviewCache = () => {
   try {
     sessionStorage.setItem(
       OVERVIEW_CACHE_KEY,
-      JSON.stringify({ t: Date.now(), centers: centers.value, hazards: hazards.value })
-    )
+      JSON.stringify({ t: Date.now(), centers: centers.value, hazards: hazards.value, coverage: coverage.value })    )
   } catch {
     // Storage full/unavailable: the cache is only an optimisation, ignore.
   }
@@ -367,6 +453,7 @@ const writeOverviewCache = () => {
 const applyOverview = (data) => {
   centers.value = data.centers || []
   hazards.value = data.hazards || []
+  if (data.coverage) coverage.value = data.coverage
   centersById = new Map(centers.value.map((c) => [c.id, c]))
 }
 
@@ -397,10 +484,12 @@ const loadOverview = async ({ force = false } = {}) => {
   const snap = force ? null : readOverviewCache()
   if (snap) {
     applyOverview(snap)
+    dataAsOf.value = new Date(snap.t)
     predictionsReady.value = true
     renderCenters()
     renderHazards()
     fitOnce()
+    pinsLoading.value = false
     if (Date.now() - snap.t < OVERVIEW_FRESH_MS) return
   }
 
@@ -412,11 +501,18 @@ const loadOverview = async ({ force = false } = {}) => {
       centers: carryOverPredictions(fast.data.centers || []),
       hazards: fast.data.hazards,
     })
+    dataAsOf.value = new Date()
     renderCenters()
     renderHazards()
     fitOnce()
+    pinsLoading.value = false
+    loadError.value = ''
   } catch (err) {
     console.error('Failed to load map pins:', err)
+    pinsLoading.value = false
+    if (!centers.value.length) {
+      loadError.value = 'Could not load evacuation centers. Please check your connection and try again.'
+    }
     return
   }
 
@@ -523,31 +619,9 @@ const getCenterDetail = async (id) => {
   return data
 }
 
-const onCenterClick = async (id) => {
-  const base = centersById.get(id)
-  if (!base) return
-  selectedCenter.value = base
-
-  try {
-    const full = await getCenterDetail(id)
-    const merged = { ...(centersById.get(id) || base), ...full }
-
-    // keep our data in sync so the next refresh/diff starts from the newest values
-    centersById.set(id, merged)
-    const idx = centers.value.findIndex((c) => c.id === id)
-    if (idx !== -1) centers.value[idx] = merged
-
-    const entry = centerMarkers.get(id)
-    if (entry) {
-      entry.marker.setIcon(createCenterIcon(merged))
-      entry.sig = centerSignature(merged)
-    }
-
-    // ignore the response if the user has already clicked a different center
-    if (selectedCenter.value?.id === id) selectedCenter.value = merged
-  } catch (e) {
-    console.error('Failed to fetch center detail:', e)
-  }
+const onCenterClick = (id) => {
+  const center = centersById.get(id)
+  if (center) selectedCenter.value = center
 }
 
 const renderCenters = () => {
@@ -1290,8 +1364,7 @@ watch(selectedCenter, () => {
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   position: relative;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);  border: 3px solid white;
   transition: transform 0.2s ease;
 }
 
@@ -1464,6 +1537,44 @@ watch(selectedCenter, () => {
   cursor: pointer;
 }
 
+
+.legend-color.unknown { background: #9ca3af; }
+.status-badge.unknown { background: rgba(156,163,175,.15); color: #6b7280; border: 1px solid #9ca3af; }
+.progress-fill.unknown { background: #9ca3af; }
+.op-status.active  { color: #10b981; font-weight: 600; }
+.op-status.stale   { color: #f59e0b; font-weight: 600; }
+.op-status.unknown { color: #6b7280; font-weight: 600; }
+.no-report-note { font-size: .85rem; color: #6b7280; margin: .25rem 0 0; }
+
+.data-disclaimer {
+  display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center;
+  padding: .5rem 1rem; font-size: .85rem;
+  background: #fef3c7; color: #92400e; border-bottom: 1px solid #fcd34d;
+}
+.data-disclaimer .as-of { font-weight: 600; }
+.data-disclaimer .coverage-note { flex-basis: 100%; font-size: .8rem; }
+
+/* Map loading / error overlay */
+.map-loading {
+  position: absolute; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
+  background: rgba(6, 9, 18, .55); backdrop-filter: blur(2px);
+  color: #e5e7eb; font-size: .95rem; pointer-events: none;
+}
+.map-loading.error { pointer-events: auto; text-align: center; padding: 1rem; }
+.radar { position: relative; width: 72px; height: 72px; }
+.radar::before, .radar::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid #38bdf8; animation: radar 1.6s ease-out infinite;
+}
+.radar::after { animation-delay: .8s; }
+.radar-dot {
+  position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  border-radius: 50%; background: #38bdf8; box-shadow: 0 0 12px #38bdf8;
+}
+@keyframes radar { 0% { transform: scale(.2); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .radar::before, .radar::after { animation: none; } }
+
 /* ---- Theme lock for the map itself ----
    Leaflet renders its tiles/canvas as plain <img>/<div> nodes injected
    directly into #map by JS, outside Vue's template — so Vue's scoped
@@ -1479,4 +1590,10 @@ watch(selectedCenter, () => {
   filter: none !important;
   -webkit-filter: none !important;
 }
+
+.info-value.susc-low     { color: #10b981 !important; }
+.info-value.susc-medium  { color: #f59e0b !important; }
+.info-value.susc-high    { color: #ef4444 !important; }
+.info-value.susc-unknown { color: #94a3b8 !important; }
+.susc-note { font-size: .72rem; color: #94a3b8; margin: .25rem 0 0; line-height: 1.4; }
 </style>
