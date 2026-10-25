@@ -1433,7 +1433,7 @@ def get_latest_center_occupancy(center):
             "congestion_percent": 0.0,
         }
 
-    capacity = int(center.family_capacity_max or 0) + int(center.individual_capacity_max or 0)
+    capacity = int(center.individual_capacity_max or 0)
     current_total = int(log.total_current or 0)
     current_families = int(log.total_current_families or 0)
 
@@ -1619,7 +1619,6 @@ class SuggestNearestAvailableCenterView(APIView):
             EvacuationCenter.objects
             .exclude(latitude__isnull=True)
             .exclude(longitude__isnull=True)
-            .annotate(total_capacity=F('family_capacity_max') + F('individual_capacity_max'))
             .filter(total_capacity__gt=0)  # 🔥 EXCLUDE 0/0
         )
 

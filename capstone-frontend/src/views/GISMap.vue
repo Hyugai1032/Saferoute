@@ -310,7 +310,7 @@ const createHazardIcon = (hazard) => {
 }
 
 const getTotalCapacity = (c) =>
-  Number(c.family_capacity_max || 0) + Number(c.individual_capacity_max || 0)
+  Number(c.individual_capacity_max || 0)
 
 // until you compute occupancy, show 0
 const getTotalOccupancy = (c) => 

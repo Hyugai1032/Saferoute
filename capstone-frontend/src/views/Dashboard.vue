@@ -145,7 +145,7 @@ const normalizeCenter = (center) => ({
 
   capacity: Number(
     center.capacity ??
-    (Number(center.family_capacity_max || 0) + Number(center.individual_capacity_max || 0))
+    (Number(center.individual_capacity_max || 0))
   ),
 
   occupants: Number(
@@ -242,7 +242,7 @@ const normalizeMapCenter = (center) => ({
 
   capacity: Number(
     center.capacity ??
-    (Number(center.family_capacity_max || 0) + Number(center.individual_capacity_max || 0))
+    (Number(center.individual_capacity_max || 0))
   ),
 
   occupants: Number(
@@ -367,7 +367,6 @@ const statusCenters = computed(() => {
     const capacity = Number(
       risk.capacity ??
       center.capacity ??
-      center.family_capacity_max ??
       center.individual_capacity_max ??
       0
     )

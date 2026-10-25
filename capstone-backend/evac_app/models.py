@@ -2,6 +2,8 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Max
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from auth_app.models import Municipality, CustomUser, Barangay
 
 # Create your models here.
@@ -131,52 +133,113 @@ class EvacuationLog(models.Model):
     def __str__(self):
         return f"Log for {self.center.name} on {self.date_recorded}"
  
+    # Fields that hold running totals. They are always derived from the in/out counts
+    # of every log for the center, replayed oldest -> newest.
+    RUNNING_TOTAL_FIELDS = ["total_current", "total_current_families", "vulnerable_individuals"]
+
+    def _deltas(self):
+        ind = int(self.individuals_in or 0) - int(self.individuals_out or 0)
+        fam = int(self.families_in or 0) - int(self.families_out or 0)
+        vul_in = (
+            int(self.children_count or 0) + int(self.senior_count or 0) + int(self.pwd_count or 0)
+            + int(self.pregnant_count or 0) + int(self.lactating_count or 0)
+        )
+        vul_out = (
+            int(self.children_out or 0) + int(self.senior_out or 0) + int(self.pwd_out or 0)
+            + int(self.pregnant_out or 0) + int(self.lactating_out or 0)
+        )
+        return ind, fam, vul_in - vul_out
+
+    @classmethod
+    def recalculate_center(cls, center_id):
+        """
+        Rebuild the running totals of every log of one center, oldest -> newest.
+        Call after any create, edit or delete, because changing one log changes the
+        totals of every log after it. Uses bulk_update, so it doesn't re-trigger save()
+        or write extra audit entries.
+        """
+        if center_id is None:
+            return 0
+        logs = list(
+            cls.objects
+            .filter(center_id=center_id)
+            .order_by("date_recorded", "id")
+            .only(
+                "id", "date_recorded",
+                "individuals_in", "individuals_out", "families_in", "families_out",
+                "children_count", "senior_count", "pwd_count", "pregnant_count", "lactating_count",
+                "children_out", "senior_out", "pwd_out", "pregnant_out", "lactating_out",
+                *cls.RUNNING_TOTAL_FIELDS,
+            )
+        )
+        ind = fam = vul = 0
+        changed = []
+        for log in logs:
+            d_ind, d_fam, d_vul = log._deltas()
+            ind = max(0, ind + d_ind)
+            fam = max(0, fam + d_fam)
+            vul = max(0, vul + d_vul)
+            if (log.total_current, log.total_current_families, log.vulnerable_individuals) != (ind, fam, vul):
+                log.total_current, log.total_current_families, log.vulnerable_individuals = ind, fam, vul
+                changed.append(log)
+        if changed:
+            cls.objects.bulk_update(changed, cls.RUNNING_TOTAL_FIELDS, batch_size=500)
+        return len(changed)
+
     @transaction.atomic
     def save(self, *args, **kwargs):
         if self.center_id is None:
             return super().save(*args, **kwargs)
- 
-        previous = (
-            EvacuationLog.objects
-            .select_for_update()
-            .filter(center_id=self.center_id)
-            .exclude(pk=self.pk)
-            .order_by("-date_recorded", "-id")
-            .first()
-        )
- 
-        prev_ind = previous.total_current if previous else 0
-        prev_fam = previous.total_current_families if previous else 0
-        prev_vulnerable = previous.vulnerable_individuals if previous else 0
- 
-        ind_delta = int(self.individuals_in or 0) - int(self.individuals_out or 0)
-        fam_delta = int(self.families_in or 0) - int(self.families_out or 0)
- 
-        vulnerable_in = (
-            int(self.children_count or 0) +
-            int(self.senior_count or 0) +
-            int(self.pwd_count or 0) +
-            int(self.pregnant_count or 0) +
-            int(self.lactating_count or 0)
-        )
-        vulnerable_out = (
-            int(self.children_out or 0) +
-            int(self.senior_out or 0) +
-            int(self.pwd_out or 0) +
-            int(self.pregnant_out or 0) +
-            int(self.lactating_out or 0)
-        )
- 
-        new_ind = max(0, prev_ind + ind_delta)
-        new_fam = max(0, prev_fam + fam_delta)
-        new_vulnerable = max(0, prev_vulnerable + vulnerable_in - vulnerable_out)
- 
-        self.total_current = new_ind
-        self.total_current_families = new_fam
-        self.vulnerable_individuals = new_vulnerable
- 
-        return super().save(*args, **kwargs)
-    
+
+        # Serialize writes per center so two staff saving at once can't interleave.
+        EvacuationCenter.objects.select_for_update().filter(pk=self.center_id).first()
+
+        old_center_id = None
+        if self.pk:
+            old_center_id = (
+                EvacuationLog.objects.filter(pk=self.pk).values_list("center_id", flat=True).first()
+            )
+
+        # Totals for THIS log come from the log just before it in time (not the newest
+        # log), so edits to older logs and back-dated entries are computed correctly.
+        previous_qs = EvacuationLog.objects.filter(center_id=self.center_id).exclude(pk=self.pk)
+        if self.pk:
+            previous_qs = previous_qs.filter(
+                models.Q(date_recorded__lt=self.date_recorded)
+                | models.Q(date_recorded=self.date_recorded, id__lt=self.pk)
+            )
+        else:
+            previous_qs = previous_qs.filter(date_recorded__lte=self.date_recorded)
+        previous = previous_qs.order_by("-date_recorded", "-id").first()
+
+        d_ind, d_fam, d_vul = self._deltas()
+        self.total_current = max(0, (previous.total_current if previous else 0) + d_ind)
+        self.total_current_families = max(0, (previous.total_current_families if previous else 0) + d_fam)
+        self.vulnerable_individuals = max(0, (previous.vulnerable_individuals if previous else 0) + d_vul)
+
+        result = super().save(*args, **kwargs)
+
+        # Logs AFTER this one depend on it: rebuild the whole chain.
+        EvacuationLog.recalculate_center(self.center_id)
+        if old_center_id and old_center_id != self.center_id:
+            EvacuationLog.recalculate_center(old_center_id)
+        self.refresh_from_db(fields=self.RUNNING_TOTAL_FIELDS)
+        return result
+
+
+@receiver(post_delete, sender=EvacuationLog)
+def _recalculate_after_log_delete(sender, instance, **kwargs):
+    """Deleting a log changes the totals of every later log of that center."""
+    center_id = instance.center_id
+    if not center_id:
+        return
+    # Skip when the whole center is being deleted (cascade); its logs are going too.
+    transaction.on_commit(
+        lambda: EvacuationCenter.objects.filter(pk=center_id).exists()
+        and EvacuationLog.recalculate_center(center_id)
+    )
+
+
 class Evacuee(models.Model):
     SEX_CHOICES = [
         ("MALE", "Male"),

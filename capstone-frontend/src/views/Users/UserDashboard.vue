@@ -237,9 +237,7 @@ async function fetchOpenShelters() {
       : [];
 
     const availableCenters = centers.filter((center) => {
-      const familyCap = Number(center.family_capacity_max || 0);
-      const individualCap = Number(center.individual_capacity_max || 0);
-      const totalCap = familyCap + individualCap;
+      const totalCap = Number(center.individual_capacity_max || 0);
 
       const predictedStatus = center.predicted_status;
 

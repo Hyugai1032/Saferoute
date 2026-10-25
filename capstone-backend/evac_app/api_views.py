@@ -397,27 +397,15 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         if not allowed_logs.exists():
             return Response({"detail": "Not found."}, status=404)
 
-        agg = allowed_logs.aggregate(
-            ind_in=Sum("individuals_in"),
-            ind_out=Sum("individuals_out"),
-            fam_in=Sum("families_in"),
-            fam_out=Sum("families_out"),
-            last=Max("date_recorded"),
-        )
-
-        total_current = (agg["ind_in"] or 0) - (agg["ind_out"] or 0)
-        if total_current < 0:
-            total_current = 0
-
-        total_current_families = (agg["fam_in"] or 0) - (agg["fam_out"] or 0)
-        if total_current_families < 0:
-            total_current_families = 0
+        # Same source of truth as Analytics, the map and predictions: the newest log's
+        # running total (kept correct by EvacuationLog.recalculate_center).
+        latest = allowed_logs.order_by("-date_recorded", "-id").first()
 
         return Response({
             "center": int(center_id),
-            "total_current": total_current,
-            "total_current_families": total_current_families,
-            "date_recorded": agg["last"],
+            "total_current": latest.total_current,
+            "total_current_families": latest.total_current_families,
+            "date_recorded": latest.date_recorded,
         })
 
     @action(detail=False, methods=["get"])
@@ -433,30 +421,29 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             if not center_id:
                 return Response({"detail": "center query param is required"}, status=400)
 
-        allowed_logs = self.get_queryset().filter(center_id=center_id)
-        if not allowed_logs.exists():
-            return Response({"detail": "Not found."}, status=404)
-
+        # Arrivals minus departures per vulnerable group = who is still at the center.
         agg = allowed_logs.aggregate(
-            ind_in=Sum("individuals_in"),
-            ind_out=Sum("individuals_out"),
-            fam_in=Sum("families_in"),
-            fam_out=Sum("families_out"),
-            children=Sum("children_count"),
-            seniors=Sum("senior_count"),
-            pwd=Sum("pwd_count"),
-            pregnant=Sum("pregnant_count"),
-            lactating=Sum("lactating_count"),
+            children_in=Sum("children_count"),
+            children_out=Sum("children_out"),
+            seniors_in=Sum("senior_count"),
+            seniors_out=Sum("senior_out"),
+            pwd_in=Sum("pwd_count"),
+            pwd_out=Sum("pwd_out"),
+            pregnant_in=Sum("pregnant_count"),
+            pregnant_out=Sum("pregnant_out"),
+            lactating_in=Sum("lactating_count"),
+            lactating_out=Sum("lactating_out"),
             last=Max("date_recorded"),
         )
 
-        total_current = (agg["ind_in"] or 0) - (agg["ind_out"] or 0)
-        if total_current < 0:
-            total_current = 0
+        def current(group):
+            return max(0, (agg[f"{group}_in"] or 0) - (agg[f"{group}_out"] or 0))
 
-        total_current_families = (agg["fam_in"] or 0) - (agg["fam_out"] or 0)
-        if total_current_families < 0:
-            total_current_families = 0
+        # Same source of truth as Analytics, the map and predictions: the newest log's
+        # running total (kept correct by EvacuationLog.recalculate_center).
+        latest = allowed_logs.order_by("-date_recorded", "-id").first()
+        total_current = latest.total_current
+        total_current_families = latest.total_current_families
 
         return Response({
             "center": int(center_id),

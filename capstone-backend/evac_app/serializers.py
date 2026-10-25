@@ -66,7 +66,7 @@ class EvacuationCenterSerializer(serializers.ModelSerializer):
         return int(log.total_current_families) if log else 0
 
     def get_congestion_percent(self, center):
-        cap = int(center.family_capacity_max or 0) + int(center.individual_capacity_max or 0)
+        cap = int(center.individual_capacity_max or 0)
         if cap <= 0:
             return 0.0
 
