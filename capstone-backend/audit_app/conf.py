@@ -73,8 +73,19 @@ def log_outside_requests():
     return bool(_get("AUDIT_LOG_OUTSIDE_REQUESTS", True))
 
 
+def route_patterns():
+    """POSTs to paths matching these regexes are logged as ROUTE."""
+    return list(_get("AUDIT_ROUTE_PATTERNS", [r"/route/ors/?$", r"/route/suggest-center/?$"]))
+
+
 def retention_days():
-    return int(_get("AUDIT_RETENTION_DAYS", 365))
+    """How long ordinary entries (changes, logins, denials, exports) are kept."""
+    return int(_get("AUDIT_RETENTION_DAYS", 30))
+
+
+def route_retention_days():
+    """Routing entries are high-volume, so they are kept for less time."""
+    return int(_get("AUDIT_ROUTE_RETENTION_DAYS", 14))
 
 
 def viewer_roles():

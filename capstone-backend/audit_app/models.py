@@ -25,6 +25,7 @@ class AuditLog(models.Model):
         LOGIN_FAILED = "LOGIN_FAILED", "Failed login"
         PERMISSION_DENIED = "PERMISSION_DENIED", "Permission denied"
         EXPORT = "EXPORT", "Exported data"
+        ROUTE = "ROUTE", "Route request" 
         OTHER = "OTHER", "Other"
 
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)

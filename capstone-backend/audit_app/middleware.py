@@ -33,6 +33,35 @@ def _token_obtain_view():
     except ImportError:
         return None
 
+def route_outcome(request, response):
+    """Success / failed, plus a short result or reason, read from the view's response."""
+    status = response.status_code
+    data = getattr(response, "data", None)
+    data = data if isinstance(data, dict) else {}
+    kind = "Nearest center" if "suggest" in request.path else "Route to point"
+    out = {"kind": kind, "outcome": "success" if 200 <= status < 400 else "failed"}
+
+    if out["outcome"] == "success":
+        if data.get("distance_m") is not None:
+            out["distance_km"] = round(float(data["distance_m"]) / 1000, 2)
+        if data.get("duration_s") is not None:
+            out["duration_min"] = round(float(data["duration_s"]) / 60)
+        if "used_hazard_avoidance" in data:
+            out["used_hazard_avoidance"] = bool(data["used_hazard_avoidance"])
+        center = data.get("center")
+        if isinstance(center, dict) and center.get("id") is not None:
+            out["center"] = f'{center.get("name") or "Center"} (#{center["id"]})'
+    else:
+        reason = data.get("detail")
+        if status == 429:
+            reason = reason or "Too many requests (throttled)"
+        elif status >= 500 and not reason:
+            reason = "Server error"
+        if data.get("status"):  # ORS's own status code, e.g. 404 "no route found"
+            reason = f'{reason or "ORS error"} (ORS {data["status"]})'
+        out["reason"] = str(reason or f"HTTP {status}")[:200]
+    return out
+
 
 def merge_entries(entries):
     """
@@ -75,6 +104,7 @@ class AuditMiddleware:
         self.get_response = get_response
         self._token_view = _token_obtain_view()
         self._sensitive = [re.compile(p) for p in conf.sensitive_read_patterns()]
+        self._route = [re.compile(p) for p in conf.route_patterns()] 
 
     def __call__(self, request):
         if request.method == "OPTIONS" or request.path.startswith(conf.exclude_path_prefixes()):
@@ -111,7 +141,34 @@ class AuditMiddleware:
             # Read the submitted email before the view consumes the body. Django keeps a
             # copy of the body, so DRF can still parse it afterwards.
             request._audit_login_email = self._submitted_email(request)
+        elif self._is_route(request):                                       
+            request._audit_route_details = self._route_details(request)
         return None
+
+    def _is_route(self, request):
+        return request.method == "POST" and any(p.search(request.path) for p in self._route)
+
+    @staticmethod
+    def _route_details(request):
+        """From / to / options of a routing request. Read before the view consumes the body."""
+        try:
+            data = json.loads(request.body or b"{}")
+            if not isinstance(data, dict):
+                return None
+
+            def point(p):
+                if not isinstance(p, dict):
+                    return None
+                return [round(float(p["lat"]), 5), round(float(p["lng"]), 5)]
+
+            details = {"from": point(data.get("from")), "to": point(data.get("to"))}
+            for key in ("avoid_hazards", "hazard_radius_m", "recent_hours",
+                        "max_congestion_percent", "candidate_limit"):
+                if key in data:
+                    details[key] = data[key]
+            return {k: v for k, v in details.items() if v is not None}
+        except Exception:
+            return None
 
     @staticmethod
     def _submitted_email(request):
@@ -168,6 +225,10 @@ class AuditMiddleware:
                     action=AuditLog.Action.LOGIN_FAILED,
                     details={"attempted_email": email} if email else None,
                 ))
+        elif self._is_route(request):                                                  # ← add
+            details = dict(getattr(request, "_audit_route_details", None) or {})        # ← add
+            details.update(route_outcome(request, response))                            # ← add
+            entries.append(AuditLog(action=AuditLog.Action.ROUTE, details=details))
         elif status == 403:
             entries.append(AuditLog(
                 action=AuditLog.Action.PERMISSION_DENIED,
