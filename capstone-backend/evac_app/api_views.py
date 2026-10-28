@@ -420,7 +420,7 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
             center_id = request.query_params.get("center")
             if not center_id:
                 return Response({"detail": "center query param is required"}, status=400)
-
+        allowed_logs = self.get_queryset().filter(center_id=center_id)
         # Arrivals minus departures per vulnerable group = who is still at the center.
         agg = allowed_logs.aggregate(
             children_in=Sum("children_count"),
@@ -442,9 +442,8 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
         # Same source of truth as Analytics, the map and predictions: the newest log's
         # running total (kept correct by EvacuationLog.recalculate_center).
         latest = allowed_logs.order_by("-date_recorded", "-id").first()
-        total_current = latest.total_current
-        total_current_families = latest.total_current_families
-
+        total_current = latest.total_current if latest else 0
+        total_current_families = latest.total_current_families if latest else 0
         return Response({
             "center": int(center_id),
             "latest": {
@@ -453,11 +452,11 @@ class EvacuationLogViewSet(viewsets.ModelViewSet):
                 "total_current_families": total_current_families,
             },
             "breakdown": {
-                "children_count": agg["children"] or 0,
-                "senior_count": agg["seniors"] or 0,
-                "pwd_count": agg["pwd"] or 0,
-                "pregnant_count": agg["pregnant"] or 0,
-                "lactating_count": agg["lactating"] or 0,
+                "children_count": current("children"),
+                "senior_count": current("seniors"),
+                "pwd_count": current("pwd"),
+                "pregnant_count": current("pregnant"),
+                "lactating_count": current("lactating"),
             },
             "total_current": total_current,
             "total_current_families": total_current_families,

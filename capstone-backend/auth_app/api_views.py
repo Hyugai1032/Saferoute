@@ -1276,7 +1276,7 @@ class MapOverviewView(APIView):
         user = request.user
         audience = getattr(user, "role", "") if user.is_authenticated else "anon"
         key = (
-            f"map_overview:v1:{audience}:{scope}:{mun_id}:"
+            f"map_overview:v3:{audience}:{scope}:{mun_id}:"
             f"{recent_hours}:{window}:{horizon}:{int(with_predictions)}"
         )
 
@@ -1349,6 +1349,26 @@ class MapOverviewView(APIView):
             context={"request": request},
         ).data)
 
+                # F-01: tell the map whether (and when) each center last reported.
+        for center_data in centers_data:
+            log = latest_by_center.get(center_data["id"])
+            center_data["last_report_at"] = log.date_recorded.isoformat() if log else None
+
+                # F-03/F-05: tell the map what it can't show, so users don't assume full coverage.
+        mapped = sum(1 for c in center_objects if c.latitude is not None and c.longitude is not None)
+        coverage = {
+            "total_centers": len(center_objects),
+            "unmapped_centers": len(center_objects) - mapped,
+            "municipalities_without_centers": [],
+        }
+        if scope == "all":
+            with_centers = {c.municipality_id for c in center_objects}
+            coverage["municipalities_without_centers"] = list(
+                Municipality.objects.exclude(pk__in=with_centers)
+                .order_by("name")
+                .values_list("name", flat=True)
+            )
+
         if with_predictions:
             try:
                 results = compute_congestion_risk_bulk(
@@ -1375,6 +1395,7 @@ class MapOverviewView(APIView):
         return {
             "centers": centers_data,
             "hazards": list(HazardPinSerializer(hazards_qs, many=True).data),
+            "coverage": coverage,
         }
 
 

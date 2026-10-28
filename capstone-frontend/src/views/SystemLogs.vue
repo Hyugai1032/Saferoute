@@ -246,6 +246,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
 import api from "@/services/api";
+import { formatDateTime as fmtDT } from "@/utils/datetime";
 
 const PAGE_SIZE = 25;
 
@@ -324,15 +325,7 @@ function statusClass(code) {
 }
 
 function formatDateTime(iso, withSeconds = false) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    ...(withSeconds ? { second: "2-digit" } : {}),
-  });
+  return fmtDT(iso, { seconds: withSeconds });
 }
 
 function show(value) {

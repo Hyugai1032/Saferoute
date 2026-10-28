@@ -120,6 +120,7 @@
 import api from "../../services/api";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
+import { formatDateTime } from "@/utils/datetime";
 
 const router = useRouter();
 
@@ -131,8 +132,7 @@ const isStaff = computed(() => me.role === "EVAC_CENTER_STAFF");
 
 const lastUpdatedText = computed(() => {
   if (!latest.date_recorded) return "-";
-  const d = new Date(latest.date_recorded);
-  return isNaN(d.getTime()) ? String(latest.date_recorded) : d.toLocaleString();
+  return formatDateTime(latest.date_recorded);
 });
 
 // for now, values are 0 until you add breakdown fields to backend

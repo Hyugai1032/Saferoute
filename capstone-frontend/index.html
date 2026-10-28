@@ -21,8 +21,49 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SafeRoute+" />
     <title>SafeRoute+ — Oriental Mindoro</title>
+    <style>
+      /* Splash shown while the app downloads; removed by main.js once Vue has mounted. */
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+        background: radial-gradient(circle at 50% 40%, #0f2547 0%, #07111f 55%, #050b15 100%);
+        color: #e8f1ff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        transition: opacity .5s ease, visibility .5s ease;
+      }
+      #boot-splash.hide { opacity: 0; visibility: hidden; }
+      .boot-mark { position: relative; width: 112px; height: 112px; display: grid; place-items: center; }
+      .boot-mark img { width: 64px; height: 64px; border-radius: 16px; position: relative; z-index: 1;
+        animation: boot-pop .7s cubic-bezier(.3,1.4,.5,1) both; }
+      .boot-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #38bdf8;
+        animation: boot-ring 2s ease-out infinite; }
+      .boot-ring.r2 { animation-delay: 1s; }
+      .boot-name { font-size: 26px; font-weight: 800; letter-spacing: .02em; animation: boot-up .6s .15s both; }
+      .boot-name span { background: linear-gradient(135deg,#7dd3fc,#3b82f6,#8b5cf6);
+        -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .boot-tag { margin-top: -14px; font-size: 13px; color: #9cb3ce; animation: boot-up .6s .25s both; }
+      .boot-bar { width: 160px; height: 4px; border-radius: 99px; background: rgba(148,163,184,.18); overflow: hidden; }
+      .boot-bar span { display: block; width: 40%; height: 100%; border-radius: inherit;
+        background: linear-gradient(90deg,#38bdf8,#22c55e); animation: boot-slide 1.1s ease-in-out infinite; }
+      @keyframes boot-ring { from { transform: scale(.55); opacity: .9; } to { transform: scale(1.5); opacity: 0; } }
+      @keyframes boot-pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+      @keyframes boot-up { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+      @keyframes boot-slide { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-ring, .boot-bar span, .boot-mark img, .boot-name, .boot-tag { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash" role="status" aria-label="Loading SafeRoute">
+      <div class="boot-mark">
+        <span class="boot-ring"></span>
+        <span class="boot-ring r2"></span>
+        <img src="/favicon_io/android-chrome-192x192.png" alt="" />
+      </div>
+      <div class="boot-name">SafeRoute<span>+</span></div>
+      <div class="boot-tag">Evacuation Monitoring System · Oriental Mindoro</div>
+      <div class="boot-bar"><span></span></div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

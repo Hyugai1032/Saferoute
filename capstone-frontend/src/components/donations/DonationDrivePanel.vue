@@ -431,6 +431,7 @@
 
 <script>
 import api from "@/services/api";
+import { formatDate as fmtD } from "@/utils/datetime";
 
 export default {
   name: "DonationDrivePanel",
@@ -867,12 +868,7 @@ export default {
 
     formatDate(value) {
       if (!value) return "-";
-
-      return new Date(value).toLocaleDateString("en-PH", {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-      });
+      return fmtD(value);
     },
 
     formatText(value) {

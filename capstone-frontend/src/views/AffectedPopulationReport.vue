@@ -137,6 +137,7 @@ import { saveAs } from 'file-saver'
 import { computed, onMounted, ref } from 'vue'
 import leftLogoUrl from '@/assets/orminlogo.png'
 import rightLogoUrl from '@/assets/pdrrmo.png'
+import { formatDateTime, parseServerDate } from '@/utils/datetime'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
 
@@ -280,7 +281,8 @@ async function exportToExcel(report, rows, logos = {}) {
   console.log('[exportToExcel] logos received:', { leftLogoUrl, rightLogoUrl })
  
   const asOfText = report?.as_of
-    ? `As of ${new Date(report.as_of).toLocaleString('en-US', {
+    ? `As of ${parseServerDate(report.as_of).toLocaleString('en-US', {
+        timeZone: 'Asia/Manila',
         month: 'long',
         day: '2-digit',
         year: 'numeric',

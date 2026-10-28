@@ -189,7 +189,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '30/minute',
+        'anon': '120/minute',
         'user': '300/minute',
         'congestion': '300/minute',
     },

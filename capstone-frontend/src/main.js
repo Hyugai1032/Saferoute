@@ -53,10 +53,24 @@ axios.interceptors.response.use(
 )
 
 app.use(router)
+
 app.mount('#app')
+
+// Hide the splash screen from index.html once the first page has rendered.
+// It stays at least ~0.7s so the animation doesn't just flash, but never longer
+// than the app actually takes to load.
+const hideSplash = () => {
+  const splash = document.getElementById('boot-splash')
+  if (!splash) return
+   const wait = Math.max(0, 1200 - performance.now())
+  setTimeout(() => {
+    splash.classList.add('hide')
+    setTimeout(() => splash.remove(), 600)
+  }, wait)
+}
+router.isReady().finally(hideSplash)
 
 // Offline support: keep the app available with no signal, and upload evacuees that
 // were registered offline whenever a connection is available.
 registerSW({ immediate: true })
 startOutboxAutoSync()
-

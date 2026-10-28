@@ -190,6 +190,7 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 import api from "@/services/api";
+import { formatDateTime as fmtDT } from "@/utils/datetime";
 
 const logs = ref([]);
 const loading = ref(false);
@@ -242,14 +243,7 @@ function actionClass(action) {
 }
 
 function formatDateTime(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return fmtDT(iso);
 }
 
 function toggle(id) {

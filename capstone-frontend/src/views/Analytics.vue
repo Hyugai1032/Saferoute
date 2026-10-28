@@ -287,6 +287,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { parseServerDate } from '@/utils/datetime'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
 
@@ -868,8 +869,9 @@ watch(selectedRisk, () => {
 
 // Format datetime for display
 function formatDate(isoString) {
-  const date = new Date(isoString)
-  return date.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: 'numeric' })
+  const date = parseServerDate(isoString)
+  if (!date) return '—'
+  return date.toLocaleString('en-US', { timeZone: 'Asia/Manila', weekday: 'short', hour: 'numeric', minute: 'numeric' })
 }
 
 // --- Chart Options ---
