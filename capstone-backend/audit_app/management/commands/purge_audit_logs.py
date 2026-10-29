@@ -2,8 +2,9 @@
 Remove audit entries older than the retention period, in small batches so the table
 is never locked for long.
 
-    python manage.py purge_audit_logs                       # uses AUDIT_RETENTION_DAYS (365)
-    python manage.py purge_audit_logs --days 180
+    python manage.py purge_audit_logs      # ordinary entries: AUDIT_RETENTION_DAYS (30),
+                                           # route requests: AUDIT_ROUTE_RETENTION_DAYS (14)
+    python manage.py purge_audit_logs --days 60 --route-days 7
     python manage.py purge_audit_logs --archive logs_2025.csv.gz   # save rows before deleting
     python manage.py purge_audit_logs --dry-run
 
@@ -15,6 +16,7 @@ import gzip
 import json
 import os
 
+from django.db.models import Q
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
@@ -33,22 +35,29 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--days", type=int, default=None,
-                            help="Keep this many days (default: AUDIT_RETENTION_DAYS).")
+                            help="Keep ordinary entries this many days (default: AUDIT_RETENTION_DAYS).")
+        parser.add_argument("--route-days", type=int, default=None,
+                            help="Keep route requests this many days (default: AUDIT_ROUTE_RETENTION_DAYS).")
         parser.add_argument("--archive", default=None,
                             help="Append deleted rows to this .csv.gz file first.")
         parser.add_argument("--batch", type=int, default=5000)
         parser.add_argument("--dry-run", action="store_true")
 
-    def handle(self, *args, days=None, archive=None, batch=5000, dry_run=False, **opts):
+    def handle(self, *args, days=None, route_days=None, archive=None, batch=5000, dry_run=False, **opts):
         days = conf.retention_days() if days is None else days
-        if days < 1:
-            raise CommandError("--days must be at least 1.")
+        route_days = conf.route_retention_days() if route_days is None else route_days
+        if days < 1 or route_days < 1:
+            raise CommandError("--days and --route-days must be at least 1.")
         now = timezone.now()
         cutoff = now - datetime.timedelta(days=days)
-        old = AuditLog.objects.filter(timestamp__lt=cutoff)
+        route_cutoff = now - datetime.timedelta(days=route_days)
+        route = AuditLog.Action.ROUTE
+        old = AuditLog.objects.filter(
+            Q(timestamp__lt=cutoff) | Q(action=route, timestamp__lt=route_cutoff)
+        )
 
         if dry_run:
-            self.stdout.write(f"{old.count():,} entries older than {cutoff:%Y-%m-%d} would be removed.")
+            self.stdout.write(f"{old.count():,} entries would be removed (older than {cutoff:%Y-%m-%d}, route requests older than {route_cutoff:%Y-%m-%d}).")
             return
 
         writer = handle = None
@@ -78,6 +87,6 @@ class Command(BaseCommand):
                 handle.close()
 
         self.stdout.write(self.style.SUCCESS(
-            f"Removed {total:,} audit entries older than {cutoff:%Y-%m-%d}"
+            f"Removed {total:,} audit entries (older than {cutoff:%Y-%m-%d}, route requests older than {route_cutoff:%Y-%m-%d})"
             + (f" (archived to {archive})" if archive else "") + "."
         ))

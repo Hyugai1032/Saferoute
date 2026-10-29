@@ -67,6 +67,13 @@ class AuditLogListView(APIView):
         if action and action != "ALL":
             qs = qs.filter(action=action)
 
+        # success = 2xx/3xx, failed = 4xx/5xx
+        outcome = (p.get("outcome") or "").lower()
+        if outcome == "success":
+            qs = qs.filter(status_code__lt=400)
+        elif outcome == "failed":
+            qs = qs.filter(status_code__gte=400)
+
         resource_type = p.get("resource_type") or ""
         if resource_type and resource_type.lower() != "all":
             qs = qs.filter(resource_type=resource_type)

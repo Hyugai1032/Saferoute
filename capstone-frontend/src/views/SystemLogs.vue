@@ -46,6 +46,15 @@
       </div>
 
       <div class="filter-group">
+        <label for="sysOutcome">Status</label>
+        <select id="sysOutcome" v-model="filters.outcome" @change="applyFilters">
+          <option value="all">All</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
         <label for="sysType">Record type</label>
         <select id="sysType" v-model="filters.resource_type" @change="onTypeChange">
           <option value="all">All</option>
@@ -112,6 +121,13 @@
 
               <td>
                 <span class="action-chip" :class="actionClass(log.action)">{{ log.action_label }}</span>
+                <span
+                  v-if="log.action === 'ROUTE' && log.details?.outcome"
+                  class="outcome-chip"
+                  :class="log.details.outcome"
+                >
+                  {{ log.details.outcome === "success" ? "Success" : "Failed" }}
+                </span>
               </td>
 
               <td>
@@ -129,6 +145,12 @@
                     <span class="type">{{ humanize(log.resource_type) }}</span>
                     <span class="dot">•</span>
                     <span class="mono">#{{ log.resource_id }}</span>
+                  </div>
+                </template>
+                <template v-else-if="log.action === 'ROUTE' && log.details">
+                  <div class="record-label">{{ log.details.kind || "Route" }}</div>
+                  <div class="sub" :class="{ 'fail-text': log.details.outcome === 'failed' }">
+                    {{ routeSummary(log.details) }}
                   </div>
                 </template>
                 <span v-else class="muted-text">—</span>
@@ -241,6 +263,7 @@ const meta = reactive({ actions: [], resource_types: [] });
 const filters = reactive({
   q: "",
   action: "all",
+  outcome: "all",
   resource_type: "all",
   resource_id: "",
   request_id: "",
@@ -290,6 +313,7 @@ function actionClass(action) {
     LOGIN_FAILED: "danger",
     PERMISSION_DENIED: "danger",
     EXPORT: "export",
+    ROUTE: "route",
   }[action] || "";
 }
 
@@ -312,8 +336,35 @@ function show(value) {
   return String(value);
 }
 
+// One-line summary of a route request for the table row.
+function routeSummary(d) {
+  if (d.outcome === "failed") return d.reason || "Failed";
+  const parts = [];
+  if (d.center) parts.push(`→ ${d.center}`);
+  if (d.distance_km != null) parts.push(`${d.distance_km} km`);
+  if (d.duration_min != null) parts.push(`${d.duration_min} min`);
+  if (d.avoid_hazards) parts.push("avoiding hazards");
+  return parts.join(" · ") || "Route found";
+}
+
+const DETAIL_LABELS = {
+  from: "From (lat, lng)",
+  to: "To (lat, lng)",
+  distance_km: "Distance (km)",
+  duration_min: "Travel time (min)",
+  hazard_radius_m: "Hazard radius (m)",
+  max_congestion_percent: "Max congestion (%)",
+};
+
+function detailValue(key, value) {
+  if ((key === "from" || key === "to") && Array.isArray(value)) return value.join(", ");
+  if (key === "outcome") return value === "success" ? "Success" : "Failed";
+  return show(value);
+}
+
 function changesTitle(log) {
   return {
+    ROUTE: "Route request",
     UPDATE: "What changed",
     CREATE: "Values when created",
     DELETE: "Values at the time of deletion",
@@ -331,7 +382,7 @@ function detailRows(log) {
       const text = Object.entries(value).map(([k, v]) => `${humanize(k)}: ${v}`).join(", ");
       return { field: "Filters used", value: text || "(none)" };
     }
-    return { field: humanize(key), value: show(value) };
+    return { field: DETAIL_LABELS[key] || humanize(key), value: detailValue(key, value) };
   });
 }
 
@@ -343,6 +394,7 @@ function filterParams() {
   const params = {};
   if (filters.q.trim()) params.q = filters.q.trim();
   if (filters.action !== "all") params.action = filters.action;
+  if (filters.outcome !== "all") params.outcome = filters.outcome;
   if (filters.resource_type !== "all") params.resource_type = filters.resource_type;
   if (filters.resource_id) params.resource_id = filters.resource_id;
   if (filters.request_id) params.request_id = filters.request_id;
@@ -427,6 +479,7 @@ function resetFilters() {
   Object.assign(filters, {
     q: "",
     action: "all",
+    outcome: "all",
     resource_type: "all",
     resource_id: "",
     request_id: "",
@@ -705,6 +758,20 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
 .action-chip.update { background: rgba(0,140,255,0.16); color:#9fd3ff; border-color: rgba(120,190,255,0.22); }
 .action-chip.delete { background: rgba(255,80,80,0.16); color:#ff8a8a; border-color: rgba(255,138,138,0.22); }
 .action-chip.login { background: rgba(190,60,255,0.14); color:#e2a3ff; border-color: rgba(226,163,255,0.22); }
+.outcome-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.outcome-chip.success { background: rgba(0,200,120,0.16); color:#56f0b4; border-color: rgba(86,240,180,0.22); }
+.outcome-chip.failed { background: rgba(255,60,60,0.22); color:#ffb4b4; border-color: rgba(255,110,110,0.32); }
+.fail-text { color: #ffb4b4; }
+.action-chip.route { background: rgba(0,210,255,0.12); color:#7fe3ff; border-color: rgba(127,227,255,0.22); }
 .action-chip.export { background: rgba(255,180,0,0.14); color:#ffd166; border-color: rgba(255,209,102,0.22); }
 .action-chip.danger { background: rgba(255,60,60,0.24); color:#ffb4b4; border-color: rgba(255,110,110,0.35); }
 
