@@ -277,7 +277,7 @@
                 >
                   <option :value="null">Unassigned</option>
                   <option v-for="c in centers" :key="c.id" :value="c.id">
-                    {{ c.name }} ({{ c.municipality_name }})
+                    {{ c.name }} – {{ c.barangay_name || 'No barangay' }} ({{ c.municipality_name }})
                   </option>
                 </select>
               </div>
