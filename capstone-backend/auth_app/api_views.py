@@ -1640,7 +1640,7 @@ class SuggestNearestAvailableCenterView(APIView):
             EvacuationCenter.objects
             .exclude(latitude__isnull=True)
             .exclude(longitude__isnull=True)
-            .filter(total_capacity__gt=0)  # 🔥 EXCLUDE 0/0
+            .filter(individual_capacity_max__gt=0)  # exclude centers with no capacity
         )
 
         candidates = []
