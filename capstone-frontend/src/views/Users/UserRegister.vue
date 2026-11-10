@@ -258,8 +258,6 @@ export default {
         password: "",
         contact_number: "",
         municipality: "",
-        agreedToTerms: false,
-        agreedToTerms: false
       },
       municipalities: [],
       dropdownLoading: {
@@ -267,6 +265,9 @@ export default {
       },
       loading: false,
       showPassword: false,
+      
+      agreedToTerms: false,
+      consentError: "",
 
       // reCAPTCHA
       captchaToken: "",
