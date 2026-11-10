@@ -40,6 +40,9 @@ import StaffDonationDrive from '../views/Staff/StaffDonationDrive.vue'
 import PublicGISMap from '../views/PublicGISMap.vue'
 import NotFound from '../views/NotFound.vue'
 
+import PrivacyPolicy from '../views/Legal/PrivacyPolicy.vue'
+import TermsOfService from '../views/Legal/TermsOfService.vue'
+
 const routes = [
   {
     path: '/',
@@ -53,6 +56,9 @@ const routes = [
     component: PublicGISMap,
     meta: { requiresAuth: false },
   },
+
+  { path: '/privacy', name: 'PrivacyPolicy', component: PrivacyPolicy },
+  { path: '/terms', name: 'TermsOfService', component: TermsOfService },
 
   // USER ROUTES
   {

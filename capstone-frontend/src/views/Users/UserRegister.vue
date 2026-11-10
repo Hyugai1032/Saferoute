@@ -205,7 +205,22 @@
                 <p v-if="captchaError" class="captcha-error">{{ captchaError }}</p>
               </div>
 
-              <button class="login-btn" type="submit" :disabled="loading">
+              <div class="form-group consent-group">
+                <label class="checkbox-label consent-label">
+                  <input type="checkbox" v-model="agreedToTerms" @change="consentError = ''">
+                  <span class="checkmark"></span>
+                  <span>
+                    I have read and agree to the
+                    <router-link to="/terms" target="_blank" class="terms-link">Terms of Service</router-link>
+                    and
+                    <router-link to="/privacy" target="_blank" class="terms-link">Privacy Policy</router-link>,
+                    and I consent to the processing of my personal data as described.
+                  </span>
+                </label>
+                <p v-if="consentError" class="captcha-error">{{ consentError }}</p>
+              </div>
+
+              <button class="login-btn" type="submit" :disabled="loading || !agreedToTerms">
                 <span v-if="!loading">
                   <i class="fas fa-user-plus"></i>
                   Register
@@ -242,7 +257,9 @@ export default {
         email: "",
         password: "",
         contact_number: "",
-         municipality: ""  
+        municipality: "",
+        agreedToTerms: false,
+        agreedToTerms: false
       },
       municipalities: [],
       dropdownLoading: {
@@ -420,6 +437,11 @@ export default {
         return;
       }
 
+      if (!this.agreedToTerms) { 
+        this.consentError = "Please agree to the Terms of Service and Privacy Policy to continue."; 
+        return; 
+      }
+
       if (!this.captchaToken) {
         this.captchaError = "Please complete the captcha before registering.";
         return;
@@ -430,6 +452,7 @@ export default {
       try {
         const response = await register({
           ...this.form,
+          accepted_terms: this.agreedToTerms,
           captcha_token: this.captchaToken,
         });
 
@@ -1057,4 +1080,7 @@ export default {
   opacity: 0.75;
   margin-top: 6px;
 }
+
+.consent-label { align-items: flex-start; font-size: 0.85rem; line-height: 1.5; }
+.consent-label .checkmark { flex-shrink: 0; margin-top: 2px; }
 </style>

@@ -21,10 +21,16 @@ PASSWORD_REQUIREMENTS_MESSAGE = (
  
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    accepted_terms = serializers.BooleanField(write_only=True)
  
     class Meta:
         model = CustomUser
-        fields = ['email', 'first_name', 'last_name', 'password', 'contact_number', 'municipality']
+        fields = ['email', 'first_name', 'last_name', 'password', 'contact_number', 'municipality', 'accepted_terms']
+
+    def validate_accepted_terms(self, value):
+        if value is not True:
+            raise serializers.ValidationError("You must agree to the Terms of Service and Privacy Policy.")
+        return value
  
     def validate_password(self, value):
         if not PASSWORD_REGEX.match(value):
@@ -45,6 +51,9 @@ class RegisterSerializer(serializers.ModelSerializer):
  
         # If your serializer has password confirmation, remove it too
         validated_data.pop("password2", None)
+
+        validated_data.pop("accepted_terms", None)
+        validated_data["terms_accepted_at"] = timezone.now()
  
         return CustomUser.objects.create_user(**validated_data)
     
