@@ -85,7 +85,7 @@
         protect life or when required by law.</li>
       <li><strong>The public and other users:</strong> once a hazard report is approved, its type, severity,
         location, description and photos may appear on the map. Your name and contact details on the report are
-        not shown publicly. <em>[TODO: confirm this matches what the map shows.]</em></li>
+        not shown publicly.</li>
       <li><strong>Service providers</strong> that help run the system:
         <table>
           <thead>
