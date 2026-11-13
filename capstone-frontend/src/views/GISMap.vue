@@ -7,6 +7,17 @@
       </div>
 
       <div class="map-controls">
+        <!-- Mobile only: legend + filters fold away so the map gets the screen -->
+        <button
+          type="button"
+          class="filters-toggle"
+          :aria-expanded="showFilters"
+          @click="showFilters = !showFilters"
+        >
+          {{ showFilters ? '▲ Hide legend & filters' : '▼ Legend & filters' }}
+        </button>
+
+        <div class="filters-panel" :class="{ open: showFilters }">
         <div class="legend">
           <div class="legend-item">
             <div class="legend-color normal"></div>
@@ -35,6 +46,7 @@
             />
             <span>{{ type.label }}</span>
           </label>
+        </div>
         </div>
 
         <div class="control-buttons">
@@ -65,7 +77,7 @@
     </div>
 
     <div class="map-content">
-      <div id="map" class="main-map"></div>
+      <div id="map" ref="mapEl" class="main-map"></div>
 
       <div v-if="pinsLoading" class="map-loading" role="status" aria-live="polite">
         <div class="radar"><span class="radar-dot"></span></div>
@@ -76,9 +88,10 @@
         <button class="action-btn primary" @click="retryLoad">Try again</button>
       </div>
       
-      <div class="map-sidebar" :class="{ 'sidebar-collapsed': !selectedCenter }">
+      <div ref="sidebarEl" class="map-sidebar" :class="{ 'sidebar-collapsed': !selectedCenter }">
         <div class="sidebar-content" v-if="selectedCenter">
-          <button class="close-sidebar" @click="selectedCenter = null">×</button>
+          <button class="close-sidebar" @click="closeDetails" aria-label="Close details">×</button>
+          <button class="back-to-map" @click="scrollToMap">↑ Back to map</button>
           
           <div class="center-details">
             <div class="center-header">
@@ -248,8 +261,27 @@
 import { ref, shallowRef, onMounted, onUnmounted, nextTick, watch, onActivated } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+// Clustering: hundreds of DOM markers is the main cause of lag on low-end phones.
+import 'leaflet.markercluster'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
 import api from '@/services/api'
 import { formatDateTime, timeAgo, hoursSince } from '@/utils/datetime'
+
+// ---- Device / layout detection ----
+const mq = (q) => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(q) : null)
+// Touch devices have no hover, so the hover badge and its DOM are wasted there.
+const IS_TOUCH = !!mq('(hover: none), (pointer: coarse)')?.matches
+// Phones/tablets and users who asked for less motion get the "lite" rendering.
+const LITE_MODE = IS_TOUCH || !!mq('(prefers-reduced-motion: reduce)')?.matches
+const smallScreenMq = mq('(max-width: 768px)')
+const isSmallScreen = ref(!!smallScreenMq?.matches)
+const onSmallScreenChange = (e) => { isSmallScreen.value = e.matches }
+
+const showFilters = ref(false)   // mobile legend/filters panel
+const mapEl = ref(null)
+const sidebarEl = ref(null)
+let resizeObserver = null
+let resizeTimer = null
 
 // PERFORMANCE: a plain ref() wraps everything inside it in deep reactive proxies.
 // For the Leaflet map/layers/markers and 300+ center objects that is slow and can
@@ -339,34 +371,43 @@ const getStatusText = (center) => {
   const pct = getOccupancyPercentage(center)
  if (pct >= 90) return isStale(center) ? 'Most Likely Full (outdated)' : 'Most Likely Full'
   if (pct >= 70) return isStale(center) ? 'Nearly Full (outdated)' : 'Nearly Full'
+  return isStale(center) ? 'Available (outdated)' : 'Available'
 }
 
 const createCenterIcon = (center) => {
   const color = getStatusColor(center)
-  const pulseClass = getOccupancyPercentage(center) >= 90 ? 'pulse-marker' : ''
+  // The infinite pulse animation repaints every frame; skip it on phones.
+  const pulseClass = !LITE_MODE && getOccupancyPercentage(center) >= 90 ? 'pulse-marker' : ''
   const buildingIcon = getBuildingIcon(center)
-  const percentage = getOccupancyPercentage(center)
-  const typeLabel = getBuildingType(center).replaceAll('_', ' ')
-  const predicted = getPredictedCongestion(center)
-  const predictedText = predicted != null
-    ? `Pred: ${predicted}%`
-    : (predictionsReady.value ? 'Pred: N/A' : 'Pred: …')
 
-  return L.divIcon({
-    className: `custom-marker ${pulseClass}`,
-    html: `
-      <div class="marker-pin" style="background: ${color}">
-        <div class="marker-pulse"></div>
-        <div class="marker-content">
-          <span class="building-icon">${buildingIcon}</span>
-        </div>
+  // Hover badge only where hovering exists (desktop). On touch it is never seen
+  // but still costs DOM nodes for every marker.
+  let hoverBadge = ''
+  if (!IS_TOUCH) {
+    const percentage = getOccupancyPercentage(center)
+    const typeLabel = getBuildingType(center).replaceAll('_', ' ')
+    const predicted = getPredictedCongestion(center)
+    const predictedText = predicted != null
+      ? `Pred: ${predicted}%`
+      : (predictionsReady.value ? 'Pred: N/A' : 'Pred: …')
+    hoverBadge = `
         <div class="marker-hover-badge">
           <span class="hover-badge-text">
             ${typeLabel}<br/>
             ${hasReport(center) ? `Now: ${percentage}%` : 'No report yet'}<br/>
             ${predictedText}
           </span>
-        </div>
+        </div>`
+  }
+
+  return L.divIcon({
+    className: `custom-marker ${pulseClass} ${LITE_MODE ? 'lite' : ''}`,
+    html: `
+      <div class="marker-pin" style="background: ${color}">
+        ${pulseClass ? '<div class="marker-pulse"></div>' : ''}
+        <div class="marker-content">
+          <span class="building-icon">${buildingIcon}</span>
+        </div>${hoverBadge}
       </div>
     `,
     iconSize: [40, 40],
@@ -597,15 +638,39 @@ const centerSignature = (c) =>
     predictionsReady.value ? 1 : 0,
   ].join('|')
 
+// Batched: the cluster group re-clusters once for the whole batch instead of once
+// per marker, which matters a lot when toggling a filter with 300+ centers.
 const applyTypeFilter = () => {
   const layer = centerLayer.value
   if (!layer) return
+  const toAdd = []
+  const toRemove = []
   for (const { marker, type } of centerMarkers.values()) {
     const shouldShow = selectedTypes.value.includes(type)
     const isShown = layer.hasLayer(marker)
-    if (shouldShow && !isShown) layer.addLayer(marker)
-    else if (!shouldShow && isShown) layer.removeLayer(marker)
+    if (shouldShow && !isShown) toAdd.push(marker)
+    else if (!shouldShow && isShown) toRemove.push(marker)
   }
+  if (toRemove.length) layer.removeLayers(toRemove)
+  if (toAdd.length) layer.addLayers(toAdd)
+}
+
+// Cluster bubble takes the colour of the worst center inside it, so a cluster
+// hiding a full center still shows red when zoomed out.
+const LEVEL_RANK = { unknown: 0, normal: 1, warning: 2, critical: 3 }
+const createClusterIcon = (cluster) => {
+  let worst = 'unknown'
+  for (const m of cluster.getAllChildMarkers()) {
+    const lvl = m.options.statusLevel || 'unknown'
+    if (LEVEL_RANK[lvl] > LEVEL_RANK[worst]) worst = lvl
+  }
+  const count = cluster.getChildCount()
+  const size = count < 10 ? 34 : count < 50 ? 40 : 46
+  return L.divIcon({
+    html: `<div><span>${count}</span></div>`,
+    className: `center-cluster cluster-${worst}`,
+    iconSize: L.point(size, size),
+  })
 }
 
 const detailCache = new Map() // center id -> { t, data }
@@ -621,7 +686,10 @@ const getCenterDetail = async (id) => {
 
 const onCenterClick = (id) => {
   const center = centersById.get(id)
-  if (center) selectedCenter.value = center
+  if (!center) return
+  selectedCenter.value = center
+  // Phones: details render under the map, so scroll down to them.
+  if (isSmallScreen.value) nextTick(scrollToDetails)
 }
 
 const renderCenters = () => {
@@ -629,6 +697,8 @@ const renderCenters = () => {
   if (!layer) return
 
   const seen = new Set()
+  const moved = []
+  let iconsChanged = false
 
   for (const center of centers.value) {
     if (center.latitude == null || center.longitude == null) continue
@@ -640,26 +710,42 @@ const renderCenters = () => {
     if (!existing) {
       const marker = L.marker([center.latitude, center.longitude], {
         icon: createCenterIcon(center),
+        statusLevel: getStatusLevel(center),
       })
       marker.on('click', () => onCenterClick(center.id))
       centerMarkers.set(center.id, { marker, sig, type: getBuildingType(center) })
     } else if (existing.sig !== sig) {
-      existing.marker.setLatLng([center.latitude, center.longitude])
-      existing.marker.setIcon(createCenterIcon(center))
+      const { marker } = existing
+      const ll = marker.getLatLng()
+      if (ll.lat !== Number(center.latitude) || ll.lng !== Number(center.longitude)) {
+        // A cluster group can't move a marker in place: take it out, move it,
+        // and applyTypeFilter() below puts it back.
+        if (layer.hasLayer(marker)) moved.push(marker)
+        marker.setLatLng([center.latitude, center.longitude])
+      }
+      marker.options.statusLevel = getStatusLevel(center)
+      marker.setIcon(createCenterIcon(center))
       existing.sig = sig
       existing.type = getBuildingType(center)
+      iconsChanged = true
     }
   }
 
+  if (moved.length) layer.removeLayers(moved)
+
   // drop markers for centers that no longer exist
+  const gone = []
   for (const [id, entry] of centerMarkers) {
     if (!seen.has(id)) {
-      layer.removeLayer(entry.marker)
+      gone.push(entry.marker)
       centerMarkers.delete(id)
     }
   }
+  if (gone.length) layer.removeLayers(gone)
 
   applyTypeFilter()
+  // cluster colours depend on the child markers' status
+  if (iconsChanged) layer.refreshClusters()
 }
 
 const renderHazards = () => {
@@ -707,6 +793,24 @@ const drawRoute = (geometry, distanceM = 0, durationS = 0) => {
     duration_min: Math.round(Number(durationS || 0) / 60),
   }
 
+  // On phones the details are below the map; bring the route into view.
+  if (isSmallScreen.value) scrollToMap()
+}
+
+// ---- Mobile scrolling helpers ----
+const scrollBehavior = () => (LITE_MODE ? 'auto' : 'smooth')
+
+const scrollToMap = () => {
+  mapEl.value?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+}
+
+const scrollToDetails = () => {
+  sidebarEl.value?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+}
+
+const closeDetails = () => {
+  selectedCenter.value = null
+  if (isSmallScreen.value) scrollToMap()
 }
 
 const routeToCenter = (center, avoidHazards = false) => {
@@ -786,21 +890,43 @@ const initializeMap = async () => {
 
   map.value = L.map(el, {
     zoomAnimation: false,
+    // Route lines / vectors on one <canvas> instead of SVG nodes.
+    preferCanvas: true,
+    fadeAnimation: !LITE_MODE,
   }).setView([13.0, 121.1], 9)
+
+  // Don't load tiles mid-pinch/mid-pan on phones; keep fewer off-screen tiles in memory.
+  const tileOpts = {
+    updateWhenZooming: false,
+    updateWhenIdle: true,
+    keepBuffer: LITE_MODE ? 1 : 2,
+  }
 
   osmLayer.value = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19,
+    ...tileOpts,
   })
 
   satelliteLayer.value = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={z}', {
     maxZoom: 20,
     subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
     attribution: '&copy; Google',
+    ...tileOpts,
   })
 
   osmLayer.value.addTo(map.value)
 
-  centerLayer.value = L.layerGroup().addTo(map.value)
+  centerLayer.value = L.markerClusterGroup({
+    chunkedLoading: true,              // add markers in small chunks, no UI freeze
+    removeOutsideVisibleBounds: true,  // only markers on screen are in the DOM
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true,
+    animate: !LITE_MODE,
+    maxClusterRadius: LITE_MODE ? 60 : 45,
+    disableClusteringAtZoom: 14,       // street level: every center shown individually
+    iconCreateFunction: createClusterIcon,
+  }).addTo(map.value)
   hazardLayer.value = L.layerGroup().addTo(map.value)
   routeLayer.value = L.layerGroup().addTo(map.value)
 
@@ -883,8 +1009,11 @@ const getPredictedStatusText = (center) => {
   return 'Likely Available'
 }
 
+// Mobile browsers fire window 'resize' constantly while scrolling (URL bar
+// shows/hides). Watch the map element itself and debounce instead.
 const handleResize = () => {
-  safeInvalidateSize()
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(safeInvalidateSize, 150)
 }
 
 watch(selectedTypes, (val) => {
@@ -898,8 +1027,16 @@ onMounted(async () => {
   const saved = localStorage.getItem('buildingFilter')
   if (saved) selectedTypes.value = JSON.parse(saved)
 
+  smallScreenMq?.addEventListener?.('change', onSmallScreenChange)
+
   await initializeMap()
-  window.addEventListener('resize', handleResize)
+
+  if (typeof ResizeObserver !== 'undefined' && mapEl.value) {
+    resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(mapEl.value)
+  } else {
+    window.addEventListener('resize', handleResize)
+  }
 })
 
 
@@ -925,10 +1062,17 @@ onUnmounted(() => {
   osmLayer.value = null
   satelliteLayer.value = null
 
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  clearTimeout(resizeTimer)
+  smallScreenMq?.removeEventListener?.('change', onSmallScreenChange)
   window.removeEventListener('resize', handleResize)
 })
 
 watch(selectedCenter, () => {
+  // Desktop: the sidebar opening changes the map width (ResizeObserver also
+  // catches the end of the transition). On phones the map size doesn't change.
+  if (isSmallScreen.value) return
   nextTick(() => {
     if (map.value) {
       map.value.invalidateSize()
@@ -1493,24 +1637,168 @@ watch(selectedCenter, () => {
   }
 }
 
+/* Desktop: the wrapper is invisible to layout, so nothing changes there. */
+.filters-panel { display: contents; }
+.filters-toggle,
+.back-to-map { display: none; }
+
+/* ---- Mobile: scrollable page, map takes most of the screen ---- */
 @media (max-width: 768px) {
+  /* Let the page scroll instead of squeezing everything into 100% height */
+  .map-container {
+    height: auto !important;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
   .map-header {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
+    gap: 0.6rem;
   }
-  
-  .legend {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .map-sidebar {
+
+  .page-title { font-size: 1.15rem; margin-bottom: 0; }
+  .page-subtitle { display: none; }
+
+  .map-controls { width: 100%; }
+
+  .filters-toggle {
+    display: block;
     width: 100%;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
   }
-  
+
+  .filters-panel { display: none; }
+  .filters-panel.open {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.75rem;
+    padding: 0.6rem 0.75rem;
+  }
+  .legend-item { font-size: 0.75rem; }
+
+  .control-buttons { width: 100%; }
+  .control-buttons .control-btn { padding: 0.6rem 0.8rem; }
+  .control-buttons .control-btn:last-child { flex: 1; font-size: 0.95rem; }
+
+  .map-container .data-disclaimer { font-size: 0.75rem; padding: 0.45rem 0.75rem; }
+  .map-container .data-disclaimer .coverage-note { font-size: 0.7rem; }
+
+  /* Map on top, details underneath in normal page flow */
+  .map-content {
+    flex: 0 0 auto;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  /* svh = the small viewport height, so the map does NOT resize while the URL
+     bar slides in/out during scrolling. Kept under 100% so there is always a
+     strip of page outside the map to scroll with one finger. */
+  .main-map {
+    flex: none;
+    width: 100%;
+    height: 75vh;
+    height: 75svh;
+    min-height: 320px;
+    scroll-margin-top: 64px; /* room for the sticky header when scrolled to */
+  }
+
+  .map-content .map-loading { bottom: auto; height: 75vh; height: 75svh; min-height: 320px; }
+
+  .map-sidebar,
   .map-sidebar.sidebar-collapsed {
-    width: 0;
+    position: static;
+    width: 100%;
+    box-shadow: none;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    scroll-margin-top: 64px;
   }
+  .map-sidebar.sidebar-collapsed { display: none; }
+
+  .sidebar-content { overflow: visible; padding: 1rem; }
+  .close-sidebar { top: 1rem; right: 1rem; }
+
+  .back-to-map {
+    display: block;
+    width: calc(100% - 2.75rem); /* leave room for the × button */
+    margin-bottom: 0.75rem;
+    padding: 0.55rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+
+  .info-item { flex-wrap: wrap; }
+  .info-label { white-space: normal; }
+
+  /* ---- Performance on phones ----
+     backdrop-filter is one of the most expensive things a mobile GPU can do,
+     and theme.css adds blur(18px) to the sidebar, its cards and the legend
+     (nested blurs). Solid backgrounds look the same here. */
+  .map-header,
+  .map-sidebar,
+  .sidebar-content,
+  .center-details,
+  .metrics-section,
+  .legend,
+  .map-content .map-loading {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .map-header { background: #0f172a !important; }
+  .map-sidebar,
+  .sidebar-content,
+  .center-details,
+  .metrics-section,
+  .legend { box-shadow: none !important; }
+
+  .map-sidebar,
+  .control-btn,
+  .action-btn { transition: none; }
 }
+
+/* Lighter markers on touch devices: no shadow, no hover transitions */
+:deep(.custom-marker.lite .marker-pin) {
+  box-shadow: none;
+  transition: none;
+}
+
+/* Cluster bubbles, coloured by the worst status inside them */
+:deep(.center-cluster) {
+  background: transparent;
+}
+:deep(.center-cluster div) {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+}
+:deep(.cluster-normal div)   { background: #22c55e; }
+:deep(.cluster-warning div)  { background: #f59e0b; }
+:deep(.cluster-critical div) { background: #ef4444; }
+:deep(.cluster-unknown div)  { background: #6b7280; }
 
 .building-filter {
   display: flex;
