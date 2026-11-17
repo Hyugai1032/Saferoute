@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'auth_app',
     'evac_app',
     'analytics_app',
+    'backup_app',  
     'rest_framework',
     'corsheaders',  # For handling CORS from Vue
     'storages',
@@ -114,6 +115,7 @@ else:
             "PORT": "3306",
             "OPTIONS": {
                 "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE'",
             },
         }
     }

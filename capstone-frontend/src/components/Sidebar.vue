@@ -97,6 +97,9 @@ const navItems = [
   { to: '/admin/edit_forms', name: 'Edit Forms', icon: '✏️' },
   { to: '/admin/users', name: 'User Management', icon: '👥' },
   { to: '/admin/sys_logs', name: 'System Logs', icon: '🧾' },
+  ...(isProvincialAdmin ? [
+    { to: '/admin/backup', name: 'Backup & Recovery', icon: '💾' }
+  ] : []),
   { to: '/admin/profile', name: 'Profile', icon: '👤' },
 ];
 </script>

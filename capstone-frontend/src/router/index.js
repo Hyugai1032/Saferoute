@@ -16,6 +16,7 @@ import AffectedPopulationReport from '../views/AffectedPopulationReport.vue'
 import AdminDonationDrive from '../views/AdminDonationDrive.vue'
 import AdminEvacueeReason from '../views/AdminEvacueeReason.vue'
 import SystemLogs from '../views/SystemLogs.vue'
+import BackupRecovery from '../views/BackupRecovery.vue'
 
 // User Components
 import UserLayout from '../views/Users/UserLayout.vue'
@@ -109,6 +110,12 @@ const routes = [
       },
       { path: "donation-drive", name: "AdminDonationDrive", component: AdminDonationDrive },
       { path: 'sys_logs', name: "SystemLogs", component: SystemLogs },
+      {
+        path: 'backup',
+        name: 'BackupRecovery',
+        component: BackupRecovery,
+        meta: { requiresAuth: true, role: ['admin'], provincialOnly: true }
+      },
       { path: 'profile', name: 'AdminProfile', component: UserProfile },
     ]
   },
