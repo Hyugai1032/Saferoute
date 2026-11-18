@@ -403,6 +403,22 @@ aside.sidebar,
 .user-section {
   background: var(--surface-soft) !important;
   border: 1px solid var(--border-light) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  margin: 12px 4px 4px !important;
+}
+
+/* Collapsed sidebar: just the avatar, centered */
+.user-section.user-section-collapsed {
+  padding: 10px 0 !important;
+  margin: 12px 6px 4px !important;
+}
+
+/* Keep the name from overflowing the card */
+.user-section .user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Form controls */
