@@ -2513,3 +2513,363 @@ html[data-theme="light"] .landing-page .contact-btn:hover {
   transform: translateY(-2px) !important;
   box-shadow: 0 18px 34px rgba(37, 99, 235, 0.18) !important;
 }
+
+/* --------------------------- Admin HazardReportLogs.vue --------------------------- */
+html[data-theme='light'] .hazard-logs {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .hazard-logs .page-header h1 { color: var(--text-primary) !important; }
+html[data-theme='light'] .hazard-logs .page-header p,
+html[data-theme='light'] .hazard-logs .filter-group label,
+html[data-theme='light'] .hazard-logs .pager,
+html[data-theme='light'] .hazard-logs .detail-block .label { color: var(--text-muted) !important; }
+
+/* Header badge + export */
+html[data-theme='light'] .hazard-logs .badge {
+  background: rgba(11, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(11, 130, 240, 0.25) !important;
+}
+html[data-theme='light'] .hazard-logs .export-btn {
+  background: linear-gradient(135deg, #0b82f0, #06b6d4) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* Filters */
+html[data-theme='light'] .hazard-logs .filter-group input,
+html[data-theme='light'] .hazard-logs .filter-group select {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+  color-scheme: light;
+}
+html[data-theme='light'] .hazard-logs .filter-group input::placeholder { color: #94a3b8 !important; }
+html[data-theme='light'] .hazard-logs .reset-btn,
+html[data-theme='light'] .hazard-logs .pager button {
+  background: #fff !important;
+  border-color: var(--border-medium) !important;
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .hazard-logs .reset-btn:hover,
+html[data-theme='light'] .hazard-logs .pager button:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+}
+
+/* Table text */
+html[data-theme='light'] .hazard-logs .log-table td,
+html[data-theme='light'] .hazard-logs .nowrap { color: var(--text-secondary) !important; }
+html[data-theme='light'] .hazard-logs .report-title,
+html[data-theme='light'] .hazard-logs .who { color: var(--text-primary) !important; }
+html[data-theme='light'] .hazard-logs .report-sub { color: var(--text-muted) !important; }
+html[data-theme='light'] .hazard-logs .type { color: #0369a1 !important; }
+html[data-theme='light'] .hazard-logs .muted-text,
+html[data-theme='light'] .hazard-logs .arrow { color: #94a3b8 !important; }
+html[data-theme='light'] .hazard-logs .row:hover,
+html[data-theme='light'] .hazard-logs .row.open { background: rgba(11, 130, 240, 0.06) !important; }
+html[data-theme='light'] .hazard-logs .details-row td { background: #f8fbff !important; }
+html[data-theme='light'] .hazard-logs .detail-block p { color: var(--text-secondary) !important; }
+
+/* Severity chips */
+html[data-theme='light'] .hazard-logs .severity.low      { background:#dcfce7 !important; color:#15803d !important; border-color:#86efac !important; }
+html[data-theme='light'] .hazard-logs .severity.medium   { background:#fef3c7 !important; color:#b45309 !important; border-color:#fcd34d !important; }
+html[data-theme='light'] .hazard-logs .severity.high     { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+html[data-theme='light'] .hazard-logs .severity.critical { background:#f3e8ff !important; color:#7e22ce !important; border-color:#d8b4fe !important; }
+
+/* Action chips */
+html[data-theme='light'] .hazard-logs .action-chip.approved  { background:#dcfce7 !important; color:#15803d !important; border-color:#86efac !important; }
+html[data-theme='light'] .hazard-logs .action-chip.dismissed { background:#fef3c7 !important; color:#b45309 !important; border-color:#fcd34d !important; }
+html[data-theme='light'] .hazard-logs .action-chip.reopened  { background:#dbeafe !important; color:#1d4ed8 !important; border-color:#93c5fd !important; }
+html[data-theme='light'] .hazard-logs .action-chip.deleted   { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+
+/* States */
+html[data-theme='light'] .hazard-logs .state.muted { color: var(--text-muted) !important; }
+html[data-theme='light'] .hazard-logs .state.error { background:#fee2e2 !important; color:#b91c1c !important; }
+
+
+
+/* --------------------------- Admin SystemLogs.vue --------------------------- */
+html[data-theme='light'] .system-logs {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .system-logs .page-header h1 { color: var(--text-primary) !important; }
+html[data-theme='light'] .system-logs .page-header p,
+html[data-theme='light'] .system-logs .filter-group label,
+html[data-theme='light'] .system-logs .pager,
+html[data-theme='light'] .system-logs .changes-title,
+html[data-theme='light'] .system-logs .detail-block .label { color: var(--text-muted) !important; }
+
+/* Header badge + export */
+html[data-theme='light'] .system-logs .badge {
+  background: rgba(11, 130, 240, 0.10) !important;
+  color: #0369a1 !important;
+  border-color: rgba(11, 130, 240, 0.25) !important;
+}
+html[data-theme='light'] .system-logs .export-btn {
+  background: linear-gradient(135deg, #0b82f0, #06b6d4) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* Filters */
+html[data-theme='light'] .system-logs .filter-group input,
+html[data-theme='light'] .system-logs .filter-group select {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+  color-scheme: light;
+}
+html[data-theme='light'] .system-logs .filter-group input::placeholder { color: #94a3b8 !important; }
+html[data-theme='light'] .system-logs .reset-btn,
+html[data-theme='light'] .system-logs .pager button {
+  background: #fff !important;
+  border-color: var(--border-medium) !important;
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .system-logs .reset-btn:hover,
+html[data-theme='light'] .system-logs .pager button:hover:not(:disabled) {
+  background: var(--surface-hover) !important;
+}
+html[data-theme='light'] .system-logs .focus-chip {
+  background: #dbeafe !important; color: #1d4ed8 !important; border-color: #93c5fd !important;
+}
+
+/* Table text */
+html[data-theme='light'] .system-logs .log-table td,
+html[data-theme='light'] .system-logs .nowrap { color: var(--text-secondary) !important; }
+html[data-theme='light'] .system-logs .who,
+html[data-theme='light'] .system-logs .record-label { color: var(--text-primary) !important; }
+html[data-theme='light'] .system-logs .sub { color: var(--text-muted) !important; }
+html[data-theme='light'] .system-logs .type { color: #0369a1 !important; }
+html[data-theme='light'] .system-logs .muted-text { color: #94a3b8 !important; }
+html[data-theme='light'] .system-logs .fail-text { color: #b91c1c !important; }
+html[data-theme='light'] .system-logs .row:hover,
+html[data-theme='light'] .system-logs .row.open { background: rgba(11, 130, 240, 0.06) !important; }
+
+/* Request column: method + status code */
+html[data-theme='light'] .system-logs .method.post { color: #15803d !important; }
+html[data-theme='light'] .system-logs .method.get { color: #1d4ed8 !important; }
+html[data-theme='light'] .system-logs .method.patch,
+html[data-theme='light'] .system-logs .method.put { color: #b45309 !important; }
+html[data-theme='light'] .system-logs .method.delete { color: #b91c1c !important; }
+html[data-theme='light'] .system-logs .status.s2 { color: #15803d !important; }
+html[data-theme='light'] .system-logs .status.s4 { color: #b45309 !important; }
+html[data-theme='light'] .system-logs .status.s5 { color: #b91c1c !important; }
+
+/* Action chips */
+html[data-theme='light'] .system-logs .action-chip.create { background:#dcfce7 !important; color:#15803d !important; border-color:#86efac !important; }
+html[data-theme='light'] .system-logs .action-chip.update { background:#dbeafe !important; color:#1d4ed8 !important; border-color:#93c5fd !important; }
+html[data-theme='light'] .system-logs .action-chip.delete { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+html[data-theme='light'] .system-logs .action-chip.login  { background:#f3e8ff !important; color:#7e22ce !important; border-color:#d8b4fe !important; }
+html[data-theme='light'] .system-logs .action-chip.route  { background:#cffafe !important; color:#0e7490 !important; border-color:#67e8f9 !important; }
+html[data-theme='light'] .system-logs .action-chip.export { background:#fef3c7 !important; color:#b45309 !important; border-color:#fcd34d !important; }
+html[data-theme='light'] .system-logs .action-chip.danger { background:#fee2e2 !important; color:#b91c1c !important; border-color:#f87171 !important; }
+
+/* Outcome chips */
+html[data-theme='light'] .system-logs .outcome-chip.success { background:#dcfce7 !important; color:#15803d !important; border-color:#86efac !important; }
+html[data-theme='light'] .system-logs .outcome-chip.failed  { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+
+/* Expanded details */
+html[data-theme='light'] .system-logs .details-row > td { background: #f8fbff !important; }
+html[data-theme='light'] .system-logs .detail-block p,
+html[data-theme='light'] .system-logs .diff .value { color: var(--text-secondary) !important; }
+html[data-theme='light'] .system-logs .ua { color: var(--text-muted) !important; }
+html[data-theme='light'] .system-logs .diff .field { color: var(--text-primary) !important; }
+html[data-theme='light'] .system-logs .diff .before { color: #b91c1c !important; }
+html[data-theme='light'] .system-logs .diff .after { color: #15803d !important; }
+html[data-theme='light'] .system-logs .link-btn {
+  background: #dbeafe !important; color: #1d4ed8 !important; border-color: #93c5fd !important;
+}
+
+/* States */
+html[data-theme='light'] .system-logs .state.muted { color: var(--text-muted) !important; }
+html[data-theme='light'] .system-logs .state.error { background:#fee2e2 !important; color:#b91c1c !important; }
+
+/* --------------------------- Admin BackupRecovery.vue --------------------------- */
+html[data-theme='light'] .backup-page {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .backup-page .page-header h1,
+html[data-theme='light'] .backup-page .card-value,
+html[data-theme='light'] .backup-page .file-name,
+html[data-theme='light'] .backup-page .modal h2 { color: var(--text-primary) !important; }
+
+html[data-theme='light'] .backup-page .page-header p,
+html[data-theme='light'] .backup-page .card-label,
+html[data-theme='light'] .backup-page .card-sub,
+html[data-theme='light'] .backup-page .muted,
+html[data-theme='light'] .backup-page .empty,
+html[data-theme='light'] .backup-page .footnote,
+html[data-theme='light'] .backup-page .modal label,
+html[data-theme='light'] .backup-page th { color: var(--text-muted) !important; }
+
+html[data-theme='light'] .backup-page .card-sub.warn,
+html[data-theme='light'] .backup-page .restored { color: #b45309 !important; }
+
+/* Cards + table */
+html[data-theme='light'] .backup-page .card,
+html[data-theme='light'] .backup-page .table-wrap {
+  background: #ffffff !important;
+  border-color: var(--border-light) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+html[data-theme='light'] .backup-page th { background: #eaf4ff !important; }
+html[data-theme='light'] .backup-page td { color: var(--text-secondary) !important; }
+
+/* Buttons */
+html[data-theme='light'] .backup-page .btn {
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.28) !important;
+}
+html[data-theme='light'] .backup-page .btn.primary {
+  background: linear-gradient(135deg, #0b82f0, #06b6d4) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+html[data-theme='light'] .backup-page .btn.danger {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+html[data-theme='light'] .backup-page .icon-btn {
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.25) !important;
+}
+html[data-theme='light'] .backup-page .icon-btn.warn { color: #b45309 !important; border-color: #fcd34d !important; }
+html[data-theme='light'] .backup-page .icon-btn.danger { color: #b91c1c !important; border-color: #fca5a5 !important; }
+
+/* Backup type chips */
+html[data-theme='light'] .backup-page .kind             { background:#dbeafe !important; color:#1d4ed8 !important; border-color:#93c5fd !important; }
+html[data-theme='light'] .backup-page .kind.scheduled   { background:#ccfbf1 !important; color:#0f766e !important; border-color:#5eead4 !important; }
+html[data-theme='light'] .backup-page .kind.pre_restore { background:#fef3c7 !important; color:#b45309 !important; border-color:#fcd34d !important; }
+html[data-theme='light'] .backup-page .kind.uploaded    { background:#f3e8ff !important; color:#7e22ce !important; border-color:#d8b4fe !important; }
+
+/* Alerts */
+html[data-theme='light'] .backup-page .alert.success { background:#dcfce7 !important; color:#15803d !important; border-color:#86efac !important; }
+html[data-theme='light'] .backup-page .alert.error   { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+
+/* Modals (create / restore / upload) */
+html[data-theme='light'] .backup-page .modal-backdrop { background: rgba(15, 23, 42, 0.35) !important; }
+html[data-theme='light'] .backup-page .modal {
+  background: #ffffff !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-light) !important;
+}
+html[data-theme='light'] .backup-page .modal input {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .backup-page .danger-box {
+  background: #fee2e2 !important; color: #991b1b !important; border-color: #fca5a5 !important;
+}
+html[data-theme='light'] .backup-page .compare tr.changed td { color: #b45309 !important; }
+
+
+/* --------------------------- AffectedPopulationReport.vue --------------------------- */
+html[data-theme='light'] .report-container .report-meta {
+  background: linear-gradient(135deg, rgba(11, 130, 240, 0.08), rgba(6, 182, 212, 0.05)) !important;
+  border-color: rgba(11, 130, 240, 0.20) !important;
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .report-container .report-meta strong {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .report-container .empty-state { color: var(--text-muted) !important; }
+html[data-theme='light'] .report-container .error-box {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}   
+
+/* --------------------------- Filter bar spacing: Hazard Report Logs + System Logs --------------------------- */
+.hazard-logs .filters,
+.system-logs .filters {
+  padding: 14px 16px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+html[data-theme='light'] .hazard-logs .filters,
+html[data-theme='light'] .system-logs .filters {
+  background: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Make Reset match the input height */
+.hazard-logs .reset-btn,
+.system-logs .reset-btn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* --------------------------- Staff: StaffEvacuees.vue --------------------------- */
+/* Family role + status pills */
+html[data-theme='light'] .evacuees-page .status-pill.active {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  border-color: #86efac !important;
+}
+html[data-theme='light'] .evacuees-page .status-pill.inactive {
+  background: #ffe4e6 !important;
+  color: #be123c !important;
+  border-color: #fda4af !important;
+}
+
+/* Reason for evacuation */
+html[data-theme='light'] .evacuees-page .reason-chip {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #7dd3fc !important;
+}
+
+/* Categories (Child, Senior, PWD, Pregnant, Lactating) */
+html[data-theme='light'] .evacuees-page .chip {
+  background: #ede9fe !important;
+  color: #6d28d9 !important;
+  border-color: #c4b5fd !important;
+}
+
+/* Edit / Mark Left / Retry / Discard */
+html[data-theme='light'] .evacuees-page .table-btn {
+  background: #f0fdfa !important;
+  color: #0f766e !important;
+  border-color: #5eead4 !important;
+}
+html[data-theme='light'] .evacuees-page .table-btn:hover {
+  background: #ccfbf1 !important;
+}
+html[data-theme='light'] .evacuees-page .table-btn.danger {
+  background: #fff1f2 !important;
+  color: #be123c !important;
+  border-color: #fda4af !important;
+}
+html[data-theme='light'] .evacuees-page .table-btn.danger:hover {
+  background: #ffe4e6 !important;
+}
+
+/* Spacing between action buttons (both themes) */
+.evacuees-page td.actions { white-space: nowrap; }
+.evacuees-page td.actions .table-btn + .table-btn { margin-left: 6px; }
+
+/* --------------------------- Citizen: UserAlerts.vue --------------------------- */
+/* Keep the Emergency Alert button text white in BOTH themes.
+   Selector must beat the global .critical:not():not():not() rule (4 classes). */
+.user-alerts .emergency-actions button.emergency-btn.critical {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+.user-alerts .emergency-actions button.emergency-btn.critical i {
+  color: #ffffff !important;
+}

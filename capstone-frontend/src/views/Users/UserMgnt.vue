@@ -745,9 +745,20 @@ select:focus, .search:focus-within{
 
 table{
   width:100%;
-  min-width: 900px;             /* added: table stops shrinking below this, so the container scrolls */
+    min-width: 1100px;            /* added: table stops shrinking below this, so the container scrolls */
   border-collapse:collapse;
 }
+
+th, td{
+  padding: 14px 14px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  vertical-align: middle;
+  text-align: left;
+}
+
+.actions{ display:grid; grid-template-columns: repeat(2, max-content); gap:8px; }
+.pill, .a-btn{ white-space: nowrap; }
+
 th{
   background: rgba(5,8,18,.85);
   color: rgba(56,189,248,.95);
