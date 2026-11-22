@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Optional, Dict, Any, List, Tuple
 
-from django.db.models import Count, OuterRef, Subquery, Sum
+from django.db.models import Count, OuterRef, Subquery, Sum, Min
 from django.utils import timezone
 
 
@@ -30,7 +30,7 @@ class CongestionParams:
     w_vuln: float = 0.10
 
 
-MODEL_VERSION = "hybrid-v1"
+MODEL_VERSION = "hybrid-v2"
 
 # How far back a center's logs count as "the current event".
 EVENT_LOOKBACK_HOURS = 72
@@ -38,6 +38,11 @@ EVENT_LOOKBACK_HOURS = 72
 HOLT_MAX_POINTS = 12
 # Number of logs at which the forecast relies fully on live data.
 FULL_TRUST_LOGS = 6
+
+# Damped trend: how much of the current growth rate is assumed to remain after 1 hour.
+# 1.0 = plain Holt (the trend never fades, so forecasts overshoot when filling stops);
+# lower = the trend fades faster. Tuned with `simulate_congestion` on simulated scenarios.
+TREND_DAMPING_PER_HOUR = 0.8
 
 # Cold-start prior. PLACEHOLDERS: replace with values fitted from DROMIC reports.
 PRIOR = {
@@ -105,15 +110,30 @@ def prior_expected_demand(center, centers_in_barangay: int = 1) -> Tuple[float, 
 
 def prior_arrivals(demand: float, event_start, now, horizon_minutes: int) -> float:
     """Arrivals expected between now and now+horizon, following the S-curve."""
-    if demand <= 0:
+    # No event under way (no logs at this center or in its municipality): no arrivals.
+    if demand <= 0 or event_start is None:
         return 0.0
-    # No logs yet: treat "now" as the start of the event.
-    start = event_start or now
-    t = max(0.0, (now - start).total_seconds() / 3600)
+    t = max(0.0, (now - event_start).total_seconds() / 3600)
     h = horizon_minutes / 60
     k, t50 = PRIOR["k_per_hour"], PRIOR["t50_hours"]
     return demand * (_logistic(t + h, k, t50) - _logistic(t, k, t50))
 
+def _phi_per_min() -> float:
+    return clamp(TREND_DAMPING_PER_HOUR, 0.01, 1.0) ** (1 / 60)
+
+
+def damped_minutes(minutes: float) -> float:
+    """
+    Effective number of minutes a trend is projected over when it fades by
+    TREND_DAMPING_PER_HOUR: phi + phi^2 + ... + phi^n (per minute). Equals `minutes`
+    when there is no damping.
+    """
+    phi = _phi_per_min()
+    if minutes <= 0:
+        return 0.0
+    if phi >= 1.0:
+        return float(minutes)
+    return phi * (1 - phi ** minutes) / (1 - phi)
 
 def holt_trend_per_min(points, alpha: float = 0.5, beta: float = 0.3) -> Optional[float]:
     """
@@ -130,8 +150,8 @@ def holt_trend_per_min(points, alpha: float = 0.5, beta: float = 0.3) -> Optiona
     for (t_prev, _), (t, y) in zip(points, points[1:]):
         dt = max(1.0, (t - t_prev).total_seconds() / 60)
         prev_level = level
-        level = alpha * float(y) + (1 - alpha) * (level + trend * dt)
-        trend = beta * (level - prev_level) / dt + (1 - beta) * trend
+        level = alpha * float(y) + (1 - alpha) * (level + trend * damped_minutes(dt))
+        trend = beta * (level - prev_level) / dt + (1 - beta) * trend * (_phi_per_min() ** dt)
     return trend
 
 
@@ -212,7 +232,7 @@ def _build_result(
 
     # ---- Forecast ---------------------------------------------------------- #
     trend = holt_trend_per_min(points)                         # None when < 2 logs
-    observed_pred = current_total + (trend or 0.0) * params.horizon_minutes
+    observed_pred = current_total + (trend or 0.0) * damped_minutes(params.horizon_minutes)
 
     demand, demand_source = prior_expected_demand(center, centers_in_barangay)
     # Only arrivals still to come: subtract who is already there.
@@ -229,7 +249,9 @@ def _build_result(
     predicted_total = max(0.0, w * observed_pred + (1 - w) * prior_pred)
     predicted_occupancy = predicted_total / float(capacity)
 
-    if w == 0:
+    if not points and event_start is None:
+        model = "idle"           # no event under way nearby: nothing predicted
+    elif w == 0:
         model = "prior"
     elif w < 1:
         model = "hybrid"
@@ -350,6 +372,19 @@ def compute_congestion_risk(
     event_start = recent[0][0] if recent else None
     points = recent[-HOLT_MAX_POINTS:]
 
+    
+    # No logs here yet: if another center in the same municipality has started logging,
+    # an event is under way, so time the arrival curve from that first log.
+    if event_start is None and getattr(center, "municipality_id", None):
+        event_start = (
+            EvacuationLogModel.objects
+            .filter(
+                center__municipality_id=center.municipality_id,
+                date_recorded__gte=now - timedelta(hours=EVENT_LOOKBACK_HOURS),
+            )
+            .aggregate(first=Min("date_recorded"))["first"]
+        )
+
     centers_in_barangay = 1
     if getattr(center, "barangay_id", None):
         centers_in_barangay = center.__class__.objects.filter(barangay_id=center.barangay_id).count()
@@ -416,6 +451,7 @@ def compute_congestion_risk_bulk(
     flows: Dict[int, Tuple[int, int]] = {}
     points_by_center: Dict[int, list] = defaultdict(list)
     centers_per_barangay: Dict[int, int] = {}
+    event_start_by_municipality: Dict[int, Any] = {}
 
     if with_capacity:
         # 1) in/out totals for the window
@@ -460,6 +496,24 @@ def compute_congestion_risk_bulk(
                 )
             }
 
+        
+        # 4) first log per municipality in the lookback window (is an event under way?)
+        municipality_ids = {getattr(c, "municipality_id", None) for c in centers} - {None}
+        if municipality_ids:
+            event_start_by_municipality = {
+                r["center__municipality_id"]: r["first"]
+                for r in (
+                    EvacuationLogModel.objects
+                    .filter(
+                        center__municipality_id__in=municipality_ids,
+                        date_recorded__gte=now - timedelta(hours=EVENT_LOOKBACK_HOURS),
+                    )
+                    .order_by()
+                    .values("center__municipality_id")
+                    .annotate(first=Min("date_recorded"))
+                )
+            }
+
     for center in centers:
         if center.id in results:
             continue
@@ -478,7 +532,10 @@ def compute_congestion_risk_bulk(
                 total_in=total_in,
                 total_out=total_out,
                 points=all_points[-HOLT_MAX_POINTS:],
-                event_start=all_points[0][0] if all_points else None,
+                event_start=(
+                    all_points[0][0] if all_points
+                    else event_start_by_municipality.get(getattr(center, "municipality_id", None))
+                ),
                 centers_in_barangay=centers_per_barangay.get(getattr(center, "barangay_id", None), 1),
                 params=params,
             )
