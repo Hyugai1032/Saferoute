@@ -2,14 +2,22 @@
   <div ref="dashRoot" class="dashboard-container">
     <div class="main-content">
 
-      <!-- Dashboard Header with Logout -->
+      <!-- Dashboard Header -->
       <div class="dashboard-header">
         <div class="header-info">
           <h1>Admin Dashboard</h1>
           <p>Emergency Management System</p>
         </div>
 
-
+        <div class="header-actions">
+          <span class="live-badge" :class="{ offline: !liveOk }">
+            <span class="live-dot"></span>
+            {{ liveOk ? 'Live' : 'Reconnecting…' }}
+            <span v-if="lastUpdated && liveOk" class="live-time">
+              · updated {{ lastUpdated.toLocaleTimeString() }}
+            </span>
+          </span>
+        </div>
       </div>
 
       <!-- Key Metrics -->
@@ -111,6 +119,7 @@ import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import api from '@/services/api'
 
 const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -122,6 +131,7 @@ const error = ref('')
 const mapCenters = ref([])
 const dashRoot = ref(null)
 const listCount = ref(5)
+const liveOk = ref(true)
 let quickMap = null
 let mapResizeObserver = null
 let mapLayerGroup = null
@@ -213,18 +223,17 @@ const fetchAllPages = async (url) => {
   return all
 }
 
-const fetchCenters = async () => {
-  loading.value = true
+const fetchCenters = async ({ silent = false } = {}) => {
+  if (!silent) loading.value = true
   error.value = ''
-
   try {
     const rawCenters = await fetchAllPages(`${API_BASE}evac_centers/evac-centers/`)
     centers.value = rawCenters.map(normalizeCenter)
   } catch (err) {
     console.error('Dashboard fetch error:', err)
-    error.value = err.message || 'Failed to load dashboard data.'
+    if (!silent) error.value = err.message || 'Failed to load dashboard data.'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -306,9 +315,42 @@ const refreshDashboardRisks = async () => {
   try {
     centerRisks.value = await fetchBulkCenterRisk(centers.value.map(c => c.id))
   } catch (err) {
-    console.error('Bulk risk fetch failed:', err)
-    centerRisks.value = []
+    console.error('Bulk risk fetch failed:', err);
   }
+}
+
+// ===== Live updates (change-detection polling) =====
+const POLL_MS = 15000
+const lastUpdated = ref(null)
+let pollTimer = null
+let lastVersion = null
+let refreshing = false
+
+const checkForUpdates = async () => {
+  if (document.hidden || refreshing) return      // don't poll background tabs
+  try {
+    const { data } = await api.get('evac_centers/dashboard/version/')
+    const version = data.version
+    liveOk.value = true
+
+    if (lastVersion === null) { lastVersion = version; return }  // first check = baseline
+    if (version === lastVersion) return
+
+    lastVersion = version
+    refreshing = true
+    await fetchCenters({ silent: true })
+    await Promise.all([refreshDashboardRisks(), fetchMapOverview()])
+    lastUpdated.value = new Date()
+  } catch (err) {
+    liveOk.value = false
+    console.warn('Live update check failed:', err)
+  } finally {
+    refreshing = false
+  }
+}
+
+const onVisibilityChange = () => {
+  if (!document.hidden) checkForUpdates()        // catch up immediately when tab is reopened
 }
 
 const getOccupancyPercentage = (center) => {
@@ -606,6 +648,9 @@ onMounted(async () => {
   await refreshDashboardRisks()
   await fetchMapOverview()
   await initializeQuickMap()
+  await checkForUpdates()                         // sets the baseline version
+  pollTimer = setInterval(checkForUpdates, POLL_MS)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onBeforeUnmount(() => {
@@ -620,6 +665,9 @@ onBeforeUnmount(() => {
     quickMap.remove()
     quickMap = null
   }
+
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 
   mapLayerGroup = null
 })
@@ -701,6 +749,41 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--u);
 }
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(0.5 * var(--u));
+  padding: calc(0.4 * var(--u)) calc(0.9 * var(--u));
+  border-radius: 999px;
+  font-size: calc(0.85 * var(--u));
+  font-weight: 600;
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: calc(0.55 * var(--u));
+  height: calc(0.55 * var(--u));
+  border-radius: 50%;
+  background: #22c55e;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-time {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+  50%      { opacity: 0.6; box-shadow: 0 0 0 calc(0.35 * var(--u)) rgba(34, 197, 94, 0); }
+}
+
+.live-badge.offline { color: #b45309; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.35); }
+.live-badge.offline .live-dot { background: #f59e0b; animation: none; }
 
 .logout-btn {
   background: linear-gradient(135deg, #ef4444, #dc2626);

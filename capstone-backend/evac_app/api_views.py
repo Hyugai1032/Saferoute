@@ -1,5 +1,6 @@
 import re
 import uuid
+import hashlib
 from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -9,14 +10,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
-from django.db.models import Sum, Max, ProtectedError, OuterRef, Subquery
+from django.db.models import Sum, Max, ProtectedError, OuterRef, Subquery, Count
 from django.utils import timezone
 from .models import EvacuationCenter, EvacuationLog, Evacuee, DonationDistribution, Donation, DonationNeed, EvacuationReason
 from .serializers import EvacuationCenterSerializer, EvacuationLogSerializer, EvacuationCenterListSerializer, EvacueeSerializer, EvacueeSyncSerializer, DonationNeedSerializer, DonationSerializer, DonationDistributionSerializer, EvacuationReasonSerializer
 from .utils.csv_helpers import read_csv_rows, read_xlsx_rows, parse_row
 from .utils.geo import get_request_ip, ip_likely_in_oriental_mindoro
 from django.db import transaction, IntegrityError
-from auth_app.models import Municipality, Barangay
+from auth_app.models import Municipality, Barangay, HazardReport
 from auth_app.permissions import IsStaffOrHigher, IsMunicipalAdminOrHigher
 
 
@@ -69,6 +70,27 @@ def public_pledge_donation(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class DashboardVersionView(APIView):
+    """
+    Returns a fingerprint that changes whenever dashboard-relevant data changes.
+    The dashboard polls this and re-fetches only when the value differs.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        logs = EvacuationLog.objects.aggregate(max_id=Max("id"), n=Count("id"))
+        centers = EvacuationCenter.objects.aggregate(last=Max("updated_at"), n=Count("id"))
+        hazards = HazardReport.objects.aggregate(
+            created=Max("created_at"), reviewed=Max("reviewed_at"), n=Count("id")
+        )
+        raw = "|".join(str(v) for v in (
+            logs["max_id"], logs["n"],
+            centers["last"], centers["n"],
+            hazards["created"], hazards["reviewed"], hazards["n"],
+        ))
+        version = hashlib.md5(raw.encode()).hexdigest()[:16]
+        return Response({"version": version})
 
 
 class EvacuationCenterViewSet(viewsets.ModelViewSet):
