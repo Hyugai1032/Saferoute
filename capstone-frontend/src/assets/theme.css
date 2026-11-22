@@ -403,6 +403,22 @@ aside.sidebar,
 .user-section {
   background: var(--surface-soft) !important;
   border: 1px solid var(--border-light) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  margin: 12px 4px 4px !important;
+}
+
+/* Collapsed sidebar: just the avatar, centered */
+.user-section.user-section-collapsed {
+  padding: 10px 0 !important;
+  margin: 12px 6px 4px !important;
+}
+
+/* Keep the name from overflowing the card */
+.user-section .user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Form controls */
@@ -2872,4 +2888,84 @@ html[data-theme='light'] .evacuees-page .table-btn.danger:hover {
 }
 .user-alerts .emergency-actions button.emergency-btn.critical i {
   color: #ffffff !important;
+}
+
+
+/* --------------------------- Admin HazardReport.vue (Pending Hazard Reports) --------------------------- */
+/* Filter bar spacing in dark mode (light mode already has its own block) */
+html:not([data-theme='light']) .hazard-admin .filters {
+  padding: 16px 18px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+  align-items: flex-end;
+}
+
+/* --------------------------- User Management: stronger text in light mode --------------------------- */
+/* Table data (Municipality, Assigned Center, "-") */
+html[data-theme='light'] .user-management .users-table td,
+html[data-theme='light'] .user-management .users-table td.muted,
+html[data-theme='light'] .user-management .users-table td .muted {
+  color: #334155 !important;
+}
+
+/* Email and phone under the name */
+html[data-theme='light'] .user-management .users-table .user-email {
+  color: #475569 !important;
+}
+html[data-theme='light'] .user-management .users-table .user-contact {
+  color: #64748b !important;
+}
+
+/* Page subtitle + stat card labels/hints */
+html[data-theme='light'] .user-management .title-wrap p,
+html[data-theme='light'] .user-management .stat-card .stat-label,
+html[data-theme='light'] .user-management .stat-card .stat-hint {
+  color: #475569 !important;
+}
+
+/* Stat numbers in brand blue */
+html[data-theme='light'] .user-management .stat-card .stat-number {
+  color: #0b5fb8 !important;
+  -webkit-text-fill-color: #0b5fb8 !important;
+}
+
+/* Pagination text */
+html[data-theme='light'] .user-management .pagination {
+  color: #334155 !important;
+}
+
+/* --------------------------- User Management: stronger text in dark mode --------------------------- */
+/* Table data (Municipality, Assigned Center, "-") */
+html:not([data-theme='light']) .user-management .users-table td,
+html:not([data-theme='light']) .user-management .users-table td.muted,
+html:not([data-theme='light']) .user-management .users-table td .muted {
+  color: #e2e8f0 !important;
+}
+
+/* Email and phone under the name */
+html:not([data-theme='light']) .user-management .users-table .user-email {
+  color: #cbd5e1 !important;
+}
+html:not([data-theme='light']) .user-management .users-table .user-contact {
+  color: #a3b1c6 !important;
+}
+
+/* Page subtitle + stat card labels/hints */
+html:not([data-theme='light']) .user-management .title-wrap p,
+html:not([data-theme='light']) .user-management .stat-card .stat-label,
+html:not([data-theme='light']) .user-management .stat-card .stat-hint {
+  color: #cbd5e1 !important;
+}
+
+/* Stat numbers in bright brand blue (matches the "Welcome back" header) */
+html:not([data-theme='light']) .user-management .stat-card .stat-number {
+  color: #38bdf8 !important;
+  -webkit-text-fill-color: #38bdf8 !important;
+}
+
+/* Pagination text */
+html:not([data-theme='light']) .user-management .pagination {
+  color: #cbd5e1 !important;
 }
