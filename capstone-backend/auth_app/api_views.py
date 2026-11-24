@@ -1138,17 +1138,31 @@ PREDICTION_UNAVAILABLE = {
 
 
 def _prediction_fields(result, horizon):
-    """Turn a congestion-risk result dict into the fields the map pins display."""
-    if "error" in result:
-        return {**PREDICTION_UNAVAILABLE, "prediction_note": result.get("error")}
+    """Convert congestion-risk results into fields used by GIS map pins."""
 
-    predicted = (
-        result.get("predicted_congestion_percent")
-        or result.get("predicted_percent")
-        or result.get("risk_percent")
-        or result.get("congestion_percent")
-        or 0
-    )
+    if "error" in result:
+        return {
+            **PREDICTION_UNAVAILABLE,
+            "prediction_note": result.get("error"),
+        }
+
+    # The congestion service returns predicted_occupancy as a decimal.
+    # Example: 0.75 = 75% predicted occupancy.
+    predicted_occupancy = result.get("predicted_occupancy")
+
+    if predicted_occupancy is not None:
+        predicted = float(predicted_occupancy) * 100
+    else:
+        # Backward compatibility for older response formats.
+        predicted = (
+            result.get("predicted_congestion_percent")
+            if result.get("predicted_congestion_percent") is not None
+            else result.get("predicted_percent")
+            if result.get("predicted_percent") is not None
+            else result.get("risk_percent")
+            if result.get("risk_percent") is not None
+            else result.get("congestion_percent", 0)
+        )
 
     predicted = round(float(predicted), 1)
 

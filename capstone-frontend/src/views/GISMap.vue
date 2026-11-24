@@ -457,6 +457,7 @@ const PREDICTION_KEYS = [
 const predictionsReady = ref(false)
 let loadToken = 0
 let hasFitted = false
+let overviewRefreshTimer = null
 
 const dataAsOf = ref(null)
 const coverage = ref(null)
@@ -492,10 +493,23 @@ const writeOverviewCache = () => {
 }
 
 const applyOverview = (data) => {
+  const selectedId = selectedCenter.value?.id
+
   centers.value = data.centers || []
   hazards.value = data.hazards || []
-  if (data.coverage) coverage.value = data.coverage
-  centersById = new Map(centers.value.map((c) => [c.id, c]))
+
+  if (data.coverage) {
+    coverage.value = data.coverage
+  }
+
+  centersById = new Map(
+    centers.value.map((c) => [c.id, c])
+  )
+
+  // Synchronize the selected center with the latest API response.
+  if (selectedId != null) {
+    selectedCenter.value = centersById.get(selectedId) || null
+  }
 }
 
 // The fast (no-predictions) response has no prediction fields; keep the ones we
@@ -1031,6 +1045,14 @@ onMounted(async () => {
 
   await initializeMap()
 
+  // Automatically refresh overview and predictions.
+  // The backend cache expires after 60 seconds.
+  overviewRefreshTimer = window.setInterval(() => {
+    if (!isUnmounted.value && map.value) {
+      loadOverview({ force: true })
+    }
+  }, 65000)
+
   if (typeof ResizeObserver !== 'undefined' && mapEl.value) {
     resizeObserver = new ResizeObserver(handleResize)
     resizeObserver.observe(mapEl.value)
@@ -1054,6 +1076,11 @@ onUnmounted(() => {
     map.value.off()
     map.value.remove()
     map.value = null
+  }
+
+  if (overviewRefreshTimer) {
+    clearInterval(overviewRefreshTimer)
+    overviewRefreshTimer = null
   }
 
   centerLayer.value = null
